@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node"],
+    "paths": {
+      "@red-devil/j2me-shim": ["../j2me-shim/src/index.ts"],
+      "@red-devil/game1": ["../game1/src/index.ts"],
+      "@red-devil/game2": ["../game2/src/index.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

@@ -1,0 +1,43 @@
+MIT License — 适用于本仓库的自有原创部分
+
+Copyright (c) 2026 geeknull
+
+本许可证覆盖本仓库中的自有原创成果，包括但不限于：
+  - packages/   TypeScript 移植与 j2me-shim 兼容层
+  - docs/       逆向解析文档
+  - tools/      本仓库自有的解包 / 契约 / 重命名脚本（不含第三方工具）
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+原版作品版权声明（不在上述 MIT 许可范围内 / NOT covered by the MIT license above）
+
+本仓库是对两款 J2ME 功能机游戏《红魔特种兵》《红魔特种兵2-深海战舰》的存档
+保护与再实现（逆向工程）。下列内容的版权归原始权利人（Sina / TGS 等）所有，
+仅为存档、研究与互操作目的收录，不构成对其权利的主张，也不在上述 MIT 许可之内：
+
+  - reverse/**/0-jar/*.jar                         原始游戏 JAR
+  - reverse/**/1-jar-unpacked/                     解包产物（含 .class 字节码）
+  - reverse/**/2-decompiled-cfr/、3-readable/      反编译 / 可读化产物
+  - 各 .bin 游戏资源（packages/web/public/res*、reverse/**/res 等）及解码资源
+
+若原始权利人认为本仓库侵犯其权益，请通过本仓库 GitHub Issues 联系，我们将配合下架/处理。
+
+第三方工具（CFR、Procyon、FreeJ2ME-Plus）不随本仓库分发，其各自许可见
+tools/README.md。

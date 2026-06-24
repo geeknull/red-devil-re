@@ -1,0 +1,41 @@
+public class tjge.GameMIDlet extends javax.microedition.midlet.MIDlet {
+  tjge.a a;
+    descriptor: Ltjge/a;
+  javax.microedition.lcdui.Display b;
+    descriptor: Ljavax/microedition/lcdui/Display;
+  public static java.util.Random c;
+    descriptor: Ljava/util/Random;
+  static byte[] d;
+    descriptor: [B
+  public static final java.lang.String[] e;
+    descriptor: [Ljava/lang/String;
+  public tjge.GameMIDlet();
+    descriptor: ()V
+
+  protected final void pauseApp();
+    descriptor: ()V
+
+  protected final void startApp() throws javax.microedition.midlet.MIDletStateChangeException;
+    descriptor: ()V
+
+  protected final void destroyApp(boolean) throws javax.microedition.midlet.MIDletStateChangeException;
+    descriptor: (Z)V
+
+  public static final int a(int);
+    descriptor: (I)I
+
+  public static final short a(java.io.InputStream) throws java.io.IOException;
+    descriptor: (Ljava/io/InputStream;)S
+
+  public static final byte b(java.io.InputStream) throws java.io.IOException;
+    descriptor: (Ljava/io/InputStream;)B
+
+  public static final int c(java.io.InputStream) throws java.io.IOException;
+    descriptor: (Ljava/io/InputStream;)I
+
+  static final java.io.InputStream a(java.lang.String, int);
+    descriptor: (Ljava/lang/String;I)Ljava/io/InputStream;
+
+  static {};
+    descriptor: ()V
+}

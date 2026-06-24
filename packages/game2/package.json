@@ -1,0 +1,11 @@
+{
+  "name": "@red-devil/game2",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "红魔特种兵2-深海战舰 — 游戏2 忠实移植（逐行对应 tjge 反编译源）",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@red-devil/j2me-shim": "workspace:*"
+  }
+}

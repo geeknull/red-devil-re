@@ -1,0 +1,154 @@
+public final class tjge.g extends tjge.h {
+  public static final int[] a;
+    descriptor: [I
+  public static final int[] b;
+    descriptor: [I
+  public static final int[] c;
+    descriptor: [I
+  public static final int[] d;
+    descriptor: [I
+  public static int[] e;
+    descriptor: [I
+  public static int[] f;
+    descriptor: [I
+  public static int[][] Q;
+    descriptor: [[I
+  private static final int[][] ak;
+    descriptor: [[I
+  private static final int[][] al;
+    descriptor: [[I
+  private static final int[][][] am;
+    descriptor: [[[I
+  int R;
+    descriptor: I
+  int S;
+    descriptor: I
+  int T;
+    descriptor: I
+  int U;
+    descriptor: I
+  int V;
+    descriptor: I
+  int W;
+    descriptor: I
+  int X;
+    descriptor: I
+  int Y;
+    descriptor: I
+  boolean Z;
+    descriptor: Z
+  boolean aa;
+    descriptor: Z
+  boolean ab;
+    descriptor: Z
+  boolean ac;
+    descriptor: Z
+  boolean ad;
+    descriptor: Z
+  boolean ae;
+    descriptor: Z
+  boolean af;
+    descriptor: Z
+  private boolean an;
+    descriptor: Z
+  public boolean ag;
+    descriptor: Z
+  public boolean ah;
+    descriptor: Z
+  public boolean ai;
+    descriptor: Z
+  tjge.e aj;
+    descriptor: Ltjge/e;
+  public tjge.g(int, tjge.d);
+    descriptor: (ILtjge/d;)V
+
+  public final boolean a(byte[]);
+    descriptor: ([B)Z
+
+  public final void a();
+    descriptor: ()V
+
+  public final void i();
+    descriptor: ()V
+
+  public final void c();
+    descriptor: ()V
+
+  public final boolean o();
+    descriptor: ()Z
+
+  public final void b();
+    descriptor: ()V
+
+  private final void r();
+    descriptor: ()V
+
+  public final int p();
+    descriptor: ()I
+
+  private final void c(int);
+    descriptor: (I)V
+
+  private final boolean s();
+    descriptor: ()Z
+
+  protected final boolean a(tjge.h);
+    descriptor: (Ltjge/h;)Z
+
+  protected final void c(tjge.h);
+    descriptor: (Ltjge/h;)V
+
+  private final void c(int, int);
+    descriptor: (II)V
+
+  private final int t();
+    descriptor: ()I
+
+  private final void u();
+    descriptor: ()V
+
+  private final boolean d(int);
+    descriptor: (I)Z
+
+  public final boolean l();
+    descriptor: ()Z
+
+  public final boolean q();
+    descriptor: ()Z
+
+  public final boolean j();
+    descriptor: ()Z
+
+  public final boolean k();
+    descriptor: ()Z
+
+  private final boolean v();
+    descriptor: ()Z
+
+  private final int a(int[][], int, int);
+    descriptor: ([[III)I
+
+  protected final int m();
+    descriptor: ()I
+
+  private final boolean w();
+    descriptor: ()Z
+
+  private final boolean x();
+    descriptor: ()Z
+
+  public final boolean a(boolean);
+    descriptor: (Z)Z
+
+  public final void b(int, int);
+    descriptor: (II)V
+
+  private void y();
+    descriptor: ()V
+
+  public final void a(tjge.e);
+    descriptor: (Ltjge/e;)V
+
+  static {};
+    descriptor: ()V
+}

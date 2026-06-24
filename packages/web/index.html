@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>红魔特种兵 — 复刻版</title>
+    <style>
+      html, body { margin: 0; min-height: 100%; background: #111; color: #ccc; font-family: monospace; }
+      #app { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; }
+      .stage { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; justify-content: center; }
+      #screen { image-rendering: pixelated; border: 2px solid #333; background: #000; }
+      #err { color: #f66; white-space: pre-wrap; max-width: 90vw; }
+      .hint { font-size: 12px; color: #888; }
+      .hint a { color: #6cf; text-decoration: none; }
+      /* 屏外按键说明面板 */
+      #controls {
+        min-width: 230px; max-width: 300px; background: #181818; border: 1px solid #333;
+        border-radius: 8px; padding: 12px 14px; font-size: 13px;
+      }
+      .ctrl-title { color: #6cf; font-weight: bold; margin-bottom: 10px; font-size: 13px; }
+      .ctrl-row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-top: 1px dashed #2a2a2a; }
+      .ctrl-keys { color: #ffd24d; white-space: nowrap; }
+      .ctrl-label { color: #aaa; text-align: right; }
+      .note { font-size: 11px; color: #666; margin-top: 10px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <h3>红魔特种兵 复刻版</h3>
+      <div class="hint">
+        <a href="?game=1">游戏1 红魔特种兵</a> · <a href="?game=2">游戏2 深海战舰</a>
+      </div>
+      <div class="stage">
+        <canvas id="screen"></canvas>
+        <div id="controls">
+          <div id="controls-panel">
+            <!-- 由 main.ts 按当前游戏动态填充 -->
+          </div>
+          <div class="note">
+            点击画面后按键生效（首次按键会开启声音）。<br />
+            数字键 0-9 对应原手机键位。
+          </div>
+        </div>
+      </div>
+      <div id="err"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

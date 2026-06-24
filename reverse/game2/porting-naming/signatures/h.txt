@@ -1,0 +1,145 @@
+public class tjge.h {
+  public boolean g;
+    descriptor: Z
+  protected int h;
+    descriptor: I
+  protected tjge.d i;
+    descriptor: Ltjge/d;
+  protected boolean j;
+    descriptor: Z
+  protected int k;
+    descriptor: I
+  protected int l;
+    descriptor: I
+  protected boolean m;
+    descriptor: Z
+  protected int n;
+    descriptor: I
+  protected short o;
+    descriptor: S
+  protected int p;
+    descriptor: I
+  protected int q;
+    descriptor: I
+  protected int r;
+    descriptor: I
+  protected int s;
+    descriptor: I
+  public int t;
+    descriptor: I
+  public int u;
+    descriptor: I
+  public int v;
+    descriptor: I
+  public int w;
+    descriptor: I
+  public int x;
+    descriptor: I
+  public int y;
+    descriptor: I
+  public int z;
+    descriptor: I
+  public int A;
+    descriptor: I
+  public int B;
+    descriptor: I
+  public int C;
+    descriptor: I
+  public int D;
+    descriptor: I
+  public int E;
+    descriptor: I
+  public int F;
+    descriptor: I
+  public int G;
+    descriptor: I
+  public int H;
+    descriptor: I
+  public int I;
+    descriptor: I
+  protected int J;
+    descriptor: I
+  protected int K;
+    descriptor: I
+  protected tjge.a L;
+    descriptor: Ltjge/a;
+  private static int N;
+    descriptor: I
+  private int O;
+    descriptor: I
+  private int P;
+    descriptor: I
+  public boolean M;
+    descriptor: Z
+  public tjge.h(int, tjge.d);
+    descriptor: (ILtjge/d;)V
+
+  public boolean a(byte[]);
+    descriptor: ([B)Z
+
+  public final void e();
+    descriptor: ()V
+
+  public final void f();
+    descriptor: ()V
+
+  public final void a(int);
+    descriptor: (I)V
+
+  public final void g();
+    descriptor: ()V
+
+  public final boolean h();
+    descriptor: ()Z
+
+  public void i();
+    descriptor: ()V
+
+  public void b();
+    descriptor: ()V
+
+  public void a(javax.microedition.lcdui.Graphics, int, int);
+    descriptor: (Ljavax/microedition/lcdui/Graphics;II)V
+
+  public final boolean a(int, int, int, int);
+    descriptor: (IIII)Z
+
+  public final boolean b(tjge.h);
+    descriptor: (Ltjge/h;)Z
+
+  public boolean j();
+    descriptor: ()Z
+
+  public boolean k();
+    descriptor: ()Z
+
+  public boolean l();
+    descriptor: ()Z
+
+  protected final boolean b(int);
+    descriptor: (I)Z
+
+  protected int m();
+    descriptor: ()I
+
+  protected boolean a(tjge.h);
+    descriptor: (Ltjge/h;)Z
+
+  protected void c(tjge.h);
+    descriptor: (Ltjge/h;)V
+
+  protected boolean d();
+    descriptor: ()Z
+
+  protected final void n();
+    descriptor: ()V
+
+  protected final boolean d(tjge.h);
+    descriptor: (Ltjge/h;)Z
+
+  protected final int a(int, int);
+    descriptor: (II)I
+
+  static {};
+    descriptor: ()V
+}

@@ -1,0 +1,2404 @@
+/**
+ * 游戏1《红魔特种兵》主类 —— 主 Canvas + 主循环 Runnable（最核心，CFR ~2244 行）。
+ * 逐行移植自 reverse/game1/2-decompiled-cfr/tjge/a.java（CFR 权威源）。
+ * 移植规约见 docs/05-移植规约.md；方法名映射见 reverse/game1/porting-naming/porting-contract.json。
+ *
+ * 角色：继承 FullCanvas（→ shim Canvas），实现 Runnable（→ async run()）。
+ *   持有关卡地图 f(tjge.b)、精灵库 g(tjge.j)、主角 j(tjge.f)、绘制队列 k(tjge.g[])、
+ *   子弹/特效池 l(tjge.l[][])、敌兵阵 m(tjge.h[][])、Boss n(tjge.c)。
+ *   状态机字段 p（见 docs/game1-红魔特种兵/游戏状态机.md），状态值：
+ *     1=开机logo, 4=主菜单, 2=载入中, 22=任务简报, 21/14/19=过场, 10=游戏中,
+ *     18=任务失败, 16=任务完成, 15=片尾, 13=暂停菜单, 3/6=帮助/关于, 20=主角死亡。
+ *   静态字段 a/b=屏幕宽/可玩高, c=屏宽*1024(定点视宽), d=屏高, e=单例,
+ *     P/am/an/ao=输入环形队列, Q=3字节存档[最高关,当前关,音效开关], S=音效数组, T=当前音效,
+ *     U=当前文本(x.bin解出), V=任务编号汉字串。
+ *
+ * 方法名按契约表（同 (名,描述符) → 同 TS 名）。框架方法 paint/keyPressed/keyReleased/
+ *   hideNotify/run 与 constructor 保留原名。
+ *
+ * 必要偏差（位级/逻辑一致，仅平台桥接处）：
+ *   - extends FullCanvas → shim Canvas（全屏画布等价）。
+ *   - Font.getFont(...)+setFont(...)：shim 无 Font，绘制用系统字体近似，故 setFont 整体省略并注释。
+ *   - DirectGraphics(this.K)+drawPixels(short[],...)：shim 无 DirectGraphics，按 game1 像素管线
+ *     用 RGB4444 short→ARGB 解码后经 Image.createRGBImage 生成图再 drawImage 贴出（见 b_G / paint case1,13）。
+ *   - Image.createImage(byte[],off,len)（仅 f_I 内）→ getCachedImage("/res/image.bin", i)（按索引取预解码图）。
+ *   - new Sound(byte[],gain)：第二参原为增益档，这里作为 Sound type 传入（音频暂静音，调用保留）。
+ *   - RecordStore（RMS 存档，c_I）：shim 无 RMS，用 localStorage 复刻 3 字节存档读写，控制流保持一致。
+ *   - System.gc() 删除；System.currentTimeMillis() → Date.now()。
+ */
+import {
+  Canvas,
+  Graphics,
+  Image,
+  Thread,
+  Font,
+  getResourceAsStream,
+  getCachedImage,
+  Sound,
+} from "@red-devil/j2me-shim";
+import { GameMIDlet } from "./GameMIDlet.ts";
+import { TileMap } from "./TileMap.ts";
+import { BossActor } from "./BossActor.ts";
+import { SpriteDef } from "./SpriteDef.ts";
+import { EffectActor } from "./EffectActor.ts";
+import { PlayerActor } from "./PlayerActor.ts";
+import { ActorBase } from "./ActorBase.ts";
+import { EnemyActor } from "./EnemyActor.ts";
+import { LevelLoader } from "./LevelLoader.ts";
+import { PickupActor } from "./PickupActor.ts";
+import { ProjectileActor } from "./ProjectileActor.ts";
+
+const INT_MIN = -2147483648; // Integer.MIN_VALUE / 0x80000000
+
+// 原版：a extends FullCanvas implements Runnable（TS 无 Runnable 接口，run() 直接由 Thread 驱动）。
+export class GameScreen extends Canvas {
+  static screenWidth: number = 176;
+  static playHeight: number = 176;
+  static viewWidthFx: number = 180224;
+  static screenHeight: number = 208;
+  static instance: GameScreen;
+  private frameStepMs: number = 100; // long（计时步长，不溢出，用 number）
+  private running: boolean = false;
+  private painting: boolean = false;
+  private levelLoaded: boolean = false;
+  private loopThread: Thread | null = null;
+  private midlet: GameMIDlet;
+  tileMap!: TileMap; // protected
+  levelLoader!: LevelLoader; // protected
+  hudImage: Image | null = null;
+  menuImage: Image | null = null;
+  player!: PlayerActor;
+  drawQueue!: (ActorBase | null)[];
+  projectilePools!: ((ProjectileActor | null)[] | null)[];
+  enemyGrid!: ((EnemyActor | null)[] | null)[] | null;
+  boss: BossActor | null = null;
+  frameCounter: number = 0;
+  state: number = 0;
+  heldKeyAction: number = 0;
+  cameraX: number = 0;
+  cameraY: number = 0;
+  cameraVelX: number = 0;
+  cameraVelY: number = 0;
+  drawQueueCount: number = 0;
+  stateTimer: number = 0;
+  levelIndex: number = 0;
+  menuSelection: number = 0;
+  enemyAliveCount: number = 0;
+  airdropWaveCount: number = 0;
+  reinforceBudget: number = 0;
+  killCount: number = 0;
+  levelStartMs: number = 0; // long（仅计时差，用 number）
+  flagE: boolean = false;
+  taskSelectIndex: number = 0;
+  hudBlinkCounter: number = 0;
+  menuVisibleMax: number = 0;
+  animFrameIndex: number = 0;
+  pixelBuffer!: Int16Array; // short[]
+  // K：原 DirectGraphics 句柄；shim 无 DirectGraphics，仅作为 b_G 内像素贴图的占位（不持状态）。
+  directGraphics: Graphics | null = null;
+  scriptFlagL: boolean = false;
+  showIndicator: boolean = false;
+  indicatorToggle: boolean = false;
+  indicatorValue: number = 0;
+  private scriptStageAc: number = 0;
+  private bossTriggerX: number = 0;
+  private inTaskSelectMenu: boolean = false;
+  private isCutsceneEntry: boolean = false;
+  private levelResourcesReady: boolean = false;
+  private menuActive: boolean = false;
+  private cursorExpanding: boolean = false;
+  private cursorWidth: number = 0;
+  private creditScrollX: number = -176;
+  private creditScrollX2: number = -20;
+  static inputQueueCap: number;
+  private static inputQueue: Int32Array;
+  private static inputWriteIndex: number;
+  private static inputReadIndex: number;
+  static saveData: Int8Array;
+  static soundCount: number;
+  static sounds: (Sound | null)[];
+  static currentSoundIndex: number;
+  static currentText: string | null;
+  static taskNumberChars: string;
+
+  // static {} 静态初始化块（对应 Java 末尾 static {}）
+  static {
+    GameScreen.inputQueueCap = 4;
+    GameScreen.inputQueue = new Int32Array(GameScreen.inputQueueCap);
+    GameScreen.inputReadIndex = 0;
+    GameScreen.inputWriteIndex = 0;
+    GameScreen.saveData = new Int8Array([0, 0, 1]);
+    GameScreen.soundCount = 6;
+    GameScreen.sounds = new Array<Sound | null>(GameScreen.soundCount).fill(null);
+    GameScreen.currentSoundIndex = -1;
+    GameScreen.taskNumberChars = "一二三四五六七八";
+  }
+
+  constructor(gameMIDlet: GameMIDlet) {
+    super();
+    GameScreen.instance = this;
+    this.midlet = gameMIDlet;
+    GameScreen.screenWidth = this.getWidth();
+    GameScreen.playHeight = this.getHeight() - 32;
+    this.state = 1;
+    this.loopThread = new Thread(this);
+    this.loopThread.start();
+    this.running = true;
+    this.painting = false;
+    this.levelResourcesReady = false;
+    this.pixelBuffer = new Int16Array(3600);
+  }
+
+  // a(int,tjge.d) → a_ITd（精灵工厂）
+  createActor(n: number, d2: SpriteDef): ActorBase {
+    switch (n) {
+      case 0: {
+        this.player = new PlayerActor(n, d2, this);
+        return this.player;
+      }
+      case 10: {
+        return new ProjectileActor(n, d2, this);
+      }
+      case 1:
+      case 2:
+      case 18: {
+        return new EnemyActor(n, d2, this);
+      }
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+      case 9:
+      case 12:
+      case 19:
+      case 22: {
+        return new EffectActor(n, d2, this);
+      }
+      case 3:
+      case 11:
+      case 13: {
+        return new PickupActor(n, d2, this);
+      }
+      case 8:
+      case 14:
+      case 17: {
+        return new BossActor(n, d2, this);
+      }
+    }
+    return new ActorBase(n, d2);
+  }
+
+  /*
+   * Unable to fully structure code（CFR 注：含不可完全结构化的跳转，已逐分支忠实还原）
+   */
+  paint(var1_1: Graphics): void {
+    this.painting = true;
+    ++this.frameCounter;
+    try {
+      switch (this.state) {
+        case 1: {
+          if (this.stateTimer++ === 0) {
+            this.hudImage = GameScreen.loadImageFromBin(8);
+            var1_1.drawImage(this.hudImage!, 29, 55, 20);
+            var1_1.setColor(238, 25, 33);
+            var1_1.setFont(Font.getFont(0, 1, 0)); // SYSTEM/BOLD/MEDIUM
+            var1_1.drawString("移动互连 无限可能", (GameScreen.screenWidth / 2) | 0, 128, 17);
+            this.hudImage = GameScreen.loadImageFromBin(7);
+            this.menuImage = GameScreen.loadImageFromBin(0);
+            this.initGameResources();
+            break;
+          }
+          if (this.stateTimer === 12) {
+            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0xffffff);
+            var1_1.drawImage(this.hudImage!, 12, 12, 20);
+            var1_1.drawImage(this.menuImage!, 88, 95, 17);
+            var1_1.setColor(155, 166, 173);
+            var1_1.drawString("新浪无线代理发行", 60, 142, 20);
+            this.menuImage = null;
+            this.hudImage = null;
+            break;
+          }
+          if (this.stateTimer === 22) {
+            this.menuImage = GameScreen.loadImageFromBin(1);
+            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+            var1_1.drawImage(this.menuImage!, 57, 80, 20);
+            var1_1.setColor(0xffffff);
+            var1_1.drawString("www.tickgame.com", 88, 120, 17);
+            break;
+          }
+          if (this.stateTimer > 32 && this.stateTimer < 42) {
+            let var2_2 = 0;
+            while (var2_2 < this.pixelBuffer.length) {
+              this.pixelBuffer[var2_2] = ((this.stateTimer - 32) << 16) >> 16; // (short)(w-32)
+              const v0 = var2_2++;
+              this.pixelBuffer[v0] = (this.pixelBuffer[v0] << 12) << 16 >> 16; // (short)(... << 12)
+            }
+            // this.K = DirectUtils.getDirectGraphics(var1_1);
+            // K.drawPixels(J, true, 0, 72, 57, 60, 72, 48, 0, 4444);
+            this.directGraphics = var1_1;
+            this.drawPixels(var1_1, this.pixelBuffer, 0, 72, 57, 60, 72, 48);
+            break;
+          }
+          if (this.stateTimer !== 42) break;
+          this.stateTimer = 0;
+          this.state = 4;
+          this.menuVisibleMax = 0;
+          this.menuSelection = 0;
+          this.hudBlinkCounter = 1;
+          this.inTaskSelectMenu = false;
+          this.menuImage = GameScreen.loadImageFromBin(2);
+          GameScreen.playSound(0, 1, 160);
+          break;
+        }
+        case 4: {
+          GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+          var1_1.drawImage(this.menuImage!, 18, 9, 20);
+          LevelLoader.spriteDefPool[8]!.paintSequenceFrame(var1_1, 128, 190, INT_MIN, this.frameCounter % 3, 0, 0);
+          LevelLoader.spriteDefPool[0]!.paintSequenceFrame(var1_1, 153, 159, INT_MIN, this.frameCounter % 3, 0, 0);
+          var1_1.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
+          if (this.menuActive) {
+            const var2_3 = this.pollInputAction();
+            if (var2_3 === 4) {
+              if (!this.inTaskSelectMenu) {
+                this.resetCursorAnim();
+                if (--this.menuSelection < 0) {
+                  this.menuSelection = 6;
+                }
+                this.menuVisibleMax = this.menuSelection;
+              } else if (--this.taskSelectIndex < 0) {
+                this.taskSelectIndex = GameScreen.saveData[0];
+              }
+            } else if (var2_3 === 8) {
+              if (!this.inTaskSelectMenu) {
+                this.resetCursorAnim();
+                if (++this.menuSelection > 6) {
+                  this.menuSelection = 0;
+                }
+                this.menuVisibleMax = this.menuSelection;
+              } else if (++this.taskSelectIndex > GameScreen.saveData[0]) {
+                this.taskSelectIndex = 0;
+              }
+            } else if (var2_3 === 16) {
+              this.stateTimer = 0;
+              if (this.inTaskSelectMenu) {
+                if (this.levelResourcesReady && this.levelIndex !== this.taskSelectIndex) {
+                  this.releaseLevel();
+                }
+                this.levelIndex = this.taskSelectIndex;
+                GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
+                GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+                this.state = 2;
+                break;
+              }
+              switch (this.menuSelection) {
+                case 0: {
+                  GameScreen.saveData[0] = 0;
+                  GameScreen.saveData[1] = 0;
+                  this.levelIndex = 0;
+                  this.player.fullAmmoInit();
+                  if (this.levelResourcesReady) {
+                    this.releaseLevel();
+                  }
+                  this.state = 2;
+                  break;
+                }
+                case 1: {
+                  this.levelIndex = GameScreen.saveData[1];
+                  this.player.fullAmmoInit();
+                  this.state = 2;
+                  break;
+                }
+                case 2: {
+                  this.inTaskSelectMenu = true;
+                  this.taskSelectIndex = 0;
+                  this.player.fullAmmoInit();
+                  break;
+                }
+                case 3: {
+                  GameScreen.saveData[2] = GameScreen.saveData[2] === 0 ? 1 : 0;
+                  break;
+                }
+                case 4:
+                case 5: {
+                  this.state = this.menuSelection === 4 ? 6 : 3;
+                  this.heldKeyAction = 0;
+                  break;
+                }
+                case 6: {
+                  this.accessSaveData(0);
+                  this.painting = false;
+                  this.midlet.notifyDestroyed();
+                }
+              }
+              GameScreen.playSound(3, 1, 100);
+            }
+          }
+          if (this.inTaskSelectMenu) {
+            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+            var1_1.setColor(65280);
+            var1_1.drawRect(0, 185, 175, 21);
+            var1_1.drawString("任务" + GameScreen.taskNumberChars.substring(this.taskSelectIndex, this.taskSelectIndex + 1), (GameScreen.screenWidth / 2) | 0, 190, 17);
+            break;
+          }
+          var1_1.setFont(Font.getFont(64, 1, 8)); // PROPORTIONAL/BOLD/SMALL
+          {
+            const var2_3 = this.menuActive !== false ? 6 : this.menuVisibleMax;
+            let var3_5 = 0;
+            let var4_7 = 0;
+            while (var4_7 <= var2_3) {
+              if (this.menuActive && var4_7 === this.menuSelection && this.hudBlinkCounter === 0) {
+                var1_1.setColor(0xffffff);
+              } else {
+                var1_1.setColor(65280);
+              }
+              var3_5 = var4_7 === 3 && GameScreen.saveData[2] !== 1 ? 7 : var4_7;
+              var1_1.drawString(GameMIDlet.menuTexts[var3_5], 52, 87 + var4_7 * 15, 17);
+              ++var4_7;
+            }
+            if (!this.menuActive) {
+              this.cursorWidth += 16;
+              if (this.cursorWidth > 64) {
+                if (++this.menuVisibleMax > 6) {
+                  this.menuVisibleMax = this.menuSelection;
+                  this.menuActive = true;
+                  this.clearInputQueue();
+                  this.cursorExpanding = true;
+                } else {
+                  this.cursorWidth = 0;
+                }
+              }
+            } else {
+              this.animateCursorExpand();
+              this.menuVisibleMax = this.menuSelection;
+            }
+            var1_1.setColor(65280);
+            const var5_9 = this.cursorWidth >>> 1;
+            var1_1.drawLine(52 - var5_9, 100 + this.menuVisibleMax * 15, 52 + var5_9, 100 + this.menuVisibleMax * 15);
+          }
+          break;
+        }
+        case 2: {
+          this.loadLevelStep(this.levelIndex);
+          if (this.levelLoaded) {
+            this.stateTimer = 0;
+            this.state = 22;
+            break;
+          }
+          GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+          var1_1.setColor(0xff0000);
+          var1_1.drawString("载入中", 65, 192, 20);
+          {
+            let var2_4 = 0;
+            while (var2_4 < this.stateTimer) {
+              var1_1.drawString(".", 110 + var2_4 * 3, 192, 20);
+              ++var2_4;
+            }
+          }
+          break;
+        }
+        case 22: {
+          if (this.heldKeyAction !== 0) {
+            this.stateTimer = 71;
+          }
+          if (this.stateTimer === 0) {
+            this.loadTextFromBin(2);
+          }
+          if (this.stateTimer++ <= 70) {
+            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+            this.drawBriefingScreen(var1_1, this.stateTimer);
+            break;
+          }
+          if (this.stateTimer <= 70) break;
+          GameScreen.currentText = null;
+          // System.gc();
+          this.stateTimer = 0;
+          this.heldKeyAction = 0;
+          if (!this.levelLoaded) {
+            this.state = 10;
+            break;
+          }
+          this.levelLoaded = false;
+          this.killCount = 0;
+          this.levelStartMs = Date.now(); // System.currentTimeMillis()
+          if (this.hudImage == null) {
+            this.hudImage = GameScreen.loadImageFromBin(3);
+          }
+          if (this.isCutsceneEntry) {
+            if (this.levelIndex === 7) {
+              this.scriptStageAc = this.cameraX = 184320;
+              this.player.posX -= 40960;
+            } else {
+              this.player.posX = 0;
+              this.cameraX = 4096;
+            }
+            this.player.targetVelX = 8192;
+            this.player.setFrame(2);
+            this.state = 14;
+            break;
+          }
+          this.cameraVelX = 0;
+          this.cameraX = 0;
+          this.player.posX = -81920;
+          this.state = 10;
+          break;
+        }
+        case 21: {
+          switch (this.levelIndex) {
+            case 2: {
+              if (!this.scriptFlagL) {
+                if (this.stateTimer++ <= 3) break;
+                this.cameraVelX = 12288;
+                this.cameraVelY = 0;
+                break;
+              }
+              if (this.stateTimer++ <= 9) break;
+              this.cameraVelX = -16384;
+              break;
+            }
+            case 7: {
+              if (!this.scriptFlagL) {
+                if (this.stateTimer === 0) {
+                  this.cameraVelX = -8192;
+                  break;
+                }
+                this.cameraVelX = 16384;
+                if (this.cameraX + this.cameraVelX <= this.scriptStageAc) break;
+                this.cameraX = this.scriptStageAc;
+                this.cameraVelX = 0;
+                this.state = 10;
+                this.heldKeyAction = 0;
+                this.stateTimer = 0;
+                break;
+              }
+              if (this.stateTimer++ > 30) {
+                this.scriptFlagL = false;
+                this.cameraVelY = 0;
+                break;
+              }
+              this.cameraVelX = 0;
+            }
+          }
+          this.updateWorld();
+          this.renderWorld(var1_1);
+          break;
+        }
+        case 14: {
+          if (this.stateTimer++ !== 5) {
+            // lbl248
+            if (this.stateTimer > 16) {
+              this.player.setFrame(0);
+              this.state = this.levelIndex === 7 ? 21 : 10;
+              this.heldKeyAction = 0;
+              this.isCutsceneEntry = false;
+              this.stateTimer = 0;
+            }
+          } else {
+            this.player.targetVelX = 0;
+            this.player.setFrame(1);
+          }
+          // fall through to case 10（CFR：lbl254 落入 case 10）
+          this.updateWorld();
+          this.renderWorld(var1_1);
+          break;
+        }
+        case 10: {
+          this.updateWorld();
+          this.renderWorld(var1_1);
+          break;
+        }
+        case 18: {
+          if (this.stateTimer === 0) {
+            this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
+            var1_1.setColor(65280);
+            var1_1.drawString(
+              "任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1) + "失败",
+              (GameScreen.screenWidth / 2) | 0,
+              35,
+              17
+            );
+            var1_1.drawString("击毙敌人: " + this.killCount, 36, 74, 20);
+            var1_1.drawString("所用时间: " + GameScreen.formatTime(this.levelStartMs), 36, 105, 20);
+            this.drawBriefingAnim(var1_1, 0, 16, 40, 175, 0);
+            this.cursorWidth = 60;
+            ++this.stateTimer;
+            this.clearInputQueue();
+          } else {
+            const var3_6 = this.pollInputAction();
+            if (var3_6 === 4) {
+              this.resetCursorAnim();
+              if (--this.menuSelection < 0) {
+                this.menuSelection = 1;
+              }
+            } else if (var3_6 === 8) {
+              this.resetCursorAnim();
+              if (++this.menuSelection > 1) {
+                this.menuSelection = 0;
+              }
+            } else if (var3_6 === 16) {
+              switch (this.menuSelection) {
+                case 0: {
+                  this.player.fullAmmoInit();
+                  this.state = 2;
+                  break;
+                }
+                case 1: {
+                  this.inTaskSelectMenu = false;
+                  this.state = 4;
+                }
+              }
+              this.stateTimer = 0;
+              this.clearInputQueue();
+              this.menuVisibleMax = 0;
+              this.hudBlinkCounter = 0;
+              this.menuSelection = 0;
+              this.levelResourcesReady = true;
+              break;
+            }
+          }
+          GameScreen.fillRectClipped(var1_1, 70, 150, 106, 58, 0);
+          {
+            let var3_6 = 0;
+            while (var3_6 < 2) {
+              if (var3_6 === this.menuSelection && this.hudBlinkCounter === 0) {
+                var1_1.setColor(0xffffff);
+              } else {
+                var1_1.setColor(65280);
+              }
+              if (var3_6 === 0) {
+                var1_1.drawString(GameMIDlet.menuTexts[1], 120, 150, 17);
+              } else {
+                var1_1.drawString(GameMIDlet.menuTexts[9], 120, 170, 17);
+              }
+              ++var3_6;
+            }
+          }
+          var1_1.setColor(65280);
+          {
+            const var4_8 = this.cursorWidth >>> 1;
+            var1_1.drawLine(120 - var4_8, 164 + this.menuSelection * 20, 120 - var4_8 + this.cursorWidth, 164 + this.menuSelection * 20);
+          }
+          this.animateCursorExpand();
+          break;
+        }
+        case 15: {
+          GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+          if (this.stateTimer === 0) {
+            LevelLoader.retainSpriteDef(18);
+            this.stateTimer = 10;
+            break;
+          }
+          if (this.creditScrollX > 240) {
+            if (this.stateTimer > 0) {
+              this.stateTimer = 0;
+            }
+            var1_1.setColor(0xff0000);
+            var1_1.setFont(Font.getFont(0, 1, 16)); // SYSTEM/BOLD/LARGE
+            var1_1.drawString("剧终", 88, 100, 17);
+            if (this.stateTimer-- >= -60) break;
+            this.state = 4;
+            this.stateTimer = 0;
+            this.clearInputQueue();
+            this.menuSelection = 0;
+            this.inTaskSelectMenu = false;
+            this.levelResourcesReady = true;
+            break;
+          }
+          {
+            let var5_10 = 0;
+            let var6_12 = 0;
+            let var7_14 = 0;
+            let var8_16 = 0;
+            let var9_19 = 0;
+            let var10_20 = 0;
+            while (var10_20 < 4) {
+              switch (var10_20) {
+                case 0: {
+                  var5_10 = 0;
+                  var8_16 = 146;
+                  var7_14 = this.creditScrollX - 15;
+                  this.creditScrollX += 6;
+                  if (var7_14 > 3 && var7_14 < 40) {
+                    var6_12 = 1;
+                    var9_19 = 8;
+                    break;
+                  }
+                  var6_12 = 0;
+                  var9_19 = 3;
+                  break;
+                }
+                case 1: {
+                  var5_10 = 18;
+                  var7_14 = this.creditScrollX2 - 15;
+                  var8_16 = 146;
+                  this.creditScrollX2 += 6;
+                  if (this.creditScrollX < 6 || this.creditScrollX > 25) {
+                    var6_12 = INT_MIN;
+                    var9_19 = 4;
+                    break;
+                  }
+                  var6_12 = -2147483646;
+                  var9_19 = 2;
+                  break;
+                }
+                case 2:
+                case 3: {
+                  var5_10 = 8;
+                  var6_12 = 0;
+                  var7_14 = var10_20 === 2 ? this.creditScrollX : this.creditScrollX2;
+                  var8_16 = 176;
+                  var9_19 = 3;
+                }
+              }
+              this.drawBriefingAnim(var1_1, var5_10, var6_12, var7_14, var8_16, this.stateTimer % var9_19);
+              ++var10_20;
+            }
+            ++this.stateTimer;
+          }
+          break;
+        }
+        case 16: {
+          if (this.heldKeyAction !== 0 && this.stateTimer !== 10) {
+            this.stateTimer = 10;
+            this.animFrameIndex = 0;
+            this.clearInputQueue();
+          }
+          this.drawReturnHint(var1_1);
+          if (this.stateTimer === 0) {
+            GameScreen.playSound(2, 1, 140);
+            this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
+            var1_1.setColor(65280);
+            var1_1.drawString(
+              "任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1) + "完成",
+              (GameScreen.screenWidth / 2) | 0,
+              35,
+              17
+            );
+            var1_1.drawString("击毙敌人: " + this.killCount, 36, 74, 20);
+            var1_1.drawString("所用时间: " + GameScreen.formatTime(this.levelStartMs), 36, 105, 20);
+            this.stateTimer = 1;
+            this.animFrameIndex = 0;
+            break;
+          }
+          var1_1.setColor(0);
+          var1_1.fillRect(54, 125, 60, 50);
+          if (this.stateTimer === 10) {
+            if (!this.drawBriefingAnim(var1_1, 0, 14, 84, 175, this.animFrameIndex++)) break;
+            this.stateTimer = 0;
+            this.clearInputQueue();
+            if (this.levelIndex !== 7) {
+              ++this.levelIndex;
+              this.releaseLevel();
+              this.state = 2;
+              if (((this.levelIndex << 24) >> 24) > GameScreen.saveData[0]) {
+                GameScreen.saveData[0] = (this.levelIndex << 24) >> 24; // (byte)
+              }
+              GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
+              this.accessSaveData(0);
+            } else {
+              this.state = 15;
+              this.creditScrollX = -176;
+              this.creditScrollX2 = -20;
+            }
+            // System.gc();
+            break;
+          }
+          this.drawBriefingAnim(var1_1, 0, 0, 84, 175, this.animFrameIndex++);
+          break;
+        }
+        case 19: {
+          if (this.stateTimer === 0) {
+            this.player.setFrame(1);
+            this.player.targetVelX = GameScreen.instance.levelIndex === 4 ? this.cameraVelX : 0;
+            this.player.accelX = 0;
+            this.player.targetVelY = 0;
+            this.player.accelY = 0;
+          } else if (this.stateTimer === 11) {
+            switch (this.levelIndex) {
+              case 0:
+              case 6:
+              case 7: {
+                this.player.targetVelX = 8192;
+                this.player.setFrame(2);
+                break;
+              }
+              case 1:
+              case 3: {
+                ++this.stateTimer;
+                this.player.setFrame(0 | this.player.facingFlag);
+                break;
+              }
+              case 2: {
+                this.player.targetVelX = 12288;
+                this.player.startLeapRight(-10240);
+                this.player.subState = 4;
+                ++this.stateTimer;
+                break;
+              }
+              case 4: {
+                this.player.targetVelX = 15360;
+              }
+            }
+          }
+          if ((this.levelIndex === 1 || this.levelIndex === 3) && this.stateTimer > 11) {
+            if (this.stateTimer++ > 23) {
+              this.state = 16;
+              this.heldKeyAction = 0;
+              this.stateTimer = 0;
+              break;
+            }
+            this.fillScreenColor(var1_1, this.stateTimer - 11);
+            break;
+          }
+          if (this.player.posX > this.cameraX + GameScreen.viewWidthFx + 10240) {
+            this.player.targetVelX = 0;
+            if (this.stateTimer++ > 32) {
+              this.state = 16;
+              this.heldKeyAction = 0;
+              this.cameraVelY = 0;
+              this.stateTimer = 0;
+              break;
+            }
+            this.fillScreenColor(var1_1, this.stateTimer - 20);
+            break;
+          }
+          this.updateWorld();
+          this.renderWorld(var1_1);
+          if (this.stateTimer < 11) {
+            ++this.stateTimer;
+            break;
+          }
+          this.stateTimer = 20;
+          break;
+        }
+        case 13: {
+          let var5_11 = 0;
+          if (this.stateTimer === 0) {
+            var5_11 = 0;
+            while (var5_11 < this.pixelBuffer.length) {
+              this.pixelBuffer[var5_11] = 24603;
+              ++var5_11;
+            }
+            ++this.stateTimer;
+          }
+          if ((var5_11 = this.pollInputAction()) === 4) {
+            if (--this.menuSelection < 0) {
+              this.menuSelection = 3;
+            }
+          } else if (var5_11 === 8) {
+            if (++this.menuSelection > 3) {
+              this.menuSelection = 0;
+            }
+          } else if (var5_11 === 16) {
+            switch (this.menuSelection) {
+              case 0: {
+                this.heldKeyAction = 0;
+                this.state = 10;
+                break;
+              }
+              case 1: {
+                GameScreen.saveData[2] = GameScreen.saveData[2] === 0 ? 1 : 0;
+                break;
+              }
+              case 2: {
+                this.levelResourcesReady = true;
+                this.clearInputQueue();
+                this.menuVisibleMax = 0;
+                this.hudBlinkCounter = 0;
+                this.menuSelection = 0;
+                this.inTaskSelectMenu = false;
+                this.state = 4;
+                break;
+              }
+              case 3: {
+                this.accessSaveData(0);
+                this.painting = false;
+                this.midlet.notifyDestroyed();
+                return;
+              }
+            }
+            this.stateTimer = 0;
+            GameScreen.playSound(3, 1, 100);
+            if (this.menuSelection !== 1) break;
+          }
+          this.renderWorld(var1_1);
+          var1_1.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
+          var1_1.setColor(240, 176, 0);
+          var1_1.drawRect(44, 45, 88, 78);
+          // this.K = DirectUtils.getDirectGraphics(var1_1);
+          this.directGraphics = var1_1;
+          this.drawPixels(var1_1, this.pixelBuffer, 0, 87, 45, 46, 87, 39);
+          this.drawPixels(var1_1, this.pixelBuffer, 0, 87, 45, 85, 87, 38);
+          {
+            let var6_13 = 0;
+            let var7_15 = 0;
+            while (var7_15 < 4) {
+              if (this.menuSelection === var7_15) {
+                var1_1.setColor(0xffffff);
+              } else {
+                var1_1.setColor(96, 192, 255);
+              }
+              if (var7_15 === 0) {
+                var6_13 = 8;
+              } else if (var7_15 === 1) {
+                var6_13 = GameScreen.saveData[2] === 1 ? 3 : 7;
+              } else if (var7_15 === 2) {
+                var6_13 = 9;
+              } else if (var7_15 === 3) {
+                var6_13 = 6;
+              }
+              var1_1.drawString(GameMIDlet.menuTexts[var6_13], 56, 56 + var7_15 * 16, 20);
+              ++var7_15;
+            }
+          }
+          break;
+        }
+        case 3:
+        case 6: {
+          if (this.heldKeyAction !== 0) {
+            this.state = 4;
+            this.inTaskSelectMenu = false;
+            this.stateTimer = 0;
+            this.clearInputQueue();
+            GameScreen.currentText = null;
+            // System.gc();
+            break;
+          }
+          if (this.stateTimer === 0) {
+            let var8_17: number;
+            if (this.state === 6) {
+              this.loadTextFromBin(0);
+              var8_17 = 3;
+            } else {
+              this.loadTextFromBin(1);
+              var8_17 = 25;
+            }
+            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+            var1_1.setFont(Font.getFont(0, 1, 8)); // SYSTEM/BOLD/SMALL
+            var1_1.setColor(65280);
+            this.drawWrappedText(var1_1, 20, var8_17, 14);
+            ++this.stateTimer;
+          }
+          this.drawReturnHint(var1_1);
+          break;
+        }
+        case 20: {
+          this.fillScreenColor(var1_1, this.stateTimer++);
+          if (this.stateTimer <= 12) break;
+          this.stateTimer = 0;
+          this.player.actionFlag = false;
+          this.player.linkedEnemy = null;
+          this.menuSelection = 0;
+          this.heldKeyAction = 0;
+          if (this.player.spareO === 16 && this.player.spareP === 16) {
+            this.state = 16;
+            break;
+          }
+          if (this.player.health <= 0) {
+            this.state = 18;
+            break;
+          }
+          this.player.setFrame(0);
+          this.player.facingFlag = 0;
+          this.player.posX = this.player.spareO << 10;
+          this.player.posY = this.player.spareP << 10;
+          {
+            const var8_18 = GameScreen.playHeight << 10;
+            GameScreen.instance.cameraX = this.player.posX - ((GameScreen.viewWidthFx / 5) | 0);
+            GameScreen.instance.cameraY = this.player.posY - ((var8_18 * 3 / 4) | 0);
+          }
+          this.tileMap.invalidateBuffer();
+          this.state = 10;
+        }
+      }
+    } catch (v1) {}
+    this.painting = false;
+  }
+
+  // a() → a_
+  updateWorld(): void {
+    let n: number;
+    let n2 = 0;
+    let n3 = 0;
+    let n4 = 0;
+    const nArray = new Int32Array(10);
+    n2 = 0;
+    while (n2 < this.drawQueueCount) {
+      this.drawQueue[n2] = null;
+      ++n2;
+    }
+    this.drawQueueCount = 0;
+    n2 = 0;
+    const gfg = this.levelLoader.blockActorIndices[this.levelLoader.currentBlock]!; // f[g] 为当前活动单位 id 行（原 Java byte[]，此路径非空）
+    while (n2 < gfg.length) {
+      n = gfg[n2];
+      // typeId 在 ActorBase 中为 protected（原 Java 为包内可见）；GameScreen 非 ActorBase 子类，经结构视图读取保持等价。
+      const en = LevelLoader.activeActors[n] as unknown as ({ active: boolean; typeId: number } | null);
+      if (n !== 0 && en != null && en.active && en.typeId !== 0) {
+        if (this.isPickupType(en.typeId)) {
+          nArray[n4++] = n;
+        } else {
+          this.drawQueue[this.drawQueueCount++] = LevelLoader.activeActors[n];
+        }
+      }
+      ++n2;
+    }
+    if (this.levelIndex !== 4) {
+      this.drawQueue[this.drawQueueCount++] = this.player;
+    }
+    if (this.enemyAliveCount > 0) {
+      n2 = 0;
+      while (n2 < 2) {
+        n3 = 0;
+        while (n3 < 3) {
+          if (this.enemyGrid![n2]![n3]!.active) {
+            if (this.enemyGrid![n2]![n3]!.trailEffect != null && this.enemyGrid![n2]![n3]!.trailEffect!.active) {
+              this.drawQueue[this.drawQueueCount++] = this.enemyGrid![n2]![n3]!.trailEffect;
+            }
+            this.drawQueue[this.drawQueueCount++] = this.enemyGrid![n2]![n3];
+          }
+          ++n3;
+        }
+        ++n2;
+      }
+      if (this.levelIndex === 4 && this.boss != null) {
+        if (this.boss.active) {
+          this.drawQueue[this.drawQueueCount++] = this.boss;
+        }
+        if (this.boss.minion != null && this.boss.minion.active) {
+          this.drawQueue[this.drawQueueCount++] = this.boss.minion;
+        }
+      }
+    }
+    if (this.levelIndex === 4) {
+      this.drawQueue[this.drawQueueCount++] = this.player;
+    }
+    n2 = 0;
+    while (n2 < n4) {
+      this.drawQueue[this.drawQueueCount++] = LevelLoader.activeActors[nArray[n2]];
+      ++n2;
+    }
+    n3 = 0;
+    while (n3 < 5) {
+      if (this.projectilePools[n3] != null) {
+        n2 = 0;
+        while (n2 < this.projectilePools[n3]!.length) {
+          if (this.projectilePools[n3]![n2]!.active) {
+            this.drawQueue[this.drawQueueCount++] = this.projectilePools[n3]![n2];
+          }
+          ++n2;
+        }
+      }
+      ++n3;
+    }
+    n2 = 0;
+    while (n2 < this.drawQueueCount) {
+      this.drawQueue[n2]!.stepPhysics();
+      ++n2;
+    }
+    n2 = 0;
+    while (n2 < this.drawQueueCount) {
+      this.drawQueue[n2]!.update();
+      ++n2;
+    }
+    this.updateCamera();
+    n = this.cameraX >> 10;
+    const n5 = this.cameraY >> 10;
+    if (this.levelIndex !== 4) {
+      this.levelLoader.streamScreenTransitionTo(n, n5);
+    }
+    this.tileMap.setViewportOrigin(n, n5);
+  }
+
+  // a(Graphics) → a_G
+  renderWorld(graphics: Graphics): void {
+    let n: number;
+    const n2 = this.cameraX >> 10;
+    const n3 = this.cameraY >> 10;
+    this.tileMap.draw(graphics);
+    let n4 = 0;
+    while (n4 < this.drawQueueCount) {
+      this.drawQueue[n4]!.paint(graphics, n2, n3);
+      ++n4;
+    }
+    graphics.setClip(0, 176, 176, 32);
+    graphics.drawImage(this.hudImage!, 0, 176, 20);
+    graphics.setClip(25, 201, 40, 2);
+    if (this.player.health > 6) {
+      graphics.setColor(65280);
+    } else if (this.player.health >= 4) {
+      graphics.setColor(200, 200, 0);
+    } else {
+      graphics.setColor(0xff0000);
+    }
+    graphics.fillRect(25, 201, this.player.health << 2, 2);
+    graphics.setClip(161, 186, 8, 8);
+    ++this.hudBlinkCounter;
+    if (this.levelIndex === 4) {
+      graphics.drawImage(this.hudImage!, 89, 154, 20);
+    } else {
+      graphics.drawImage(this.hudImage!, 161 - this.player.grenadeCount * 8, 154, 20);
+    }
+    graphics.setColor(0);
+    graphics.fillRect(80, 180, 44, 15);
+    if (this.state === 10 && this.showIndicator && this.hudBlinkCounter % 2 === 0) {
+      this.drawNumber(graphics, this.indicatorValue, 150, 162, this.levelIndex === 7, false);
+    }
+    let n5 = 0;
+    graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
+    graphics.setColor(66, 214, 198);
+    switch (this.player.weaponIndex) {
+      case 0: {
+        n5 = 99;
+        break;
+      }
+      case 1: {
+        n5 = this.player.ammoReserveB;
+        break;
+      }
+      case 2: {
+        n5 = this.player.ammoReserveC;
+      }
+    }
+    if (this.hudBlinkCounter > 1) {
+      graphics.drawRect(76 + this.player.weaponIndex * 20, 195, 16, 10);
+    }
+    const n6 = this.player.magazineAmmo % 10;
+    const n7 = (this.player.magazineAmmo / 10) | 0;
+    if (this.player.magazineAmmo !== 0 || (this.player.magazineAmmo === 0 && this.hudBlinkCounter > 1)) {
+      n = this.player.magazineAmmo === 0 ? 99 : 0;
+      graphics.setClip(82, 184, 8, 8);
+      graphics.drawImage(this.hudImage!, 82 - n7 * 8 - n, 152, 20);
+      graphics.setClip(90, 184, 8, 8);
+      graphics.drawImage(this.hudImage!, 90 - n6 * 8 - n, 152, 20);
+    }
+    graphics.setClip(100, 184, 8, 8);
+    graphics.drawImage(this.hudImage!, 20, 152, 20);
+    n = n5 % 10;
+    graphics.setClip(110, 184, 8, 8);
+    graphics.drawImage(this.hudImage!, 110 - (n5 = (n5 / 10) | 0) * 8, 152, 20);
+    graphics.setClip(118, 184, 8, 8);
+    graphics.drawImage(this.hudImage!, 118 - n * 8, 152, 20);
+    if (this.hudBlinkCounter > 1) {
+      graphics.setClip(5, 196, 8, 8);
+      graphics.drawImage(this.hudImage!, -84, 164, 20);
+    }
+    if (this.hudBlinkCounter > 3) {
+      this.hudBlinkCounter = -1;
+    }
+    if (this.levelIndex < 3) {
+      graphics.setClip(0, 0, 176, 176);
+      graphics.setColor(0xffffff);
+      let n8 = 0;
+      while (n8 < 4) {
+        const n9 = GameMIDlet.nextRandomMod(176);
+        const n10 = GameMIDlet.nextRandomMod(176);
+        if (n8 % 2 === 0) {
+          graphics.drawLine(n9, n10, n9 - 5, n10 + 11);
+        } else {
+          graphics.drawLine(n9, n10, n9 - 3, n10 + 6);
+        }
+        ++n8;
+      }
+    }
+  }
+
+  // b() → b_
+  initCamera(): void {
+    const n = GameScreen.screenWidth << 10;
+    const n2 = GameScreen.playHeight << 10;
+    let n3 = this.tileMap.getPixelWidth();
+    let n4 = this.tileMap.getPixelHeight();
+    n3 <<= 10;
+    n4 <<= 10;
+    this.player.posX = this.levelLoader.actorSpawnX[0] << 10;
+    this.player.posY = this.levelLoader.actorSpawnY[0] << 10;
+    this.cameraX = this.player.posX - ((n / 5) | 0);
+    this.cameraY = this.player.posY - ((n2 * 3 / 4) | 0);
+    if (this.cameraX > n3 - n) {
+      this.cameraX = n3 - n;
+    }
+    if (this.cameraX < 0) {
+      this.cameraX = 0;
+    }
+    if (this.cameraY > n4 - n2) {
+      this.cameraY = n4 - n2;
+    }
+    if (this.cameraY < 0) {
+      this.cameraY = 0;
+    }
+    const n5 = this.cameraX >> 10;
+    const n6 = this.cameraY >> 10;
+    this.levelLoader.activateScreenAt(n5, n6);
+    this.tileMap.invalidateBuffer();
+    this.tileMap.setViewportOrigin(n5, n6);
+  }
+
+  // c() → c_
+  updateCamera(): void {
+    const n = GameScreen.playHeight << 10;
+    let n2 = this.tileMap.getPixelWidth();
+    let n3 = this.tileMap.getPixelHeight();
+    n2 <<= 10;
+    n3 <<= 10;
+    if (this.isCutsceneEntry) {
+      this.cameraVelX = 0;
+      return;
+    }
+    switch (this.levelIndex) {
+      case 0: {
+        if (this.scriptFlagL || this.cameraX >> 14 !== 33 || this.cameraY >> 14 !== 11) break;
+        this.scriptFlagL = true;
+        this.cameraVelY = 0;
+        this.cameraVelX = 0;
+        this.cameraX = 540672;
+        this.cameraY = 180224;
+        break;
+      }
+      case 1: {
+        if (this.scriptFlagL) {
+          if (this.enemyAliveCount < 0) {
+            this.enemyAliveCount = 0;
+          }
+          if (this.enemyAliveCount === 0 && this.reinforceBudget > 0) {
+            let n4 = 425984;
+            GameScreen.instance.spawnEnemyWave(2, 1, GameScreen.instance.cameraX + GameScreen.viewWidthFx, n4, 1, 1);
+            n4 = 507904;
+            GameScreen.instance.spawnEnemyWave(1, 2, GameScreen.instance.cameraX + GameScreen.viewWidthFx, n4, 1, 1);
+            --this.reinforceBudget;
+          }
+          this.indicatorValue = this.enemyAliveCount + this.reinforceBudget * 3;
+          break;
+        }
+        const n5 = this.cameraX >> 14;
+        if ((n5 !== 43 && n5 !== 44) || this.cameraY >> 14 !== 22) break;
+        this.scriptFlagL = true;
+        this.showIndicator = true;
+        this.reinforceBudget = 4;
+        this.cameraVelX = 0;
+        this.cameraVelY = 0;
+        this.cameraY = 360448;
+        this.cameraX = 720896;
+        break;
+      }
+      case 2: {
+        if (this.state !== 21) break;
+        this.cameraX += this.cameraVelX;
+        if (this.cameraX > n2 - GameScreen.viewWidthFx) {
+          this.cameraX = n2 - GameScreen.viewWidthFx;
+          this.cameraVelX = 0;
+          this.stateTimer = 0;
+          this.scriptFlagL = true;
+        } else if (this.cameraX < 0 && this.scriptFlagL) {
+          this.cameraX = 0;
+          this.state = 10;
+          this.heldKeyAction = 0;
+          this.scriptFlagL = false;
+          this.stateTimer = 0;
+          this.cameraVelX = 0;
+        }
+        if (this.cameraY < 0) {
+          this.cameraY = 0;
+        }
+        return;
+      }
+      case 3: {
+        if (this.scriptFlagL || this.scriptStageAc !== 0) break;
+        const n6 = this.cameraX >> 14;
+        const n7 = this.cameraY >> 14;
+        const n8 = this.player.posX >> 14;
+        const n9 = this.player.posY >> 14;
+        if (n8 <= 66 || n9 <= 0 || n6 !== 68) break;
+        this.cameraVelX = 0;
+        if (n7 === 5) {
+          this.scriptFlagL = true;
+          this.cameraVelY = 0;
+          this.cameraVelX = 0;
+          this.cameraX = 0x110000;
+          this.cameraY = 81920;
+          ++this.scriptStageAc;
+          break;
+        }
+        this.cameraVelY = 8192;
+        break;
+      }
+      case 4: {
+        this.cameraX += this.cameraVelX;
+        if (this.player.linkedBoss != null) {
+          this.player.linkedBoss.posX = this.player.posX + 23552;
+        }
+        if (this.reinforceBudget > 0) {
+          return;
+        }
+        if (this.enemyAliveCount < 0) {
+          this.enemyAliveCount = 0;
+        }
+        if (this.enemyAliveCount === 0) {
+          if (this.airdropWaveCount < 5) {
+            this.spawnAirdropWave();
+          } else if (GameScreen.instance.state === 10) {
+            GameScreen.instance.state = 19;
+          }
+        }
+        this.indicatorValue = this.enemyAliveCount + (5 - this.airdropWaveCount) * 4;
+        this.showIndicator = true;
+        return;
+      }
+      case 6: {
+        if (!this.scriptFlagL && this.scriptStageAc === 0 && this.cameraX >> 14 === 33) {
+          if (this.cameraY >> 14 !== 22) break;
+          this.scriptFlagL = true;
+          this.cameraVelY = 0;
+          this.cameraVelX = 0;
+          this.cameraX = 671744;
+          this.cameraY = 442368;
+          ++this.scriptStageAc;
+          break;
+        }
+        if (GameScreen.instance.state !== 19) break;
+        this.cameraVelY = this.indicatorToggle ? -1536 : 1536;
+        this.indicatorToggle = !this.indicatorToggle;
+        break;
+      }
+      case 7: {
+        if (this.state === 10 || this.state === 19) {
+          const n10 = this.cameraX >> 10;
+          const n11 = this.player.posX >> 10;
+          const n12 = n11 - this.bossTriggerX;
+          if (n12 < 176) {
+            this.cameraVelY = n12 > 50 ? (this.indicatorToggle ? -1536 : 1536) : this.indicatorToggle ? -2048 : 2048;
+            this.indicatorToggle = !this.indicatorToggle;
+          }
+          if (this.bossTriggerX === 0) {
+            this.bossTriggerX = 30;
+          }
+          this.bossTriggerX += 2;
+          let n12b = n12;
+          if (n12b < 0) {
+            n12b = 0;
+          }
+          this.indicatorValue = n12b;
+          this.showIndicator = true;
+          if (this.bossTriggerX <= n10) break;
+          let n13 = this.bossTriggerX - n10;
+          if (n13 > 172) {
+            this.bossTriggerX = n10 + 172;
+          }
+          this.spawnExplosionScatter(n13);
+          break;
+        }
+        if (this.state !== 21) break;
+        if (this.scriptFlagL) {
+          this.cameraVelY = this.cameraVelY > 0 ? -2048 : 2048;
+          this.cameraY += this.cameraVelY;
+          if (this.stateTimer <= 12) break;
+          this.spawnExplosionScatter(this.stateTimer * 3);
+          break;
+        }
+        this.cameraX += this.cameraVelX;
+        if (this.cameraX < 0) {
+          this.scriptFlagL = true;
+          this.cameraX = 0;
+        }
+        return;
+      }
+    }
+    if (!GameScreen.instance.scriptFlagL) {
+      this.cameraX += this.cameraVelX;
+      this.cameraY += this.cameraVelY;
+      if (this.cameraVelX > 0) {
+        if (this.player.posX - this.cameraX < ((GameScreen.viewWidthFx / 5) | 0)) {
+          this.cameraX = this.player.posX - ((GameScreen.viewWidthFx / 5) | 0);
+        }
+      } else if (this.cameraVelX < 0 && this.player.posX - this.cameraX > ((GameScreen.viewWidthFx * 4 / 5) | 0)) {
+        this.cameraX = this.player.posX - ((GameScreen.viewWidthFx * 4 / 5) | 0);
+      }
+      if (this.cameraVelY > 0) {
+        if (this.cameraY > this.player.posY - ((n / 3) | 0)) {
+          this.cameraY = this.player.posY - ((n / 3) | 0);
+        }
+      } else if (this.cameraVelY < 0 && this.cameraY < this.player.posY - ((n * 3 / 4) | 0)) {
+        this.cameraY = this.player.posY - ((n * 3 / 4) | 0);
+      }
+    }
+    if (this.cameraX > n2 - GameScreen.viewWidthFx) {
+      this.cameraX = n2 - GameScreen.viewWidthFx;
+    }
+    if (this.cameraX < 0) {
+      this.cameraX = 0;
+    }
+    if (this.cameraY > n3 - n + (this.levelIndex === 7 ? 2048 : 0)) {
+      this.cameraY = n3 - n;
+    }
+    if (this.cameraY < 0) {
+      this.cameraY = 0;
+    }
+  }
+
+  // d() → d_
+  initGameResources(): void {
+    this.drawQueue = new Array<ActorBase | null>(40).fill(null);
+    this.projectilePools = new Array<(ProjectileActor | null)[] | null>(5).fill(null);
+    LevelLoader.initBootSprites(this);
+    GameScreen.loadSounds();
+    this.accessSaveData(1);
+  }
+
+  // a(int) → a_I（关卡分步加载，按 w 推进）
+  loadLevelStep(n: number): void {
+    this.levelLoaded = false;
+    switch (this.stateTimer) {
+      case 0: {
+        // System.gc();
+        this.isCutsceneEntry = n !== 4;
+        this.stateTimer = 1;
+        return;
+      }
+      case 1: {
+        if (!this.levelResourcesReady) {
+          this.levelLoader = LevelLoader.loadLevel(this, n)!; // a_TaI 返回 j|null，原版直接赋给可空字段 g
+        } else {
+          LevelLoader.tileMap!.reloadColumnData(n);
+        }
+        this.stateTimer = 2;
+        return;
+      }
+      case 2: {
+        if (!this.levelResourcesReady) {
+          this.tileMap = LevelLoader.tileMap!;
+        }
+        this.initCamera();
+        this.stateTimer = 3;
+        return;
+      }
+      case 3: {
+        if (LevelLoader.spriteDefPool[21] == null) {
+          LevelLoader.retainSpriteDef(21);
+          this.projectilePools[0] = new Array<ProjectileActor | null>(10).fill(null);
+          let n2 = 0;
+          while (n2 < 10) {
+            this.projectilePools[0]![n2] = new ProjectileActor(21, LevelLoader.spriteDefPool[21]!, this);
+            ++n2;
+          }
+        }
+        this.stateTimer = 4;
+        return;
+      }
+      case 4: {
+        if (LevelLoader.spriteDefPool[10] == null) {
+          LevelLoader.retainSpriteDef(10);
+        }
+        if (this.projectilePools[1] == null) {
+          this.projectilePools[1] = new Array<ProjectileActor | null>(3).fill(null);
+          let n3 = 0;
+          while (n3 < 3) {
+            this.projectilePools[1]![n3] = new ProjectileActor(10, LevelLoader.spriteDefPool[10]!, this);
+            ++n3;
+          }
+        }
+        this.stateTimer = 5;
+        return;
+      }
+      case 5: {
+        if (LevelLoader.spriteDefPool[20] == null) {
+          LevelLoader.retainSpriteDef(20);
+          this.projectilePools[2] = new Array<ProjectileActor | null>(6).fill(null);
+          let n4 = 0;
+          while (n4 < 6) {
+            this.projectilePools[2]![n4] = new ProjectileActor(20, LevelLoader.spriteDefPool[20]!, this);
+            ++n4;
+          }
+        }
+        this.stateTimer = 6;
+        return;
+      }
+      case 6: {
+        if (LevelLoader.spriteDefPool[15] == null) {
+          LevelLoader.retainSpriteDef(15);
+          this.projectilePools[3] = new Array<ProjectileActor | null>(2).fill(null);
+          let n5 = 0;
+          while (n5 < 2) {
+            this.projectilePools[3]![n5] = new ProjectileActor(15, LevelLoader.spriteDefPool[15]!, this);
+            ++n5;
+          }
+        }
+        if (this.levelIndex === 2 || this.levelIndex === 4) {
+          LevelLoader.retainSpriteDef(6);
+        }
+        this.stateTimer = 7;
+        return;
+      }
+      case 7: {
+        if (LevelLoader.spriteDefPool[16] == null) {
+          LevelLoader.retainSpriteDef(16);
+          this.projectilePools[4] = new Array<ProjectileActor | null>(10).fill(null);
+          let n6 = 0;
+          while (n6 < 10) {
+            this.projectilePools[4]![n6] = new ProjectileActor(16, LevelLoader.spriteDefPool[16]!, this);
+            ++n6;
+          }
+        }
+        this.stateTimer = 8;
+        return;
+      }
+      case 8: {
+        switch (this.levelIndex) {
+          case 0:
+          case 1:
+          case 3:
+          case 4:
+          case 6: {
+            if (this.enemyGrid == null) {
+              this.enemyGrid = new Array<(EnemyActor | null)[] | null>(2).fill(null);
+              LevelLoader.retainSpriteDef(2);
+              this.enemyGrid[0] = new Array<EnemyActor | null>(3).fill(null);
+              let n7 = 0;
+              while (n7 < 3) {
+                this.enemyGrid[0]![n7] = new EnemyActor(2, LevelLoader.spriteDefPool[2]!, this);
+                ++n7;
+              }
+              LevelLoader.retainSpriteDef(1);
+              this.enemyGrid[1] = new Array<EnemyActor | null>(3).fill(null);
+              let n8 = 0;
+              while (n8 < 3) {
+                this.enemyGrid[1]![n8] = new EnemyActor(1, LevelLoader.spriteDefPool[1]!, this);
+                ++n8;
+              }
+            }
+            if (this.levelIndex !== 4 || this.boss != null) break;
+            this.boss = new BossActor(8, LevelLoader.spriteDefPool[8]!, this);
+            this.boss.minion = new EnemyActor(1, LevelLoader.spriteDefPool[1]!, this);
+          }
+        }
+        this.stateTimer = 9;
+        return;
+      }
+      case 9: {
+        LevelLoader.releaseUnusedSpriteDefs();
+        this.player.resetForLevel();
+        this.resetSpawnPools();
+        this.enemyAliveCount = 0;
+        this.airdropWaveCount = 0;
+        this.reinforceBudget = 30;
+        this.flagE = false;
+        this.scriptFlagL = false;
+        this.showIndicator = false;
+        this.levelLoaded = true;
+        this.scriptStageAc = 0;
+        this.stateTimer = 0;
+        this.bossTriggerX = 0;
+      }
+    }
+  }
+
+  // run()：原 while(aa!=null){...; Thread.sleep(...)} → async + await（控制流逐帧一致）
+  async run(): Promise<void> {
+    try {
+      let l2 = Date.now(); // System.currentTimeMillis()
+      while (this.loopThread != null) {
+        if (!this.running || this.painting) {
+          await Thread.sleep(0); // 让出执行权，等价于忙等的协作式空转
+          continue;
+        }
+        const l3 = Date.now() - l2;
+        if (l3 < this.frameStepMs) {
+          await Thread.sleep(this.frameStepMs - l3);
+          // System.gc();
+        }
+        this.repaint();
+        l2 = Date.now();
+      }
+      return;
+    } catch (exception) {
+      return;
+    }
+  }
+
+  // h(int) → h_I（键码 → 游戏动作位）
+  private keyCodeToAction(n: number): number {
+    let n2 = 0;
+    switch (n) {
+      case -1:
+      case 1: {
+        n2 = 4;
+        break;
+      }
+      case -2:
+      case 6: {
+        n2 = 8;
+        break;
+      }
+      case -3:
+      case 2: {
+        n2 = 1;
+        break;
+      }
+      case -4:
+      case 5: {
+        n2 = 2;
+        break;
+      }
+      case -6:
+      case -5: {
+        if (this.state === 10) break;
+        n2 = 16;
+        break;
+      }
+      case -7: {
+        n2 = 4096;
+        break;
+      }
+      case 42:
+      case 48:
+      case 55:
+      case 56: {
+        n2 = 16;
+        break;
+      }
+      case 35:
+      case 57: {
+        if (this.state === 10) {
+          n2 = 32;
+          break;
+        }
+        n2 = 16;
+        break;
+      }
+      case 51:
+      case 54: {
+        if (this.state === 10) {
+          n2 = 2048;
+          break;
+        }
+        n2 = 16;
+        break;
+      }
+      case 49:
+      case 50:
+      case 52:
+      case 53: {
+        n2 = this.state === 10 ? 1024 : 16;
+      }
+    }
+    return n2;
+  }
+
+  keyPressed(n: number): void {
+    let n2: number;
+    if (n === -6 || n === -5) {
+      if (this.state === 10) {
+        this.clearInputQueue();
+        this.menuSelection = 0;
+        this.state = 13;
+        return;
+      }
+      if (this.state === 4) {
+        this.enqueueInputAction(16, false);
+        return;
+      }
+    } else if (n === -7) {
+      if (this.state === 10) {
+        this.clearInputQueue();
+        this.state = 22;
+        this.stateTimer = 0;
+        return;
+      }
+      if (this.state === 13) {
+        this.state = 10;
+        return;
+      }
+    }
+    this.heldKeyAction = n2 = this.keyCodeToAction(n);
+    this.enqueueInputAction(n2, false);
+  }
+
+  keyReleased(_n: number): void {
+    this.heldKeyAction = 0;
+  }
+
+  // a(int,int,int,int,int,int) → a_IIIIII（从对象池取一个 tjge.l 并初始化）
+  spawnProjectile(n: number, n2: number, n3: number, n4: number, n5: number, n6: number): ProjectileActor | null {
+    let n7 = 0;
+    let bl = false;
+    switch (n) {
+      case 21: {
+        n7 = 0;
+        break;
+      }
+      case 10: {
+        n7 = 1;
+        break;
+      }
+      case 20: {
+        n7 = 2;
+        bl = true;
+        break;
+      }
+      case 15: {
+        n7 = 3;
+        bl = true;
+        break;
+      }
+      case 16: {
+        n7 = 4;
+        break;
+      }
+      default: {
+        return null;
+      }
+    }
+    let n8 = 0;
+    while (n8 < this.projectilePools[n7]!.length) {
+      if (!this.projectilePools[n7]![n8]!.active) {
+        const li = this.projectilePools[n7]![n8]!;
+        li.posX = n4;
+        li.posY = n5;
+        li.launchOriginX = n4;
+        li.setFrame(n2);
+        li.active = true;
+        // loopAnimation 在 ActorBase 中为 protected（原 Java 包内可见）；经结构视图写入保持等价。
+        (li as unknown as { loopAnimation: boolean }).loopAnimation = bl;
+        li.frameCounter = 0;
+        li.targetVelX = this.levelIndex === 4 ? this.cameraVelX : 0;
+        li.targetVelY = 0;
+        li.mode = n6;
+        li.drawParam = n3;
+        return this.projectilePools[n7]![n8];
+      }
+      ++n8;
+    }
+    return null;
+  }
+
+  // e() → e_（卸载当前关卡资源）
+  releaseLevel(): void {
+    let n = 0;
+    while (n < this.drawQueueCount) {
+      this.drawQueue[n] = null;
+      ++n;
+    }
+    if (this.enemyGrid != null) {
+      let n2 = 0;
+      while (n2 < this.enemyGrid.length) {
+        if (this.enemyGrid[n2] != null) {
+          let n3 = 0;
+          while (n3 < this.enemyGrid[n2]!.length) {
+            this.enemyGrid[n2]![n3]!.trailEffect = null;
+            this.enemyGrid[n2]![n3] = null;
+            ++n3;
+          }
+        }
+        this.enemyGrid[n2] = null;
+        ++n2;
+      }
+      this.enemyGrid = null;
+    }
+    if (this.boss != null) {
+      this.boss.minion = null;
+      this.boss = null;
+    }
+    this.player.linkedBoss = null;
+    this.levelLoader.disposeLevel();
+    this.levelLoader = null as unknown as LevelLoader;
+    this.levelResourcesReady = false;
+    // System.gc();
+  }
+
+  // b(int) → b_I（判断类型 id 是否属于“后置绘制”单位）
+  isPickupType(n: number): boolean {
+    switch (n) {
+      case 3:
+      case 8:
+      case 11:
+      case 13: {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // b(int,int,int,int,int,int) → b_IIIIII（生成一批敌兵 tjge.h）
+  spawnEnemyWave(n: number, n2: number, n3: number, n4: number, n5: number, n6: number): boolean {
+    if (n2 > 3 || n2 === 0) {
+      return false;
+    }
+    let n7 = 0;
+    let n8 = 0;
+    if (this.enemyAliveCount < 0) {
+      this.enemyAliveCount = 0;
+    }
+    const n9 = n === 2 ? 0 : 1;
+    let n10 = 0;
+    while (n10 < 3) {
+      if (!this.enemyGrid![n9]![n10]!.active) {
+        const h2 = this.enemyGrid![n9]![n10]!;
+        h2.setFrame(n5);
+        h2.active = true;
+        // loopAnimation 在 ActorBase 中为 protected（原 Java 包内可见）；经结构视图写入保持等价。
+        (h2 as unknown as { loopAnimation: boolean }).loopAnimation = true;
+        h2.aiming = false;
+        h2.target = this.player;
+        h2.timerB = 0;
+        h2.lives = 1;
+        h2.rhythmThreshold = 5;
+        h2.hurtBlinkTimer = 0;
+        h2.hitPoints = 0;
+        h2.fromSpawner = true;
+        switch (n6) {
+          case 0: {
+            h2.isPatroller = false;
+            h2.patrolRange = 0;
+            let n11 = GameMIDlet.nextRandomMod(160);
+            h2.posX = this.cameraX + 5120 + (n11 <<= 10);
+            if (h2.posX > this.cameraX + 90112) {
+              h2.targetVelX = 7168;
+            } else {
+              h2.targetVelX = 9216;
+              h2.setFrame(n5 | INT_MIN); // Integer.MIN_VALUE
+            }
+            h2.targetVelY = 1024;
+            h2.posY = n4 - n7;
+            n7 += 20480;
+            h2.timerA = 0;
+            h2.aiState = 0;
+            if (h2.trailEffect == null) {
+              h2.trailEffect = new EffectActor(6, LevelLoader.spriteDefPool[6]!, this);
+            }
+            h2.trailEffect.active = true;
+            h2.trailEffect.posX = h2.posX;
+            h2.trailEffect.posY = h2.posY - 30720;
+            h2.trailEffect.setFrame(0);
+            break;
+          }
+          case 1: {
+            h2.posY = n4;
+            h2.targetVelX = 0;
+            h2.targetVelY = 0;
+            h2.isPatroller = true;
+            h2.attackRangeUpper = 40960;
+            h2.attackRangeLower = -40960;
+            h2.aiState = 7;
+            h2.posX = n3 + 20480;
+            h2.patrolDir = 0;
+            h2.patrolRange = 100;
+            h2.patrolLeftBound = this.cameraX + 61440;
+            h2.timerA = n8 << 3;
+            h2.patrolRightBound = n3 - 51200 + n8 * 20480;
+            if (n8 > 0) {
+              h2.hitPoints = 1;
+            }
+            if (n !== 2) break;
+            h2.attackRangeUpper = 122880;
+            h2.patrolRightBound = n3 - 30720;
+            h2.patrolRange = 0;
+          }
+        }
+        ++this.enemyAliveCount;
+        h2.drawParam = h2.hitPoints;
+        h2.lives = h2.hitPoints + 1;
+        if (++n8 === n2) {
+          return true;
+        }
+      }
+      ++n10;
+    }
+    return false;
+  }
+
+  // a(int,int) → a_II（生成 Boss 的同伴 tjge.h）
+  spawnBossAttack(n: number, n2: number): boolean {
+    if (this.boss == null || this.boss.minion == null) {
+      return false;
+    }
+    this.boss.active = true;
+    this.boss.disabled = false;
+    this.boss.visible = true;
+    this.boss.posX = n;
+    this.boss.posY = this.player.linkedBoss!.posY - 3072;
+    this.boss.targetVelX = n2;
+    this.boss.setFrame(0);
+    const h2 = this.boss.minion;
+    this.boss.minion.active = true;
+    h2.attackRangeUpper = 40960;
+    h2.attackRangeLower = -40960;
+    if (n > this.player.posX) {
+      h2.posX = this.boss.posX + 23552;
+      h2.setFrame(2);
+    } else {
+      h2.posX = this.boss.posX - 23552;
+      h2.setFrame(-2147483646);
+    }
+    h2.posY = this.player.posY - 2048;
+    h2.targetVelX = this.boss.targetVelX;
+    h2.targetVelY = 0;
+    h2.patrolRange = 0;
+    h2.lives = 2;
+    h2.drawParam = 1;
+    h2.hitPoints = 1;
+    h2.aiState = 0;
+    h2.target = this.player;
+    h2.rhythmThreshold = 8;
+    h2.hurtBlinkTimer = 0;
+    h2.isPatroller = true;
+    this.enemyAliveCount = this.enemyAliveCount < 0 ? 1 : ++this.enemyAliveCount;
+    return true;
+  }
+
+  // h() → h_（从输入环形队列取下一个动作）
+  private pollInputAction(): number {
+    if (GameScreen.inputWriteIndex === GameScreen.inputReadIndex) {
+      return 0;
+    }
+    const n = GameScreen.inputQueue[GameScreen.inputReadIndex];
+    if (++GameScreen.inputReadIndex === GameScreen.inputQueueCap) {
+      GameScreen.inputReadIndex = 0;
+    }
+    return n;
+  }
+
+  // a(int,boolean) → a_IZ（向输入环形队列压入一个动作）
+  private enqueueInputAction(n: number, bl: boolean): void {
+    GameScreen.inputQueue[GameScreen.inputWriteIndex] = bl ? n | INT_MIN : n; // Integer.MIN_VALUE
+    if (++GameScreen.inputWriteIndex >= GameScreen.inputQueueCap) {
+      GameScreen.inputWriteIndex = 0;
+    }
+    if (GameScreen.inputWriteIndex === GameScreen.inputReadIndex && ++GameScreen.inputReadIndex >= GameScreen.inputQueueCap) {
+      GameScreen.inputReadIndex = 0;
+    }
+  }
+
+  // f() → f_（清空输入环形队列）
+  clearInputQueue(): void {
+    GameScreen.inputWriteIndex = 0;
+    GameScreen.inputReadIndex = 0;
+  }
+
+  // i() → i_（关卡4：投放炸弹兵）
+  private spawnAirdropWave(): void {
+    let n: number;
+    let n2: number;
+    const n3 = this.airdropWaveCount % 2 === 0 ? 2 : 1;
+    const n4 = n3;
+    void n4;
+    if (this.player.posX < this.cameraX + 90112) {
+      n2 = this.cameraX + 210944;
+      n = 2048;
+    } else {
+      n2 = this.cameraX - 30720;
+      n = this.cameraVelX + 6144;
+    }
+    if (this.spawnEnemyWave(n3, 3, this.cameraX, 0, 0, 0) && this.spawnBossAttack(n2, n)) {
+      ++this.airdropWaveCount;
+    }
+  }
+
+  // a(Graphics,int) → a_GI（全屏纯色 RGB4444 渐变填充，过场用）
+  fillScreenColor(graphics: Graphics, n: number): void {
+    let s = (n << 16) >> 16; // (short)n
+    s = (s << 12) << 16 >> 16; // (short)(s << 12)
+    let n2 = 0;
+    while (n2 < this.pixelBuffer.length) {
+      this.pixelBuffer[n2] = s;
+      ++n2;
+    }
+    graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
+    this.blitPixelBuffer(graphics);
+  }
+
+  // b(Graphics) → b_G（把 J(short[] RGB4444) 整屏 13 段贴出）
+  blitPixelBuffer(graphics: Graphics): void {
+    // this.K = DirectUtils.getDirectGraphics(graphics);
+    this.directGraphics = graphics;
+    let n = 0;
+    while (n < 13) {
+      this.drawPixels(graphics, this.pixelBuffer, 0, 176, 0, 16 * n, 176, 16);
+      ++n;
+    }
+  }
+
+  // c(int) → c_I（存档 RecordStore 读写；shim 无 RMS，用 localStorage 复刻 3 字节）
+  accessSaveData(n: number): void {
+    try {
+      // RecordStore.openRecordStore("TGS_CT", true) → localStorage 键
+      const key = "TGS_CT";
+      const stored = GameScreen.rmsLoad(key);
+      if (stored != null) {
+        // 已有记录（hasNextElement / nextRecordId 后处理首条）
+        switch (n) {
+          case 0: {
+            // setRecord(id, Q, 0, 3)
+            GameScreen.rmsSave(key, GameScreen.saveData.subarray(0, 3));
+            break;
+          }
+          case 1: {
+            // Q = getRecord(id)
+            GameScreen.saveData = new Int8Array(stored);
+            break;
+          }
+        }
+      } else {
+        switch (n) {
+          case 0: {
+            // addRecord(Q, 0, 3)
+            GameScreen.rmsSave(key, GameScreen.saveData.subarray(0, 3));
+            break;
+          }
+          case 1: {
+            GameScreen.saveData[0] = 0;
+            GameScreen.saveData[1] = 0;
+          }
+        }
+      }
+      return;
+    } catch (exception) {
+      return;
+    }
+  }
+
+  // 偏差：RMS 替身（localStorage），仅 c_I 使用。3 字节存档以逗号分隔的有符号整数存。
+  private static rmsLoad(key: string): Int8Array | null {
+    try {
+      if (typeof localStorage === "undefined") return null;
+      const v = localStorage.getItem(key);
+      if (v == null) return null;
+      const parts = v.split(",");
+      const out = new Int8Array(parts.length);
+      for (let i = 0; i < parts.length; i++) out[i] = parseInt(parts[i], 10) | 0;
+      return out;
+    } catch {
+      return null;
+    }
+  }
+  private static rmsSave(key: string, data: Int8Array): void {
+    try {
+      if (typeof localStorage === "undefined") return;
+      localStorage.setItem(key, Array.from(data).join(","));
+    } catch {
+      /* 吞异常，与原 catch(Exception) 一致 */
+    }
+  }
+
+  // b(Graphics,int,int,int,int,int) → b_GIIIII（绘制 d 精灵某帧并判定动画终止）
+  private drawBriefingAnim(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number): boolean {
+    const s = LevelLoader.spriteDefPool[n]!.getSequenceFrameCount(n2 & 0xffffff); // short
+    if (n5 >= s) {
+      this.animFrameIndex = 0;
+      n5 = 0;
+    }
+    LevelLoader.spriteDefPool[n]!.paintSequenceFrame(graphics, n3, n4, n2, n5, 0, 0);
+    return n5 >= s - 1;
+  }
+
+  // j() → j_（复位子弹/敌兵的存活标志）
+  private resetSpawnPools(): void {
+    let n: number;
+    let n2: number;
+    if (this.projectilePools != null) {
+      n2 = 0;
+      while (n2 < 5) {
+        if (this.projectilePools[n2] != null) {
+          n = 0;
+          while (n < this.projectilePools[n2]!.length) {
+            this.projectilePools[n2]![n]!.active = false;
+            ++n;
+          }
+        }
+        ++n2;
+      }
+    }
+    if (this.enemyGrid != null) {
+      n2 = 0;
+      while (n2 < this.enemyGrid.length) {
+        if (this.enemyGrid[n2] != null) {
+          n = 0;
+          while (n < this.enemyGrid[n2]!.length) {
+            if (this.enemyGrid[n2]![n]!.trailEffect != null) {
+              this.enemyGrid[n2]![n]!.trailEffect!.active = false;
+            }
+            this.enemyGrid[n2]![n]!.active = false;
+            ++n;
+          }
+        }
+        ++n2;
+      }
+    }
+  }
+
+  // b(Graphics,int) → b_GI（任务简报界面绘制）
+  private drawBriefingScreen(graphics: Graphics, n: number): void {
+    let n2 = 0;
+    let n3 = 0;
+    let n4 = 0;
+    let n5 = 1;
+    graphics.setColor(65280);
+    switch (this.levelIndex) {
+      case 2: {
+        n3 = 5;
+        n4 = 45;
+        n2 = 5;
+        graphics.drawString("敌人绑架了化学专家", 78, 16, 17);
+        break;
+      }
+      case 4: {
+        n3 = 8;
+        n4 = 50;
+        n5 = 6;
+        n2 = 4;
+        graphics.drawString("敌人制造了巨型炸弹", 78, 16, 17);
+        break;
+      }
+      case 0: {
+        n3 = 0;
+        break;
+      }
+      case 1: {
+        n3 = 3;
+        break;
+      }
+      case 3: {
+        n3 = 7;
+        break;
+      }
+      case 5: {
+        n3 = 10;
+        break;
+      }
+      case 6: {
+        n3 = 11;
+        break;
+      }
+      case 7: {
+        n3 = 12;
+      }
+    }
+    if (this.levelIndex !== 2 && this.levelIndex !== 4) {
+      n4 = 30;
+      n5 = 3;
+      n2 = 13;
+      graphics.drawString("总部呼叫红帽", (GameScreen.screenWidth / 2) | 0, 16, 17);
+    }
+    if (LevelLoader.spriteDefPool[n2] == null) {
+      LevelLoader.spriteDefPool[n2] = SpriteDef.loadFromBin(n2);
+    }
+    LevelLoader.spriteDefPool[n2]!.paintSequenceFrame(graphics, 145, n4, 0, n % n5, 0, 0);
+    GameScreen.fillRectClipped(graphics, 135, 0, 25, 6, 0);
+    GameScreen.fillRectClipped(graphics, 135, 34, 25, 25, 0);
+    LevelLoader.spriteDefPool[0]!.paintSequenceFrame(graphics, 25, 212, 0, n % 3, 0, 0);
+    GameScreen.fillRectClipped(graphics, 0, 200, 50, 8, 0);
+    graphics.setColor(65280);
+    graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
+    graphics.drawRect(5, 5, 166, 32);
+    graphics.drawRect(5, 42, 166, 124);
+    graphics.drawRect(5, 171, 166, 32);
+    graphics.drawString("收到", 60, 180, 20);
+    graphics.drawString("任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1), 15, 52, 20);
+    this.drawTextLine(graphics, n3, 30, 72);
+    if (this.levelIndex !== 3 && this.levelIndex !== 5 && this.levelIndex !== 6) {
+      graphics.drawString("注意", 15, 110, 20);
+      this.drawTextLine(graphics, n3 + 1, 30, 130);
+      if (this.levelIndex < 1) {
+        this.drawTextLine(graphics, n3 + 2, 30, 150);
+      }
+    }
+  }
+
+  // d(int) → d_I（静态：类型 id 是否为可加载精灵）
+  static isScrollLevel(n: number): boolean {
+    switch (n) {
+      case 1:
+      case 2:
+      case 8:
+      case 10:
+      case 15:
+      case 16:
+      case 20:
+      case 21: {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // a(long) → a_J（毫秒 → "分:秒" 文本）
+  static formatTime(l2: number): string {
+    l2 = (l2 / 1000) | 0; // l2 /= 1000L
+    const n = (l2 / 60) | 0;
+    let n2 = l2 % 60;
+    const n3 = n2 % 10;
+    n2 = (n2 / 10) | 0;
+    return n + ":" + n2 + "" + n3;
+  }
+
+  // a(Graphics,int,int,int,boolean,boolean) → a_GIIIZZ（数字 HUD 绘制，4 位）
+  drawNumber(graphics: Graphics, n: number, n2: number, n3: number, bl: boolean, bl2: boolean): void {
+    let n4: number;
+    let n5 = 1000;
+    let n6 = 0;
+    let n7 = 0;
+    n4 = bl ? 99 : 0;
+    if (bl2) {
+      graphics.setClip(n2 - 10, n3, 8, 8);
+      graphics.drawImage(this.hudImage!, n2 - 12 - 178, n3 - 32, 20);
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    let n9 = 0;
+    while (n9 < 4) {
+      n7 = (n / n5) | 0;
+      n %= n5;
+      if (n7 !== 0 || (n7 === 0 && n6 !== 0) || n9 === 3) {
+        graphics.setClip(n2 + n6, n3, 8, 8);
+        graphics.drawImage(this.hudImage!, n2 + n6 - n7 * 8 - n4, n3 - 32, 20);
+        n6 += 8;
+      }
+      n5 = (n5 / 10) | 0;
+      ++n9;
+    }
+  }
+
+  // a(Graphics,int,int,int,int,int) → a_GIIIII（静态：裁剪并填充纯色矩形）
+  static fillRectClipped(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number): void {
+    graphics.setClip(n, n2, n3, n4);
+    graphics.setColor(n5);
+    graphics.fillRect(n, n2, n3, n4);
+  }
+
+  // e(int) → e_I（随机散布爆炸特效 + 播音效）
+  spawnExplosionScatter(n: number): void {
+    let n2 = 0;
+    while (n2 < 2) {
+      let n3 = GameMIDlet.nextRandomMod(n);
+      let n4 = GameMIDlet.nextRandomMod(160);
+      GameScreen.instance.spawnProjectile(16, 0, 0, this.cameraX + (n3 <<= 10), this.cameraY + (n4 <<= 10), 2);
+      ++n2;
+    }
+    GameScreen.playSound(5, 1, 220);
+  }
+
+  // c(Graphics) → c_G（“按任意键返回”闪烁提示）
+  private drawReturnHint(graphics: Graphics): void {
+    if (this.hudBlinkCounter++ < 4) {
+      graphics.setColor(65535);
+      graphics.drawString("按任意键返回", 88, 187, 17);
+      return;
+    }
+    graphics.setColor(0);
+    graphics.fillRect(0, 187, 176, 23);
+    if (this.hudBlinkCounter > 8) {
+      this.hudBlinkCounter = 0;
+    }
+  }
+
+  // k() → k_（菜单光标下划线伸缩动画）
+  private animateCursorExpand(): void {
+    if (this.cursorExpanding) {
+      this.cursorWidth += 8;
+      this.hudBlinkCounter = 0;
+      if (this.cursorWidth > 64) {
+        this.cursorExpanding = false;
+        return;
+      }
+    } else {
+      this.cursorWidth -= 8;
+      this.hudBlinkCounter = 1;
+      if (this.cursorWidth < 48) {
+        this.cursorExpanding = true;
+      }
+    }
+  }
+
+  // l() → l_（重置菜单光标动画）
+  private resetCursorAnim(): void {
+    this.hudBlinkCounter = 0;
+    this.cursorWidth = 42;
+    this.cursorExpanding = true;
+  }
+
+  // f(int) → f_I（静态：从 image.bin 取第 n 张图）
+  // 偏差：原 Image.createImage(byte[],0,len) → getCachedImage("/res/image.bin", n)（按索引取预解码图）。
+  static loadImageFromBin(n: number): Image | null {
+    const string = "/res/image.bin";
+    let image: Image | null = null;
+    const inputStream = getResourceAsStream(string)!;
+    try {
+      const n2 = GameMIDlet.readI32Le(inputStream);
+      const nArray = new Int32Array(n2);
+      let n3 = 0;
+      while (n3 < n2) {
+        nArray[n3] = GameMIDlet.readI32Le(inputStream);
+        ++n3;
+      }
+      const n4 = nArray[n + 1] - nArray[n];
+      const byArray = new Int8Array(n4);
+      inputStream.skip(nArray[n]);
+      inputStream.read(byArray);
+      // image = Image.createImage(byArray, 0, n4);
+      image = getCachedImage<Image>(string, n);
+      void byArray;
+      inputStream.close();
+      // System.gc();
+    } catch (exception) {}
+    return image;
+  }
+
+  hideNotify(): void {
+    if (this.state === 10) {
+      this.menuSelection = 0;
+      this.clearInputQueue();
+      this.state = 13;
+    }
+  }
+
+  // g() → g_（静态：从 sound.bin 加载音效；音频暂静音，Sound 仅构造）
+  static loadSounds(): void {
+    let n = 0;
+    try {
+      let byArray: Int8Array | null;
+      const string = "/res/sound.bin";
+      const inputStream = getResourceAsStream(string)!;
+      const n2 = GameMIDlet.readI32Le(inputStream);
+      const nArray = new Int32Array(n2);
+      n = 0;
+      while (n < n2) {
+        nArray[n] = GameMIDlet.readI32Le(inputStream);
+        ++n;
+      }
+      n = 0;
+      while (n < n2 - 1) {
+        const n3 = nArray[n + 1] - nArray[n];
+        const n4 = n3 < 256 ? 1 : 5;
+        byArray = new Int8Array(n3);
+        inputStream.read(byArray);
+        // new Sound(byArray, n4)：第二参原为音频格式/增益档，暂静音（音频后续接入）。
+        GameScreen.sounds[n] = new Sound(new Uint8Array(byArray.buffer, byArray.byteOffset, byArray.length), n4);
+        ++n;
+      }
+      byArray = null;
+      void byArray;
+      inputStream.close();
+      return;
+    } catch (exception) {
+      return;
+    }
+  }
+
+  // a(int,int,int) → a_III（静态：播放音效 n，增益 n3；仅当音效开关 Q[2]==1）
+  static playSound(n: number, _n2: number, n3: number): void {
+    if (GameScreen.sounds == null || GameScreen.sounds[n] == null) {
+      return;
+    }
+    try {
+      if (GameScreen.saveData[2] === 1) {
+        if (GameScreen.currentSoundIndex >= 0 && GameScreen.sounds[GameScreen.currentSoundIndex]!.getState() === 0) {
+          return;
+        }
+        GameScreen.currentSoundIndex = n;
+        GameScreen.sounds[n]!.setGain(n3);
+        GameScreen.sounds[n]!.play(1);
+      }
+      return;
+    } catch (exception) {
+      return;
+    }
+  }
+
+  // g(int) → g_I（从 x.bin 取第 n 段文本到 U）
+  loadTextFromBin(n: number): void {
+    const string = "/res/x.bin";
+    try {
+      const inputStream = getResourceAsStream(string)!;
+      const n2 = GameMIDlet.readI32Le(inputStream);
+      const nArray = new Int32Array(n2);
+      let n3 = 0;
+      while (n3 < n2) {
+        nArray[n3] = GameMIDlet.readI32Le(inputStream);
+        ++n3;
+      }
+      const n4 = ((nArray[n + 1] - nArray[n]) / 2) | 0;
+      inputStream.skip(nArray[n] + 2);
+      const cArray = new Array<number>(n4 - 1);
+      n3 = 0;
+      while (n3 < n4 - 1) {
+        cArray[n3] = GameMIDlet.readU16Le(inputStream) & 0xffff; // (char)
+        ++n3;
+      }
+      GameScreen.currentText = String.fromCharCode(...cArray);
+      inputStream.close();
+      // System.gc();
+      return;
+    } catch (exception) {
+      return;
+    }
+  }
+
+  // a(Graphics,int,int,int) → a_GIII（多行文本绘制，回车 \r 分行）
+  drawWrappedText(graphics: Graphics, n: number, n2: number, n3: number): void {
+    let n4 = 0;
+    let n5 = 0;
+    do {
+      if ((n5 = GameScreen.currentText!.indexOf("\r", n4)) === -1) {
+        graphics.drawString(GameScreen.currentText!.substring(n4), n, n2, 20);
+      } else {
+        graphics.drawString(GameScreen.currentText!.substring(n4, n5), n, n2, 20);
+      }
+      n2 += n3;
+      n4 = n5 + 2;
+    } while (n5 >= 0);
+  }
+
+  // b(Graphics,int,int,int) → b_GIII（取 U 的第 n 行绘制）
+  drawTextLine(graphics: Graphics, n: number, n2: number, n3: number): void {
+    let n4 = 0;
+    let n5 = 0;
+    while (true) {
+      n5 = GameScreen.currentText!.indexOf("\r", n4);
+      if (n-- <= 0) break;
+      n4 = n5 + 2;
+    }
+    if (n5 === -1) {
+      graphics.drawString(GameScreen.currentText!.substring(n4), n2, n3, 20);
+      return;
+    }
+    graphics.drawString(GameScreen.currentText!.substring(n4, n5), n2, n3, 20);
+  }
+
+  /**
+   * DirectGraphics.drawPixels 复刻（RGB4444，processAlpha=true，format=4444）。
+   * 偏差：shim 无 DirectGraphics；按 game1 像素管线把 short[] 的 0xARGB(4444) 段
+   *   解码为 0xAARRGGBB，经 Image.createRGBImage 生成图后 drawImage 贴到 (x,y)。
+   * 对应原签名：drawPixels(pixels, transparency=true, offset, scanlength,
+   *   x, y, width, height, manipulation=0, format=4444)。
+   */
+  private drawPixels(
+    graphics: Graphics,
+    pixels: Int16Array,
+    offset: number,
+    scanlength: number,
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ): void {
+    const argb = new Int32Array(width * height);
+    let idx = 0;
+    let row = offset;
+    for (let yy = 0; yy < height; yy++) {
+      for (let xx = 0; xx < width; xx++) {
+        const p = pixels[row + xx] & 0xffff; // 0xARGB4444
+        const a4 = (p >> 12) & 0xf;
+        const r4 = (p >> 8) & 0xf;
+        const g4 = (p >> 4) & 0xf;
+        const b4 = p & 0xf;
+        // 4bit → 8bit 扩展（高低位复制）
+        const av = (a4 << 4) | a4;
+        const rv = (r4 << 4) | r4;
+        const gv = (g4 << 4) | g4;
+        const bv = (b4 << 4) | b4;
+        argb[idx++] = ((av << 24) | (rv << 16) | (gv << 8) | bv) | 0;
+      }
+      row += scanlength;
+    }
+    const img = Image.createRGBImage(argb, width, height, true);
+    graphics.drawImage(img, x, y, 20); // anchor TOP|LEFT
+  }
+}

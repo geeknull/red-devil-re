@@ -1,0 +1,2734 @@
+{
+  "game": "game1",
+  "classNames": {
+    "GameMIDlet": "GameMIDlet",
+    "a": "GameScreen",
+    "b": "TileMap",
+    "c": "BossActor",
+    "d": "SpriteDef",
+    "e": "EffectActor",
+    "f": "PlayerActor",
+    "g": "ActorBase",
+    "h": "EnemyActor",
+    "i": "SpriteAtlas",
+    "j": "LevelLoader",
+    "k": "PickupActor",
+    "l": "ProjectileActor"
+  },
+  "classes": {
+    "GameMIDlet": {
+      "friendly": "GameMIDlet",
+      "extends": "MIDlet",
+      "methods": [
+        {
+          "orig": "GameMIDlet",
+          "sig": "()V",
+          "friendly": "GameMIDlet",
+          "purpose": "Constructor: creates the global Random and seeds it with the current system time."
+        },
+        {
+          "orig": "pauseApp",
+          "sig": "()V",
+          "friendly": "pauseApp",
+          "purpose": "MIDlet lifecycle pause hook: if the screen is in the in-level playing state (p==10), saves/stops audio, then transitions the screen into the paused state (p=13)."
+        },
+        {
+          "orig": "startApp",
+          "sig": "()V",
+          "friendly": "startApp",
+          "purpose": "MIDlet lifecycle start hook: sets the GameScreen as the current displayable."
+        },
+        {
+          "orig": "destroyApp",
+          "sig": "(Z)V",
+          "friendly": "destroyApp",
+          "purpose": "MIDlet lifecycle destroy hook: clears the current displayable (sets it to null)."
+        },
+        {
+          "orig": "a",
+          "sig": "(I)I",
+          "friendly": "nextRandomMod",
+          "purpose": "Returns a non-negative pseudo-random int in [0, n): takes abs(Random.nextInt()) modulo n."
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljava/io/InputStream;)S",
+          "friendly": "readU16Le",
+          "purpose": "Reads a little-endian 16-bit value (low byte unsigned, high byte signed) from the stream and returns it as a short."
+        },
+        {
+          "orig": "b",
+          "sig": "(Ljava/io/InputStream;)B",
+          "friendly": "readByte",
+          "purpose": "Reads a single signed byte from the stream."
+        },
+        {
+          "orig": "c",
+          "sig": "(Ljava/io/InputStream;)I",
+          "friendly": "readI32Le",
+          "purpose": "Reads a little-endian 32-bit integer from the stream using the shared 4-byte buffer."
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljava/lang/String;I)Ljava/io/InputStream;",
+          "friendly": "openArchiveEntryStream",
+          "purpose": "Opens the named resource as a .bin archive and returns a stream positioned at the start of entry n by reading the entry-count and offset table; returns null on failure."
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "screen",
+          "type": "GameScreen",
+          "meaning": "The main game Canvas/screen instance (tjge.a), constructed with this MIDlet; drives all rendering, input and game-state."
+        },
+        {
+          "orig": "b",
+          "friendly": "display",
+          "type": "Display",
+          "meaning": "The LCDUI Display obtained for this MIDlet, used to set the current displayable."
+        },
+        {
+          "orig": "c",
+          "friendly": "random",
+          "type": "Random",
+          "meaning": "Static global pseudo-random number generator, seeded from system time at construction; shared across the game."
+        },
+        {
+          "orig": "d",
+          "friendly": "readBuffer",
+          "type": "byte[]",
+          "meaning": "Static shared 4-byte scratch buffer used by the little-endian read helpers and archive seeking."
+        },
+        {
+          "orig": "e",
+          "friendly": "menuTexts",
+          "type": "String[]",
+          "meaning": "Static menu/UI text table (Chinese): new game / continue / select mission / sound on / help / about / quit / sound off / return to game / menu."
+        }
+      ]
+    },
+    "a": {
+      "friendly": "GameScreen",
+      "extends": "com.nokia.mid.ui.FullCanvas",
+      "methods": [
+        {
+          "orig": "<init>",
+          "sig": "(Ltjge/GameMIDlet;)V",
+          "friendly": "constructor",
+          "purpose": "构造：保存 MIDlet、读取屏幕宽高、置初始状态 p=1、启动主循环线程、分配像素缓冲 J[3600]"
+        },
+        {
+          "orig": "a",
+          "sig": "(ILtjge/d;)Ltjge/g;",
+          "friendly": "createActor",
+          "purpose": "工厂：按精灵类型 id 与精灵定义 SpriteDef 创建对应 actor（Player/Projectile/EnemyActor/EffectActor/PickupItem/BossActor/Actor）"
+        },
+        {
+          "orig": "paint",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;)V",
+          "friendly": "paint",
+          "purpose": "框架绘制+状态机主分发：依 p 渲染 logo/菜单/载入/简报/过场/游戏中/结算/片尾/暂停/帮助/死亡各状态"
+        },
+        {
+          "orig": "a",
+          "sig": "()V",
+          "friendly": "updateWorld",
+          "purpose": "每帧逻辑更新：重建绘制队列、对所有 actor 调 e()/a() 更新、推进摄像机滚动"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;)V",
+          "friendly": "renderWorld",
+          "purpose": "渲染游戏世界：画地图层、绘制队列里的 actor、HUD（血条/武器/弹数/计分等）"
+        },
+        {
+          "orig": "b",
+          "sig": "()V",
+          "friendly": "initCamera",
+          "purpose": "关卡开始时按主角出生点初始化摄像机 r/s 偏移并夹紧到地图边界"
+        },
+        {
+          "orig": "c",
+          "sig": "()V",
+          "friendly": "updateCamera",
+          "purpose": "按当前关卡 x 的脚本推进摄像机/触发剧情点（强制滚动、触发 Boss、空降增援等），并夹紧边界"
+        },
+        {
+          "orig": "d",
+          "sig": "()V",
+          "friendly": "initGameResources",
+          "purpose": "首次初始化：分配绘制队列 k[40] 与子弹池 l[5][]，加载精灵库、音效、读存档"
+        },
+        {
+          "orig": "a",
+          "sig": "(I)V",
+          "friendly": "loadLevelStep",
+          "purpose": "分步关卡加载状态机（w 计数）：逐步加载地图、各类子弹/敌兵/Boss 池并初始化主角与关卡变量"
+        },
+        {
+          "orig": "run",
+          "sig": "()V",
+          "friendly": "run",
+          "purpose": "主循环线程：按步长 W 限帧、System.gc、repaint"
+        },
+        {
+          "orig": "h",
+          "sig": "(I)I",
+          "friendly": "keyCodeToAction",
+          "purpose": "把物理键码映射为动作位掩码（上下左右/确认/返回/开火/换武器等），随当前状态 p 区分游戏内外含义"
+        },
+        {
+          "orig": "keyPressed",
+          "sig": "(I)V",
+          "friendly": "keyPressed",
+          "purpose": "框架按键按下：处理软键进暂停/简报/返回，其余转 keyCodeToAction 后入队"
+        },
+        {
+          "orig": "keyReleased",
+          "sig": "(I)V",
+          "friendly": "keyReleased",
+          "purpose": "框架按键抬起：清除当前持续按键标记 q"
+        },
+        {
+          "orig": "a",
+          "sig": "(IIIIII)Ltjge/l;",
+          "friendly": "spawnProjectile",
+          "purpose": "从对应子弹池取一个空闲 Projectile 并按类型/坐标/方向/朝向激活，返回该子弹"
+        },
+        {
+          "orig": "e",
+          "sig": "()V",
+          "friendly": "releaseLevel",
+          "purpose": "释放当前关资源：清绘制队列、销毁敌兵阵/Boss/主角载具引用、释放精灵库、gc"
+        },
+        {
+          "orig": "b",
+          "sig": "(I)Z",
+          "friendly": "isPickupType",
+          "purpose": "判断给定精灵类型是否为拾取物（3/8/11/13），用于绘制队列排序优先级"
+        },
+        {
+          "orig": "b",
+          "sig": "(IIIIII)Z",
+          "friendly": "spawnEnemyWave",
+          "purpose": "生成一波敌兵：从敌兵阵取空闲槽，按编队模式(n6)布置位置/动作/挂载阴影特效，返回是否填满请求数量"
+        },
+        {
+          "orig": "a",
+          "sig": "(II)Z",
+          "friendly": "spawnBossAttack",
+          "purpose": "触发 Boss 投弹攻击：激活 Boss 及其子弹 actor 并设定坐标/朝向/速度"
+        },
+        {
+          "orig": "h",
+          "sig": "()I",
+          "friendly": "pollInputAction",
+          "purpose": "从输入环形队列出队一个动作码（队空返回0）"
+        },
+        {
+          "orig": "a",
+          "sig": "(IZ)V",
+          "friendly": "enqueueInputAction",
+          "purpose": "把一个动作码（可带 INT_MIN 标志位）压入输入环形队列，处理满队覆盖"
+        },
+        {
+          "orig": "f",
+          "sig": "()V",
+          "friendly": "clearInputQueue",
+          "purpose": "清空输入环形队列读写指针 an/ao"
+        },
+        {
+          "orig": "i",
+          "sig": "()V",
+          "friendly": "spawnAirdropWave",
+          "purpose": "第4关空降增援逻辑：按节奏 A 生成空降敌兵波并投放降落伞 Boss 子弹"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;I)V",
+          "friendly": "fillScreenColor",
+          "purpose": "用单色（由帧号 n 解码的 RGB4444）填满整屏的过场/闪屏效果"
+        },
+        {
+          "orig": "b",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;)V",
+          "friendly": "blitPixelBuffer",
+          "purpose": "把像素缓冲 J 经 DirectGraphics.drawPixels 分 13 条贴满整屏"
+        },
+        {
+          "orig": "c",
+          "sig": "(I)V",
+          "friendly": "accessSaveData",
+          "purpose": "RMS 存档读写：n=0 写、n=1 读 3 字节存档 Q（最高关/当前关/音效开关）"
+        },
+        {
+          "orig": "b",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;IIIII)Z",
+          "friendly": "drawBriefingAnim",
+          "purpose": "播放结算/简报动画帧：按帧索引绘制指定精灵帧，返回该序列是否播放到末帧"
+        },
+        {
+          "orig": "j",
+          "sig": "()V",
+          "friendly": "resetSpawnPools",
+          "purpose": "重置所有子弹池与敌兵阵的存活标志 p=false（关卡复位）"
+        },
+        {
+          "orig": "b",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;I)V",
+          "friendly": "drawBriefingScreen",
+          "purpose": "绘制任务简报界面：标题、注意事项、相关插画与文本框（依关卡 x 选内容）"
+        },
+        {
+          "orig": "d",
+          "sig": "(I)Z",
+          "friendly": "isScrollLevel",
+          "purpose": "静态：判断给定精灵类型是否随地图滚动（1/2/8/10/15/16/20/21）"
+        },
+        {
+          "orig": "a",
+          "sig": "(J)Ljava/lang/String;",
+          "friendly": "formatTime",
+          "purpose": "静态：把毫秒时长格式化为 分:秒 字符串（用于结算用时显示）"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;IIIZZ)V",
+          "friendly": "drawNumber",
+          "purpose": "用 HUD 数字图块绘制多位整数（可选高亮色与前导图标）"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;IIIII)V",
+          "friendly": "fillRectClipped",
+          "purpose": "静态：设裁剪+设色+填充矩形的便捷封装"
+        },
+        {
+          "orig": "e",
+          "sig": "(I)V",
+          "friendly": "spawnExplosionScatter",
+          "purpose": "在摄像机视野内随机散布两处爆炸特效并播放音效（炸弹/地雷场景）"
+        },
+        {
+          "orig": "c",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;)V",
+          "friendly": "drawReturnHint",
+          "purpose": "在帮助/关于界面底部闪烁绘制\"按任意键返回\"提示"
+        },
+        {
+          "orig": "k",
+          "sig": "()V",
+          "friendly": "animateCursorExpand",
+          "purpose": "菜单光标横线的呼吸式伸缩动画推进（aj 在 48~64 间往返）"
+        },
+        {
+          "orig": "l",
+          "sig": "()V",
+          "friendly": "resetCursorAnim",
+          "purpose": "重置菜单光标动画状态（aj=42、向外扩张）"
+        },
+        {
+          "orig": "f",
+          "sig": "(I)Ljavax/microedition/lcdui/Image;",
+          "friendly": "loadImageFromBin",
+          "purpose": "静态：从 /res/image.bin 归档按索引 n 解出一张 Image"
+        },
+        {
+          "orig": "hideNotify",
+          "sig": "()V",
+          "friendly": "hideNotify",
+          "purpose": "框架：失去焦点时若在游戏中则自动进暂停菜单"
+        },
+        {
+          "orig": "g",
+          "sig": "()V",
+          "friendly": "loadSounds",
+          "purpose": "静态：从 /res/sound.bin 归档加载全部音效到 S[]"
+        },
+        {
+          "orig": "a",
+          "sig": "(III)V",
+          "friendly": "playSound",
+          "purpose": "静态：按索引播放音效（受音效开关 Q[2] 与忙判定约束，设增益）"
+        },
+        {
+          "orig": "g",
+          "sig": "(I)V",
+          "friendly": "loadTextFromBin",
+          "purpose": "从 /res/x.bin 归档按索引 n 解出 UTF 文本到静态 U（简报/帮助文案）"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;III)V",
+          "friendly": "drawWrappedText",
+          "purpose": "从首行起按回车(13)逐行绘制文本 U（行距 n3）"
+        },
+        {
+          "orig": "b",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;III)V",
+          "friendly": "drawTextLine",
+          "purpose": "绘制文本 U 中第 n 行（按回车分隔）单行"
+        },
+        {
+          "orig": "<clinit>",
+          "sig": "()V",
+          "friendly": "staticInit",
+          "purpose": "静态初始化块：设输入队列容量 P=4、存档 Q={0,0,1}、音效数 R=6、任务编号汉字串 V"
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "screenWidth",
+          "type": "int",
+          "meaning": "静态：屏幕宽度（像素，运行时由 getWidth 覆盖，初值176）"
+        },
+        {
+          "orig": "b",
+          "friendly": "playHeight",
+          "type": "int",
+          "meaning": "静态：可玩区高度（屏高减32的HUD条，初值176）"
+        },
+        {
+          "orig": "c",
+          "friendly": "viewWidthFx",
+          "type": "int",
+          "meaning": "静态：定点制屏宽（屏宽<<10，用于摄像机定点运算，初值180224）"
+        },
+        {
+          "orig": "d",
+          "friendly": "screenHeight",
+          "type": "int",
+          "meaning": "静态：屏幕全高（含HUD，初值208）"
+        },
+        {
+          "orig": "e",
+          "friendly": "instance",
+          "type": "GameScreen",
+          "meaning": "静态：本类单例引用"
+        },
+        {
+          "orig": "W",
+          "friendly": "frameStepMs",
+          "type": "long",
+          "meaning": "主循环每帧目标步长（毫秒，100）"
+        },
+        {
+          "orig": "X",
+          "friendly": "running",
+          "type": "boolean",
+          "meaning": "主循环运行标志（true 才 repaint）"
+        },
+        {
+          "orig": "Y",
+          "friendly": "painting",
+          "type": "boolean",
+          "meaning": "paint 进行中标志（防重入，paint 中跳过主循环 repaint）"
+        },
+        {
+          "orig": "Z",
+          "friendly": "levelLoaded",
+          "type": "boolean",
+          "meaning": "关卡分步加载完成标志（载入态据此切到简报态）"
+        },
+        {
+          "orig": "aa",
+          "friendly": "loopThread",
+          "type": "Thread",
+          "meaning": "主循环线程对象"
+        },
+        {
+          "orig": "ab",
+          "friendly": "midlet",
+          "type": "GameMIDlet",
+          "meaning": "所属 MIDlet 引用（用于 notifyDestroyed）"
+        },
+        {
+          "orig": "f",
+          "friendly": "tileMap",
+          "type": "TileMap",
+          "meaning": "当前关卡地图（protected）"
+        },
+        {
+          "orig": "g",
+          "friendly": "levelLoader",
+          "type": "LevelLoader",
+          "meaning": "当前关精灵/关卡装载器（protected）"
+        },
+        {
+          "orig": "h",
+          "friendly": "hudImage",
+          "type": "Image",
+          "meaning": "HUD/通用图块图像（数字、血条等贴图源，也复用作 logo 临时图）"
+        },
+        {
+          "orig": "i",
+          "friendly": "menuImage",
+          "type": "Image",
+          "meaning": "菜单/logo/闪屏临时图像"
+        },
+        {
+          "orig": "j",
+          "friendly": "player",
+          "type": "Player",
+          "meaning": "主角 actor"
+        },
+        {
+          "orig": "k",
+          "friendly": "drawQueue",
+          "type": "Actor[]",
+          "meaning": "本帧绘制/更新队列（容量40）"
+        },
+        {
+          "orig": "l",
+          "friendly": "projectilePools",
+          "type": "Projectile[][]",
+          "meaning": "按类型分组的子弹/特效对象池（5组）"
+        },
+        {
+          "orig": "m",
+          "friendly": "enemyGrid",
+          "type": "EnemyActor[][]",
+          "meaning": "敌兵编队池（2行×3列）"
+        },
+        {
+          "orig": "n",
+          "friendly": "boss",
+          "type": "BossActor",
+          "meaning": "当前 Boss actor（仅部分关卡）"
+        },
+        {
+          "orig": "o",
+          "friendly": "frameCounter",
+          "type": "int",
+          "meaning": "全局帧计数（paint 每帧自增，用于动画相位）"
+        },
+        {
+          "orig": "p",
+          "friendly": "state",
+          "type": "int",
+          "meaning": "状态机当前状态（1开机/4菜单/2载入/22简报/10游戏中/16完成/18失败/15片尾/13暂停/3帮助/6关于/20死亡等）"
+        },
+        {
+          "orig": "q",
+          "friendly": "heldKeyAction",
+          "type": "int",
+          "meaning": "当前按住的动作码（keyReleased 清零，用于状态跳出判定）"
+        },
+        {
+          "orig": "r",
+          "friendly": "cameraX",
+          "type": "int",
+          "meaning": "摄像机X偏移（定点 <<10）"
+        },
+        {
+          "orig": "s",
+          "friendly": "cameraY",
+          "type": "int",
+          "meaning": "摄像机Y偏移（定点 <<10）"
+        },
+        {
+          "orig": "t",
+          "friendly": "cameraVelX",
+          "type": "int",
+          "meaning": "摄像机X滚动速度（定点）"
+        },
+        {
+          "orig": "u",
+          "friendly": "cameraVelY",
+          "type": "int",
+          "meaning": "摄像机Y滚动速度（定点）"
+        },
+        {
+          "orig": "v",
+          "friendly": "drawQueueCount",
+          "type": "int",
+          "meaning": "本帧绘制队列实际元素数"
+        },
+        {
+          "orig": "w",
+          "friendly": "stateTimer",
+          "type": "int",
+          "meaning": "当前状态内的帧/步计数器（各状态语义不同）"
+        },
+        {
+          "orig": "x",
+          "friendly": "levelIndex",
+          "type": "int",
+          "meaning": "当前关卡编号（0..7）"
+        },
+        {
+          "orig": "y",
+          "friendly": "menuSelection",
+          "type": "int",
+          "meaning": "当前菜单/列表选中项索引"
+        },
+        {
+          "orig": "z",
+          "friendly": "enemyAliveCount",
+          "type": "int",
+          "meaning": "存活敌兵计数（含编队/Boss子单位）"
+        },
+        {
+          "orig": "A",
+          "friendly": "airdropWaveCount",
+          "type": "int",
+          "meaning": "已生成空降增援波次计数（第4关节奏控制）"
+        },
+        {
+          "orig": "B",
+          "friendly": "reinforceBudget",
+          "type": "int",
+          "meaning": "剩余增援/补给投放配额"
+        },
+        {
+          "orig": "C",
+          "friendly": "killCount",
+          "type": "int",
+          "meaning": "本关击毙敌人数（结算显示）"
+        },
+        {
+          "orig": "D",
+          "friendly": "levelStartMs",
+          "type": "long",
+          "meaning": "关卡开始时间戳/用时（结算时转为耗时）"
+        },
+        {
+          "orig": "E",
+          "friendly": "flagE",
+          "type": "boolean",
+          "meaning": "关卡加载时复位的状态布尔（loadLevelStep case9 置 false，paint 中未见读取，疑似遗留/预留标志）"
+        },
+        {
+          "orig": "F",
+          "friendly": "taskSelectIndex",
+          "type": "int",
+          "meaning": "调试任务选择子菜单的当前任务索引（ae 模式下）"
+        },
+        {
+          "orig": "G",
+          "friendly": "hudBlinkCounter",
+          "type": "int",
+          "meaning": "HUD/光标/提示闪烁与刷新计数（多处复用作高亮相位）"
+        },
+        {
+          "orig": "H",
+          "friendly": "menuVisibleMax",
+          "type": "int",
+          "meaning": "主菜单当前可见/动画展开到的项索引上界"
+        },
+        {
+          "orig": "I",
+          "friendly": "animFrameIndex",
+          "type": "int",
+          "meaning": "结算/简报动画当前帧索引"
+        },
+        {
+          "orig": "J",
+          "friendly": "pixelBuffer",
+          "type": "short[]",
+          "meaning": "RGB4444 像素缓冲（3600，用于整屏换色/闪屏与暂停马赛克）"
+        },
+        {
+          "orig": "K",
+          "friendly": "directGraphics",
+          "type": "com.nokia.mid.ui.DirectGraphics",
+          "meaning": "DirectGraphics 句柄（drawPixels 贴像素缓冲用）"
+        },
+        {
+          "orig": "L",
+          "friendly": "scriptFlagL",
+          "type": "boolean",
+          "meaning": "关卡脚本阶段标志（摄像机/剧情触发的第一段是否已激活）"
+        },
+        {
+          "orig": "M",
+          "friendly": "showIndicator",
+          "type": "boolean",
+          "meaning": "是否显示屏边方向/距离指示器（updateCamera 中按关卡置位）"
+        },
+        {
+          "orig": "N",
+          "friendly": "indicatorToggle",
+          "type": "boolean",
+          "meaning": "指示器左右抖动/交替方向开关"
+        },
+        {
+          "orig": "O",
+          "friendly": "indicatorValue",
+          "type": "int",
+          "meaning": "指示器显示的数值（剩余敌数/距离等）"
+        },
+        {
+          "orig": "ac",
+          "friendly": "scriptStageAc",
+          "type": "int",
+          "meaning": "关卡脚本子阶段计数（部分关用作触发计数/目标摄像机X）"
+        },
+        {
+          "orig": "ad",
+          "friendly": "bossTriggerX",
+          "type": "int",
+          "meaning": "第7关追逐：Boss 追击触发/推进的世界X基准"
+        },
+        {
+          "orig": "ae",
+          "friendly": "inTaskSelectMenu",
+          "type": "boolean",
+          "meaning": "是否处于调试任务选择子菜单"
+        },
+        {
+          "orig": "af",
+          "friendly": "isCutsceneEntry",
+          "type": "boolean",
+          "meaning": "进入关卡是否走过场入场（影响载入后切到过场态14）"
+        },
+        {
+          "orig": "ag",
+          "friendly": "levelResourcesReady",
+          "type": "boolean",
+          "meaning": "关卡资源已就绪标志（避免重复加载/触发资源释放）"
+        },
+        {
+          "orig": "ah",
+          "friendly": "menuActive",
+          "type": "boolean",
+          "meaning": "主菜单是否已展开并可交互（菜单项滚出动画完成后置 true）"
+        },
+        {
+          "orig": "ai",
+          "friendly": "cursorExpanding",
+          "type": "boolean",
+          "meaning": "菜单光标呼吸动画方向（扩张/收缩）"
+        },
+        {
+          "orig": "aj",
+          "friendly": "cursorWidth",
+          "type": "int",
+          "meaning": "菜单光标横线当前宽度（动画值）"
+        },
+        {
+          "orig": "ak",
+          "friendly": "creditScrollX",
+          "type": "int",
+          "meaning": "片尾滚动元素X位置（初值-176）"
+        },
+        {
+          "orig": "al",
+          "friendly": "creditScrollX2",
+          "type": "int",
+          "meaning": "片尾第二滚动元素X位置（初值-20）"
+        },
+        {
+          "orig": "P",
+          "friendly": "inputQueueCap",
+          "type": "int",
+          "meaning": "静态：输入环形队列容量（4）"
+        },
+        {
+          "orig": "am",
+          "friendly": "inputQueue",
+          "type": "int[]",
+          "meaning": "静态：输入动作环形队列存储"
+        },
+        {
+          "orig": "an",
+          "friendly": "inputWriteIndex",
+          "type": "int",
+          "meaning": "静态：输入队列写指针"
+        },
+        {
+          "orig": "ao",
+          "friendly": "inputReadIndex",
+          "type": "int",
+          "meaning": "静态：输入队列读指针"
+        },
+        {
+          "orig": "Q",
+          "friendly": "saveData",
+          "type": "byte[]",
+          "meaning": "静态：3字节存档[最高解锁关, 当前关, 音效开关]（初值{0,0,1}）"
+        },
+        {
+          "orig": "R",
+          "friendly": "soundCount",
+          "type": "int",
+          "meaning": "静态：音效数量（6）"
+        },
+        {
+          "orig": "S",
+          "friendly": "sounds",
+          "type": "com.nokia.mid.sound.Sound[]",
+          "meaning": "静态：已加载音效数组"
+        },
+        {
+          "orig": "T",
+          "friendly": "currentSoundIndex",
+          "type": "int",
+          "meaning": "静态：当前正在播放的音效索引（-1为无）"
+        },
+        {
+          "orig": "U",
+          "friendly": "currentText",
+          "type": "String",
+          "meaning": "静态：当前从 x.bin 解出的文本（简报/帮助文案）"
+        },
+        {
+          "orig": "V",
+          "friendly": "taskNumberChars",
+          "type": "String",
+          "meaning": "静态：任务编号汉字串\"一二三四五六七八\""
+        }
+      ]
+    },
+    "b": {
+      "friendly": "TileMap",
+      "extends": "java.lang.Object",
+      "methods": [
+        {
+          "orig": "<init>(II)V",
+          "sig": "private b(int n, int n2)",
+          "friendly": "constructor",
+          "purpose": "Private constructor; stores viewport width/height (a,b) and sets scale divisor i to 1."
+        },
+        {
+          "orig": "a(II)V",
+          "sig": "public final void a(int n, int n2)",
+          "friendly": "setViewportOrigin",
+          "purpose": "Sets current viewport top-left (j,k) from pixel coords divided by scale divisor i."
+        },
+        {
+          "orig": "a()I",
+          "sig": "public final int a()",
+          "friendly": "getPixelWidth",
+          "purpose": "Returns total map pixel width = tileWidth(g) * mapColumns(e)."
+        },
+        {
+          "orig": "b()I",
+          "sig": "public final int b()",
+          "friendly": "getPixelHeight",
+          "purpose": "Returns total map pixel height = tileHeight(h) * mapRows(f)."
+        },
+        {
+          "orig": "a(Ljavax/microedition/lcdui/Graphics;)V",
+          "sig": "public final void a(Graphics graphics)",
+          "friendly": "draw",
+          "purpose": "Draws the map at the current viewport origin (j,k) using viewport size (a,b)."
+        },
+        {
+          "orig": "a(IIZ)I",
+          "sig": "public final int a(int n, int n2, boolean bl)",
+          "friendly": "queryColumnTileAt",
+          "purpose": "Looks up the RLE-encoded tile/collision value at cell index n within column n2; out-of-range returns 0/1/3 depending on solidFlag bl."
+        },
+        {
+          "orig": "b(II)I",
+          "sig": "protected final int b(int n, int n2) throws Exception",
+          "friendly": "resolveTileIndex",
+          "purpose": "Resolves the block-index-table tile id for pixel position (n,n2), wrapping by block dimensions; throws on negative index."
+        },
+        {
+          "orig": "c()V",
+          "sig": "public final void c()",
+          "friendly": "invalidateBuffer",
+          "purpose": "Marks the off-screen buffer's drawn-window as invalid by resetting y,z to -1."
+        },
+        {
+          "orig": "a(ZII)V",
+          "sig": "private void a(boolean bl, int n, int n2)",
+          "friendly": "setupOffscreenBuffer",
+          "purpose": "Allocates (or clears) the static off-screen buffer u sized to cover viewport plus one tile margin, then invalidates it; bl=false frees the buffer."
+        },
+        {
+          "orig": "a(Ljavax/microedition/lcdui/Graphics;IIIIII)V",
+          "sig": "protected final void a(Graphics graphics, int n, int n2, int n3, int n4, int n5, int n6)",
+          "friendly": "renderTileRegion",
+          "purpose": "Renders the tile region from (n,n2) to (n3,n4) into a buffer of size (n5,n6), wrapping coordinates and blitting tiles from atlas t."
+        },
+        {
+          "orig": "b(Ljavax/microedition/lcdui/Graphics;IIIIII)V",
+          "sig": "protected final void b(Graphics graphics, int n, int n2, int n3, int n4, int n5, int n6)",
+          "friendly": "blitBufferRegion",
+          "purpose": "Clips to (n5,n6,n3,n4) and blits a sub-region of off-screen buffer u to the destination, offset by (n,n2)."
+        },
+        {
+          "orig": "a(Ljavax/microedition/lcdui/Graphics;IIII)V",
+          "sig": "protected final void a(Graphics graphics, int n, int n2, int n3, int n4)",
+          "friendly": "drawViewport",
+          "purpose": "Incrementally redraws only newly-scrolled rows/cols into the off-screen buffer, then blits the (wrapped) viewport rectangle (n,n2,n3,n4) to graphics."
+        },
+        {
+          "orig": "d()V",
+          "sig": "public final void d()",
+          "friendly": "dispose",
+          "purpose": "Frees the per-column RLE data array d and the block index table s."
+        },
+        {
+          "orig": "a(III)Ltjge/b;",
+          "sig": "public static final b a(int n, int n2, int n3)",
+          "friendly": "loadFromBin",
+          "purpose": "Static factory: reads map header and RLE column data from /res/f.bin entry n, loads the tile atlas, allocates buffers, and returns a TileMap (or null on error)."
+        },
+        {
+          "orig": "a(I)V",
+          "sig": "public final void a(int n)",
+          "friendly": "reloadColumnData",
+          "purpose": "Reloads only the per-column RLE data from /res/f.bin entry n into existing array d, skipping the header and block index table."
+        },
+        {
+          "orig": "c(II)Z",
+          "sig": "public final boolean c(int n, int n2)",
+          "friendly": "clearTileAt",
+          "purpose": "Like queryColumnTileAt but destructive: locates the RLE run for cell n in column n2 and zeroes its tile value, returning success."
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "viewportWidth",
+          "type": "int",
+          "meaning": "Viewport width in pixels (public)."
+        },
+        {
+          "orig": "b",
+          "friendly": "viewportHeight",
+          "type": "int",
+          "meaning": "Viewport height in pixels (public)."
+        },
+        {
+          "orig": "d",
+          "friendly": "columnRleData",
+          "type": "byte[][]",
+          "meaning": "Per-column RLE-encoded tile/collision data; d[col][0] is the run type marker (0/1/2)."
+        },
+        {
+          "orig": "e",
+          "friendly": "mapColumns",
+          "type": "int",
+          "meaning": "Map width in tiles (columns)."
+        },
+        {
+          "orig": "f",
+          "friendly": "mapRows",
+          "type": "int",
+          "meaning": "Map height in tiles (rows)."
+        },
+        {
+          "orig": "g",
+          "friendly": "tileWidthPx",
+          "type": "int",
+          "meaning": "Tile width in pixels (copied from n)."
+        },
+        {
+          "orig": "h",
+          "friendly": "tileHeightPx",
+          "type": "int",
+          "meaning": "Tile height in pixels (copied from o)."
+        },
+        {
+          "orig": "i",
+          "friendly": "scaleDivisor",
+          "type": "int",
+          "meaning": "Scale divisor used to convert pixel coords to viewport origin; fixed at 1."
+        },
+        {
+          "orig": "j",
+          "friendly": "viewportOriginX",
+          "type": "int",
+          "meaning": "Current viewport top-left X coordinate."
+        },
+        {
+          "orig": "k",
+          "friendly": "viewportOriginY",
+          "type": "int",
+          "meaning": "Current viewport top-left Y coordinate."
+        },
+        {
+          "orig": "l",
+          "friendly": "mapTileWidth",
+          "type": "int",
+          "meaning": "Map width in tiles (from header; used in allocation/skip math)."
+        },
+        {
+          "orig": "m",
+          "friendly": "mapTileHeight",
+          "type": "int",
+          "meaning": "Map height in tiles (from header; used in allocation/skip math)."
+        },
+        {
+          "orig": "n",
+          "friendly": "tileWidth",
+          "type": "int",
+          "meaning": "Tile width in pixels (from header)."
+        },
+        {
+          "orig": "o",
+          "friendly": "tileHeight",
+          "type": "int",
+          "meaning": "Tile height in pixels (from header)."
+        },
+        {
+          "orig": "p",
+          "friendly": "blockColumns",
+          "type": "int",
+          "meaning": "Number of block columns (horizontal block division of the map)."
+        },
+        {
+          "orig": "q",
+          "friendly": "blockRows",
+          "type": "int",
+          "meaning": "Number of block rows (vertical block division of the map)."
+        },
+        {
+          "orig": "r",
+          "friendly": "atlasTilesPerRow",
+          "type": "int",
+          "meaning": "Tiles per row in the atlas image = atlas width / tileWidth."
+        },
+        {
+          "orig": "s",
+          "friendly": "blockIndexTable",
+          "type": "byte[]",
+          "meaning": "Flat block-index table mapping block cells to atlas tile ids."
+        },
+        {
+          "orig": "t",
+          "friendly": "atlasImage",
+          "type": "javax.microedition.lcdui.Image",
+          "meaning": "Static shared tile atlas image loaded from image.bin[atlasId+4]."
+        },
+        {
+          "orig": "c",
+          "friendly": "loadedAtlasId",
+          "type": "int",
+          "meaning": "Static id of the currently loaded atlas (initialized to -1)."
+        },
+        {
+          "orig": "u",
+          "friendly": "offscreenBuffer",
+          "type": "javax.microedition.lcdui.Image",
+          "meaning": "Static off-screen scroll buffer image."
+        },
+        {
+          "orig": "v",
+          "friendly": "offscreenWidth",
+          "type": "int",
+          "meaning": "Static off-screen buffer width in pixels."
+        },
+        {
+          "orig": "w",
+          "friendly": "offscreenHeight",
+          "type": "int",
+          "meaning": "Static off-screen buffer height in pixels."
+        },
+        {
+          "orig": "x",
+          "friendly": "offscreenGraphics",
+          "type": "javax.microedition.lcdui.Graphics",
+          "meaning": "Static Graphics context for drawing into the off-screen buffer."
+        },
+        {
+          "orig": "y",
+          "friendly": "bufferDrawnLeft",
+          "type": "int",
+          "meaning": "Tile-aligned left edge of the region already drawn into the off-screen buffer (-1 = invalid)."
+        },
+        {
+          "orig": "z",
+          "friendly": "bufferDrawnTop",
+          "type": "int",
+          "meaning": "Tile-aligned top edge of the region already drawn into the off-screen buffer (-1 = invalid)."
+        },
+        {
+          "orig": "A",
+          "friendly": "bufferDrawnRight",
+          "type": "int",
+          "meaning": "Tile-aligned right edge of the region already drawn into the off-screen buffer."
+        },
+        {
+          "orig": "B",
+          "friendly": "bufferDrawnBottom",
+          "type": "int",
+          "meaning": "Tile-aligned bottom edge of the region already drawn into the off-screen buffer."
+        }
+      ]
+    },
+    "c": {
+      "friendly": "BossActor",
+      "extends": "g",
+      "methods": [
+        {
+          "orig": "c",
+          "sig": "(ILtjge/d;Ltjge/a;)V",
+          "friendly": "BossActor",
+          "purpose": "构造器：以类型ID、精灵定义(SpriteDef)、所属主控(GameScreen)初始化，默认可绘制(n=true)、无关联小兵(o=null)。"
+        },
+        {
+          "orig": "a",
+          "sig": "(III[BZ)Z",
+          "friendly": "init",
+          "purpose": "重置/初始化（覆写基类）：按类型ID(q=14/8/17)装配各自的状态机初值与子状态、读入字节参数、注册到主控相应槽位并进入起始动画。"
+        },
+        {
+          "orig": "a",
+          "sig": "()V",
+          "friendly": "think",
+          "purpose": "每帧更新主逻辑：依 q 分派（14=可破坏物、8=Boss本体多阶段攻防、17=俯冲/突进），驱动子状态机、生成弹幕、处理受击与死亡。"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ltjge/l;)V",
+          "friendly": "onProjectileHit",
+          "purpose": "被弹丸(Projectile)命中时的伤害结算：按弹丸类型扣减血量(f)、反弹/销毁弹丸、触发受击闪烁(l)。"
+        },
+        {
+          "orig": "f",
+          "sig": "()V",
+          "friendly": "spawnDeathBurst",
+          "purpose": "私有：在当前位置附近随机散布生成数枚爆炸特效并播放音效（死亡/爆裂表现）。"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;II)V",
+          "friendly": "paint",
+          "purpose": "绘制（覆写基类）：仅当可见标志 n 为真时调用父类绘制。"
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "screen",
+          "type": "tjge.a",
+          "meaning": "所属主控游戏屏(GameScreen)，用于访问玩家、关卡状态与生成实体。"
+        },
+        {
+          "orig": "b",
+          "friendly": "delayTimer",
+          "type": "int",
+          "meaning": "通用倒计时/延迟计数器（各阶段复用：出场延迟、攻击前摇、可破坏物存活计时等）。"
+        },
+        {
+          "orig": "c",
+          "friendly": "phase",
+          "type": "int",
+          "meaning": "主状态机阶段编号（q=8 时 0..3 的攻防子阶段；q=14 时 0/1 标记是否已被击破）。"
+        },
+        {
+          "orig": "d",
+          "friendly": "subTimer",
+          "type": "int",
+          "meaning": "子状态计时/步进计数器（控制阶段内节奏：开火间隔、突进倒计时等）。"
+        },
+        {
+          "orig": "e",
+          "friendly": "attackMode",
+          "type": "int",
+          "meaning": "攻击模式开关（0/1，决定 phase=1 时发射哪种弹幕分支）。"
+        },
+        {
+          "orig": "f",
+          "friendly": "health",
+          "type": "int",
+          "meaning": "当前血量/耐久值，受击递减；归零后推进至下一轮或死亡处理。"
+        },
+        {
+          "orig": "g",
+          "friendly": "waveCount",
+          "type": "int",
+          "meaning": "剩余攻击波次/回合计数（每轮血量耗尽后递减，影响伤害输出与死亡判定）。"
+        },
+        {
+          "orig": "h",
+          "friendly": "flashCounter",
+          "type": "int",
+          "meaning": "受击闪烁帧计数（l 为真时累加，超阈值复位坐标并结束闪烁）；q=17 时用作存储的子计时初值。"
+        },
+        {
+          "orig": "i",
+          "friendly": "homeX",
+          "type": "int",
+          "meaning": "记录的基准 X 坐标（定点<<10），用于闪烁抖动复位与归位。"
+        },
+        {
+          "orig": "j",
+          "friendly": "homeY",
+          "type": "int",
+          "meaning": "记录的基准 Y 坐标（定点<<10），用于 q=17 突进后归位。"
+        },
+        {
+          "orig": "k",
+          "friendly": "disabled",
+          "type": "boolean",
+          "meaning": "是否被禁用（由初始化字节参数决定；为真则不参与攻防逻辑，仅登记到主控槽位）。"
+        },
+        {
+          "orig": "l",
+          "friendly": "hitFlashing",
+          "type": "boolean",
+          "meaning": "受击闪烁中标志（命中后置真，触发坐标抖动与帧计数）。"
+        },
+        {
+          "orig": "m",
+          "friendly": "phaseTriggered",
+          "type": "boolean",
+          "meaning": "某攻防段是否已触发的一次性标志（防止接触伤害分支重复触发）。"
+        },
+        {
+          "orig": "n",
+          "friendly": "visible",
+          "type": "boolean",
+          "meaning": "是否绘制/可见（false 时 paint 跳过父类绘制，用于死亡淡出隐藏）。"
+        },
+        {
+          "orig": "o",
+          "friendly": "minion",
+          "type": "tjge.h",
+          "meaning": "关联的小兵/同伴实体(EnemyActor)，q=8 且 x=4 分支据其状态联动驱动 Boss 行为。"
+        }
+      ]
+    },
+    "d": {
+      "friendly": "SpriteDef",
+      "extends": null,
+      "methods": [
+        {
+          "orig": "<init>",
+          "sig": "()V",
+          "friendly": "constructor",
+          "purpose": "私有构造函数，仅供静态工厂 b(int) 内部创建实例。"
+        },
+        {
+          "orig": "a",
+          "sig": "()S",
+          "friendly": "getSequenceCount",
+          "purpose": "返回 sequence（动画序列）数量 r。"
+        },
+        {
+          "orig": "a",
+          "sig": "(I)S",
+          "friendly": "getSequenceFrameCount",
+          "purpose": "返回第 n 个 sequence 的帧数 s[n]。"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;IIIIII)V",
+          "friendly": "paintSequenceFrame",
+          "purpose": "按 sequence 索引(高2位为水平/垂直翻转标志)与帧索引，把对应 pose 的各模块帧逐块拼到 Graphics 上绘制。"
+        },
+        {
+          "orig": "b",
+          "sig": "()V",
+          "friendly": "dispose",
+          "purpose": "释放本精灵持有的所有 pose/sequence/碰撞箱数组与图集引用。"
+        },
+        {
+          "orig": "c",
+          "sig": "()V",
+          "friendly": "refreshLoadedAtlasFlags",
+          "purpose": "静态：依据 GameScreen.d(int) 刷新各资源索引对应图集的已加载标志表 b。"
+        },
+        {
+          "orig": "b",
+          "sig": "(I)Ltjge/d;",
+          "friendly": "loadFromBin",
+          "purpose": "静态工厂：从 /res/a.bin 第 n 条目解析出 SpriteDef（pose 拼帧 + sequence 序列 + 碰撞箱），失败返回 null。"
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "atlasTable",
+          "type": "SpriteAtlas[]",
+          "meaning": "静态：图集(i/SpriteAtlas)表，按图集 id 索引，容量 32，懒加载缓存。"
+        },
+        {
+          "orig": "b",
+          "friendly": "atlasLoadedFlags",
+          "type": "boolean[]",
+          "meaning": "静态：各图集 id 的已加载标志表，容量 32；索引 0 在静态块中置 true。"
+        },
+        {
+          "orig": "c",
+          "friendly": "resourceToAtlasId",
+          "type": "int[]",
+          "meaning": "静态：资源条目索引 → 图集 id 的映射表，容量 32。"
+        },
+        {
+          "orig": "o",
+          "friendly": "poseCount",
+          "type": "short",
+          "meaning": "pose（拼帧姿态）数量。"
+        },
+        {
+          "orig": "p",
+          "friendly": "poseModuleCounts",
+          "type": "short[]",
+          "meaning": "每个 pose 的模块(分块)数量。"
+        },
+        {
+          "orig": "q",
+          "friendly": "poseModuleFrames",
+          "type": "short[][]",
+          "meaning": "每个 pose 各模块在图集中的帧索引(0..255，读取时负值+256还原)。"
+        },
+        {
+          "orig": "d",
+          "friendly": "poseModuleOffsetX",
+          "type": "byte[][]",
+          "meaning": "每个 pose 各模块的 x 偏移。"
+        },
+        {
+          "orig": "e",
+          "friendly": "poseModuleOffsetY",
+          "type": "byte[][]",
+          "meaning": "每个 pose 各模块的 y 偏移。"
+        },
+        {
+          "orig": "r",
+          "friendly": "sequenceCount",
+          "type": "short",
+          "meaning": "sequence（动画序列）数量。"
+        },
+        {
+          "orig": "s",
+          "friendly": "sequenceFrameCounts",
+          "type": "short[]",
+          "meaning": "每个 sequence 的帧数。"
+        },
+        {
+          "orig": "t",
+          "friendly": "sequencePoseIndices",
+          "type": "short[][]",
+          "meaning": "每个 sequence 的逐帧 pose 索引序列(读取时负值+256还原)。"
+        },
+        {
+          "orig": "f",
+          "friendly": "collisionBoxX",
+          "type": "byte[]",
+          "meaning": "每个 sequence 的碰撞箱 x。"
+        },
+        {
+          "orig": "g",
+          "friendly": "collisionBoxY",
+          "type": "byte[]",
+          "meaning": "每个 sequence 的碰撞箱 y。"
+        },
+        {
+          "orig": "h",
+          "friendly": "collisionBoxWidth",
+          "type": "byte[]",
+          "meaning": "每个 sequence 的碰撞箱宽 w。"
+        },
+        {
+          "orig": "i",
+          "friendly": "collisionBoxHeight",
+          "type": "byte[]",
+          "meaning": "每个 sequence 的碰撞箱高 h。"
+        },
+        {
+          "orig": "j",
+          "friendly": "boundsX",
+          "type": "short",
+          "meaning": "整体边界 x。"
+        },
+        {
+          "orig": "k",
+          "friendly": "boundsY",
+          "type": "short",
+          "meaning": "整体边界 y。"
+        },
+        {
+          "orig": "l",
+          "friendly": "boundsWidth",
+          "type": "short",
+          "meaning": "整体边界宽。"
+        },
+        {
+          "orig": "m",
+          "friendly": "boundsHeight",
+          "type": "short",
+          "meaning": "整体边界高。"
+        },
+        {
+          "orig": "n",
+          "friendly": "atlasId",
+          "type": "short",
+          "meaning": "图集 id（临时字段：解析时读入并用于关联图集，末尾被清零）。"
+        },
+        {
+          "orig": "u",
+          "friendly": "atlas",
+          "type": "SpriteAtlas",
+          "meaning": "本精灵关联的图集(i/SpriteAtlas)，绘制时调用其拼块绘制。"
+        }
+      ]
+    },
+    "e": {
+      "friendly": "EffectActor",
+      "extends": "g",
+      "methods": [
+        {
+          "orig": "<init>",
+          "sig": "(ILtjge/d;Ltjge/a;)V",
+          "friendly": "constructor",
+          "purpose": "构造特效/可交互 Actor，传入类型 id、精灵定义 SpriteDef 与所属游戏世界 GameScreen"
+        },
+        {
+          "orig": "a",
+          "sig": "(III[BZ)Z",
+          "friendly": "init",
+          "purpose": "覆写 g 的初始化：按类型 q 设置初始状态字段（触发器/感应器/可破坏物/手雷等）；bl 为 true 时不创建返回 false"
+        },
+        {
+          "orig": "a",
+          "sig": "()V",
+          "friendly": "update",
+          "purpose": "每帧更新：按类型 q 分派感应区检测、爆炸触发、关卡解谜逻辑与可破坏物销毁等行为"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;II)V",
+          "friendly": "paint",
+          "purpose": "覆写 g 的绘制：类型 12 且世界标志 E 未置位时跳过，否则委托父类绘制"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ltjge/l;)V",
+          "friendly": "onProjectileHit",
+          "purpose": "处理被弹丸/单位 Projectile 命中：依本体类型与弹丸类型扣血、击退、生成爆炸特效并放音效"
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "destroyedFlag",
+          "type": "int",
+          "meaning": "销毁/触发状态标志：case 4/5 初始化为 0，被打爆或感应触发时置 1，用于推进关卡状态（i.p=19/20）"
+        },
+        {
+          "orig": "b",
+          "friendly": "anchorX",
+          "type": "int",
+          "meaning": "锚点/目标格 X：case 22 存目标瓦片列（byArray[0]），case 7/9 存重生锚点 C（横坐标）"
+        },
+        {
+          "orig": "c",
+          "friendly": "anchorY",
+          "type": "int",
+          "meaning": "锚点/目标格 Y：case 22 存目标瓦片行（byArray[1]），case 7/9 存重生锚点 D（纵坐标）"
+        },
+        {
+          "orig": "d",
+          "friendly": "hitPoints",
+          "type": "int",
+          "meaning": "耐久/命中计数：可破坏物初始 3 或 9，感应器 case5 初始 4；被命中时递减，决定动画帧与销毁判定"
+        },
+        {
+          "orig": "e",
+          "friendly": "shakeTick",
+          "type": "int",
+          "meaning": "受击抖动动画计时：被命中时清 0，每帧自增并与 5 比较，控制横向晃动后复位"
+        },
+        {
+          "orig": "f",
+          "friendly": "tintBits",
+          "type": "int",
+          "meaning": "缓存的高位颜色/alpha 通道位（t & 0xFF000000），用于重设动画帧时保留染色"
+        },
+        {
+          "orig": "g",
+          "friendly": "regenTimer",
+          "type": "int",
+          "meaning": "再生/恢复计时：仅 case 9 使用，自增并与 40 比较，超时后回升耐久档位"
+        },
+        {
+          "orig": "h",
+          "friendly": "activated",
+          "type": "boolean",
+          "meaning": "激活/触发标志：感应区命中、被弹丸击中或满足解谜条件时置 true"
+        },
+        {
+          "orig": "i",
+          "friendly": "world",
+          "type": "tjge.a",
+          "meaning": "所属游戏世界 GameScreen 引用，用于访问玩家焦点单位 j、地图 f、关卡数据 g 及生成特效/音效"
+        }
+      ]
+    },
+    "f": {
+      "friendly": "PlayerActor",
+      "extends": "g",
+      "methods": [
+        {
+          "orig": "f",
+          "sig": "(ILtjge/d;Ltjge/a;)V",
+          "friendly": "Player",
+          "purpose": "构造函数：以图块索引、SpriteDef、GameScreen 主控创建玩家并保存主控引用。"
+        },
+        {
+          "orig": "c",
+          "sig": "(Ltjge/b;)Z",
+          "friendly": "checkGroundCollision",
+          "purpose": "落地/侧壁碰撞检测，依朝向 d 调整位置与速度，命中地面返回 true。"
+        },
+        {
+          "orig": "e",
+          "sig": "(Ltjge/b;)Z",
+          "friendly": "checkLedgeTop",
+          "purpose": "爬升时检测头顶上方三格是否撞到实心瓦片。"
+        },
+        {
+          "orig": "f",
+          "sig": "(Ltjge/b;)Z",
+          "friendly": "checkWallAhead",
+          "purpose": "检测面朝方向前方一格是否贴墙（瓦片值为1）。"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ltjge/b;Z)Z",
+          "friendly": "checkLadderTile",
+          "purpose": "检测当前/指定位置是否为梯子瓦片(值2)并吸附到梯子中线。"
+        },
+        {
+          "orig": "a",
+          "sig": "(III[BZ)Z",
+          "friendly": "init",
+          "purpose": "初始化玩家：调用基类初始化后设满血10、复位标志与重力。"
+        },
+        {
+          "orig": "f",
+          "sig": "()V",
+          "friendly": "resetForLevel",
+          "purpose": "进入关卡/复位：设满血、清子状态、初始化朝向标志与计数。"
+        },
+        {
+          "orig": "e",
+          "sig": "()V",
+          "friendly": "step",
+          "purpose": "物理步进：按模式 p 累积速度/加速度并推进坐标、处理碰撞与相机。"
+        },
+        {
+          "orig": "a",
+          "sig": "()V",
+          "friendly": "update",
+          "purpose": "每帧更新：刷新朝向，跑状态机 g 与输入处理 h，血量耗尽则触发死亡帧。"
+        },
+        {
+          "orig": "g",
+          "sig": "()V",
+          "friendly": "runActionStateMachine",
+          "purpose": "动作状态机：按当前动作 id c 与子状态 o 切换动画/物理（跳/落/攀爬/换弹等）。"
+        },
+        {
+          "orig": "h",
+          "sig": "()V",
+          "friendly": "handleInput",
+          "purpose": "输入处理：依输入位掩码 q 驱动左右移动、跳跃、射击、换弹（含多层跳转）。"
+        },
+        {
+          "orig": "b",
+          "sig": "(I)V",
+          "friendly": "startLeapLeft",
+          "purpose": "向左跳跃/落地动作分支：按子状态 o 选帧、设竖直速度 n 并起跳。"
+        },
+        {
+          "orig": "c",
+          "sig": "(I)V",
+          "friendly": "startLeapRight",
+          "purpose": "向右跳跃/落地动作分支：按子状态 o 选帧、设竖直速度 n 并起跳。"
+        },
+        {
+          "orig": "i",
+          "sig": "()V",
+          "friendly": "land",
+          "purpose": "着地复位：清横移/重力、置着地位 bit0 并切回站立帧。"
+        },
+        {
+          "orig": "j",
+          "sig": "()V",
+          "friendly": "beginFall",
+          "purpose": "离地坠落：在可坠落动作下清着地位、施加重力并切坠落帧。"
+        },
+        {
+          "orig": "k",
+          "sig": "()V",
+          "friendly": "walkLeft",
+          "purpose": "向左行走：设左向横移速度并切左行走帧。"
+        },
+        {
+          "orig": "l",
+          "sig": "()V",
+          "friendly": "walkRight",
+          "purpose": "向右行走：设右向横移速度并切右行走帧。"
+        },
+        {
+          "orig": "d",
+          "sig": "(I)V",
+          "friendly": "fireWeapon",
+          "purpose": "开火/投掷：按武器类型 n 生成对应 Projectile（子弹/手雷/火箭）并消耗弹药。"
+        },
+        {
+          "orig": "e",
+          "sig": "(I)V",
+          "friendly": "takeDamage",
+          "purpose": "受击：扣血 n、设无敌计时 R 并进入受击动作帧。"
+        },
+        {
+          "orig": "g",
+          "sig": "(Ltjge/b;)Z",
+          "friendly": "checkClimbable",
+          "purpose": "攀爬检测：扫描前方瓦片得攀爬类型写入 n 并记录落点 S/T。"
+        },
+        {
+          "orig": "o",
+          "sig": "()V",
+          "friendly": "handleVehicleInput",
+          "purpose": "x==4 载具/特殊场景下的输入处理（移动/射击/换弹的简化分支）。"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ltjge/b;I)Z",
+          "friendly": "checkWallLeft",
+          "purpose": "向左侧地形碰撞：偏移 n（100=忽略方向限制），命中实墙吸附并返回 true。"
+        },
+        {
+          "orig": "b",
+          "sig": "(Ltjge/b;I)Z",
+          "friendly": "checkWallRight",
+          "purpose": "向右侧地形碰撞：偏移 n（100=忽略方向限制），命中实墙吸附并返回 true。"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ltjge/l;)V",
+          "friendly": "onHitByProjectile",
+          "purpose": "被 Projectile 命中处理：按其类型 q 反弹朝向、扣血或触发爆炸效果。"
+        },
+        {
+          "orig": "f",
+          "sig": "(I)V",
+          "friendly": "switchOrReloadWeapon",
+          "purpose": "切换/换弹：按上下文 n（32=切武器）选择有弹药的武器索引 k 并切换帧。"
+        },
+        {
+          "orig": "m",
+          "sig": "()V",
+          "friendly": "fullAmmoInit",
+          "purpose": "弹药满装初始化：复位当前武器并装满三种备弹与当前弹匣。"
+        },
+        {
+          "orig": "n",
+          "sig": "()V",
+          "friendly": "reloadFromReserve",
+          "purpose": "换弹回收：将当前弹匣余弹按武器类型从备弹池补满。"
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "stateFlags",
+          "type": "int",
+          "meaning": "状态位掩码：bit0=着地，bit13(0x2000)=梯子/攀爬态。"
+        },
+        {
+          "orig": "b",
+          "friendly": "movingFlag",
+          "type": "int",
+          "meaning": "移动标志：1=正在主动移动/跳跃中，0=静止（用于步进时是否归零横移）。"
+        },
+        {
+          "orig": "c",
+          "friendly": "actionId",
+          "type": "int",
+          "meaning": "当前动作 id（= t & 0xFFFFFF），状态机分支键。"
+        },
+        {
+          "orig": "d",
+          "friendly": "facingFlag",
+          "type": "int",
+          "meaning": "朝向标志（= t & 0xFF000000）：非0=左（MIN_VALUE 位）。"
+        },
+        {
+          "orig": "e",
+          "friendly": "health",
+          "type": "int",
+          "meaning": "生命值，初始 10，<=0 触发死亡。"
+        },
+        {
+          "orig": "f",
+          "friendly": "lastInputDir",
+          "type": "int",
+          "meaning": "上次水平输入计数/方向标记（1/2/4/8/64/128 对应各输入位）。"
+        },
+        {
+          "orig": "g",
+          "friendly": "inputHoldCount",
+          "type": "int",
+          "meaning": "输入按住帧计数（用于判定起跳/连射阈值）。"
+        },
+        {
+          "orig": "h",
+          "friendly": "ammoReserveB",
+          "type": "int",
+          "meaning": "武器1（k==1）备弹数，初始 6。"
+        },
+        {
+          "orig": "i",
+          "friendly": "ammoReserveC",
+          "type": "int",
+          "meaning": "武器2（k==2）备弹数，初始 3。"
+        },
+        {
+          "orig": "j",
+          "friendly": "grenadeCount",
+          "type": "int",
+          "meaning": "手雷数量，初始 3。"
+        },
+        {
+          "orig": "k",
+          "friendly": "weaponIndex",
+          "type": "int",
+          "meaning": "当前武器索引（0/1/2）。"
+        },
+        {
+          "orig": "l",
+          "friendly": "magazineAmmo",
+          "type": "int",
+          "meaning": "当前弹匣余弹数。"
+        },
+        {
+          "orig": "m",
+          "friendly": "frameTimer",
+          "type": "int",
+          "meaning": "通用帧计数器（状态延时/受击计时）。"
+        },
+        {
+          "orig": "n",
+          "friendly": "climbResult",
+          "type": "int",
+          "meaning": "攀爬检测结果类型（0=无,1/2/3/4=不同攀爬高度）。"
+        },
+        {
+          "orig": "o",
+          "friendly": "subState",
+          "type": "int",
+          "meaning": "子状态/动作阶段编号（状态机内细分）。"
+        },
+        {
+          "orig": "O",
+          "friendly": "spareO",
+          "type": "int",
+          "meaning": "未使用计数字段 O（CFR 中无引用，保留占位）。"
+        },
+        {
+          "orig": "P",
+          "friendly": "spareP",
+          "type": "int",
+          "meaning": "未使用计数字段 P（CFR 中无引用，保留占位）。"
+        },
+        {
+          "orig": "Q",
+          "friendly": "climbAnimState",
+          "type": "int",
+          "meaning": "攀爬/翻越动画状态轮转值（18→24→25→26→18）。"
+        },
+        {
+          "orig": "R",
+          "friendly": "invulnTimer",
+          "type": "int",
+          "meaning": "受击无敌计时，每帧递减，>0 时免伤。"
+        },
+        {
+          "orig": "S",
+          "friendly": "climbTargetX",
+          "type": "int",
+          "meaning": "攀爬落点 X 坐标（定点 <<10）。"
+        },
+        {
+          "orig": "T",
+          "friendly": "climbTargetY",
+          "type": "int",
+          "meaning": "攀爬落点 Y 坐标（定点 <<10/<<14）。"
+        },
+        {
+          "orig": "U",
+          "friendly": "facingLeft",
+          "type": "boolean",
+          "meaning": "朝向是否向左（= facingFlag 非0）。"
+        },
+        {
+          "orig": "V",
+          "friendly": "actionFlag",
+          "type": "boolean",
+          "meaning": "动作布尔标志（攀爬/交互相关，f_ 中清空）。"
+        },
+        {
+          "orig": "W",
+          "friendly": "canClimb",
+          "type": "boolean",
+          "meaning": "是否允许攀爬/翻越（着地后置 true，跳出时清 false）。"
+        },
+        {
+          "orig": "X",
+          "friendly": "climbAdvance",
+          "type": "boolean",
+          "meaning": "攀爬动画推进触发标志（每帧推进一阶）。"
+        },
+        {
+          "orig": "Y",
+          "friendly": "ledgeGrabFlag",
+          "type": "boolean",
+          "meaning": "悬崖抓取/翻越方向标志（决定 case27 翻上还是放手）。"
+        },
+        {
+          "orig": "Z",
+          "friendly": "linkedEnemy",
+          "type": "e",
+          "meaning": "关联的 EffectActor/敌人引用（近战交互目标）。"
+        },
+        {
+          "orig": "aa",
+          "friendly": "linkedBoss",
+          "type": "c",
+          "meaning": "关联的 BossActor 引用（x==4 载具/Boss 场景跟随）。"
+        },
+        {
+          "orig": "ab",
+          "friendly": "screen",
+          "type": "a",
+          "meaning": "主控 GameScreen 引用（读输入 q、模式 p、生成实体等）。"
+        }
+      ]
+    },
+    "g": {
+      "friendly": "ActorBase",
+      "extends": "java.lang.Object",
+      "methods": [
+        {
+          "orig": "g(int, tjge.d)",
+          "sig": "g(int q, d r)",
+          "friendly": "Actor",
+          "purpose": "Constructor: stores the type id and sprite definition, marks the actor inactive (p=false) and animation looping (s=true)."
+        },
+        {
+          "orig": "a(int, int, int, byte[], boolean)",
+          "sig": "boolean a(int frameIndex, int tileX, int tileY, byte[] params, boolean flag)",
+          "friendly": "spawnAt",
+          "purpose": "Initializes/spawns the actor: sets the animation frame, places it at tile (x,y) as fixed-point world coords (<<10), and zeroes velocity/acceleration while setting default speed caps and orientation."
+        },
+        {
+          "orig": "b()",
+          "sig": "void b()",
+          "friendly": "deactivate",
+          "purpose": "Deactivates the actor by clearing the active flag (p=false)."
+        },
+        {
+          "orig": "a(int)",
+          "sig": "void a(int frameIndex)",
+          "friendly": "setFrame",
+          "purpose": "Sets the current animation frame index (with horizontal/vertical flip flag bits): loads the frame's bounding box from the sprite def, applies flips and the 270-degree orientation swap, and resets the frame counter."
+        },
+        {
+          "orig": "c()",
+          "sig": "void c()",
+          "friendly": "advanceAnimation",
+          "purpose": "Advances the animation by one tick; on reaching the last frame, loops back to 0 (if looping) or holds the last frame, and sets the animation-finished flag."
+        },
+        {
+          "orig": "d()",
+          "sig": "boolean d()",
+          "friendly": "isAnimationDone",
+          "purpose": "Returns whether the current animation has finished playing (the u flag)."
+        },
+        {
+          "orig": "e()",
+          "sig": "void e()",
+          "friendly": "stepPhysics",
+          "purpose": "Per-tick physics step: advances animation, applies acceleration to velocity clamped to speed caps, then integrates velocity into the fixed-point position. Overridable by subclasses."
+        },
+        {
+          "orig": "a()",
+          "sig": "void a()",
+          "friendly": "update",
+          "purpose": "Per-tick logic update hook; empty in the base class, overridden by subclasses."
+        },
+        {
+          "orig": "a(tjge.l)",
+          "sig": "void a(l projectile)",
+          "friendly": "onProjectileHit",
+          "purpose": "Interaction hook for a projectile/bullet striking this actor; empty in the base class, overridden by subclasses."
+        },
+        {
+          "orig": "a(javax.microedition.lcdui.Graphics, int, int)",
+          "sig": "void a(Graphics g, int cameraX, int cameraY)",
+          "friendly": "paint",
+          "purpose": "Draws the actor relative to the camera origin, with frustum/off-screen culling against the screen bounds using the sprite def's draw extents; delegates to the sprite def's draw routine. Overridable by subclasses."
+        },
+        {
+          "orig": "a(tjge.g)",
+          "sig": "boolean a(g other)",
+          "friendly": "intersectsActor",
+          "purpose": "Axis-aligned bounding-box overlap test between this actor and another actor (using each actor's frame bounding box offset by its world position)."
+        },
+        {
+          "orig": "a(tjge.b)",
+          "sig": "boolean a(b tileMap)",
+          "friendly": "collideLeftWall",
+          "purpose": "Resolves leftward (negative-X) collision against solid map tiles: scans the tile column at the left edge, and on a hit zeroes horizontal velocity and snaps the X position flush against the wall."
+        },
+        {
+          "orig": "b(tjge.b)",
+          "sig": "boolean b(b tileMap)",
+          "friendly": "collideRightWall",
+          "purpose": "Resolves rightward (positive-X) collision against solid map tiles: scans the tile column at the right edge, and on a hit zeroes horizontal velocity and snaps the X position flush against the wall."
+        },
+        {
+          "orig": "c(tjge.b)",
+          "sig": "boolean c(b tileMap)",
+          "friendly": "collideGround",
+          "purpose": "Resolves downward (falling) collision against solid map tiles below the actor's feet: on a hit, zeroes vertical velocity/acceleration and snaps the actor to rest on top of the tile. Overridable by subclasses."
+        },
+        {
+          "orig": "d(tjge.b)",
+          "sig": "boolean d(b tileMap)",
+          "friendly": "collideCeiling",
+          "purpose": "Resolves upward (rising/jumping) collision against a solid map tile above the actor's head: on a hit, zeroes upward velocity, snaps below the tile, and applies downward acceleration (gravity)."
+        }
+      ],
+      "fields": [
+        {
+          "orig": "p",
+          "friendly": "active",
+          "type": "boolean",
+          "meaning": "Whether the actor is currently active/alive in the world. Public; toggled false on deactivate()."
+        },
+        {
+          "orig": "q",
+          "friendly": "typeId",
+          "type": "int",
+          "meaning": "The actor's type/class identifier, supplied at construction."
+        },
+        {
+          "orig": "r",
+          "friendly": "spriteDef",
+          "type": "d (SpriteDef)",
+          "meaning": "Reference to the sprite definition (animation/frame data) used to render and bound this actor."
+        },
+        {
+          "orig": "s",
+          "friendly": "loopAnimation",
+          "type": "boolean",
+          "meaning": "Whether the animation loops (true) or holds the last frame when finished. Defaults true."
+        },
+        {
+          "orig": "t",
+          "friendly": "frameIndex",
+          "type": "int",
+          "meaning": "Current animation frame index, whose high bits (0x80000000, 0x40000000) encode horizontal/vertical flip flags."
+        },
+        {
+          "orig": "u",
+          "friendly": "animationDone",
+          "type": "boolean",
+          "meaning": "Set true when the current animation reaches its final frame."
+        },
+        {
+          "orig": "v",
+          "friendly": "currentFrame",
+          "type": "int",
+          "meaning": "Current frame counter within the active animation (0-based), advanced each tick."
+        },
+        {
+          "orig": "w",
+          "friendly": "frameCount",
+          "type": "short",
+          "meaning": "Total number of frames in the active animation, queried from the sprite def."
+        },
+        {
+          "orig": "x",
+          "friendly": "boundsLeft",
+          "type": "int",
+          "meaning": "Horizontal bounding-box left offset for the current frame (flipped/swapped by flags and orientation)."
+        },
+        {
+          "orig": "y",
+          "friendly": "boundsRight",
+          "type": "int",
+          "meaning": "Horizontal bounding-box right offset for the current frame (flipped/swapped by flags and orientation)."
+        },
+        {
+          "orig": "z",
+          "friendly": "boundsTop",
+          "type": "int",
+          "meaning": "Vertical bounding-box top offset for the current frame (flipped/swapped by flags and orientation)."
+        },
+        {
+          "orig": "A",
+          "friendly": "boundsBottom",
+          "type": "int",
+          "meaning": "Vertical bounding-box bottom offset for the current frame (flipped/swapped by flags and orientation)."
+        },
+        {
+          "orig": "B",
+          "friendly": "extra",
+          "type": "int",
+          "meaning": "General-purpose public int field (unused in the base class; left for subclass use)."
+        },
+        {
+          "orig": "C",
+          "friendly": "posX",
+          "type": "int",
+          "meaning": "World X position in fixed-point (pixels << 10)."
+        },
+        {
+          "orig": "D",
+          "friendly": "posY",
+          "type": "int",
+          "meaning": "World Y position in fixed-point (pixels << 10)."
+        },
+        {
+          "orig": "E",
+          "friendly": "velX",
+          "type": "int",
+          "meaning": "Current horizontal velocity (fixed-point), latched from accelX-driven velocity each physics step."
+        },
+        {
+          "orig": "F",
+          "friendly": "velY",
+          "type": "int",
+          "meaning": "Current vertical velocity (fixed-point), latched from accelY-driven velocity each physics step."
+        },
+        {
+          "orig": "G",
+          "friendly": "targetVelX",
+          "type": "int",
+          "meaning": "Horizontal velocity accumulator that acceleration is applied to and clamped against the speed cap."
+        },
+        {
+          "orig": "H",
+          "friendly": "targetVelY",
+          "type": "int",
+          "meaning": "Vertical velocity accumulator that acceleration is applied to and clamped against the speed cap."
+        },
+        {
+          "orig": "I",
+          "friendly": "accelX",
+          "type": "int",
+          "meaning": "Horizontal acceleration applied to targetVelX each physics step."
+        },
+        {
+          "orig": "J",
+          "friendly": "accelY",
+          "type": "int",
+          "meaning": "Vertical acceleration (gravity) applied to targetVelY each physics step."
+        },
+        {
+          "orig": "K",
+          "friendly": "maxVelX",
+          "type": "int",
+          "meaning": "Horizontal speed cap that targetVelX is clamped to (default 12288)."
+        },
+        {
+          "orig": "L",
+          "friendly": "maxVelY",
+          "type": "int",
+          "meaning": "Vertical speed cap that targetVelY is clamped to (default 12288)."
+        },
+        {
+          "orig": "M",
+          "friendly": "orientation",
+          "type": "int",
+          "meaning": "Orientation angle in degrees; value 270 triggers an axis swap of the frame bounding box, also passed to the draw routine as rotation."
+        },
+        {
+          "orig": "N",
+          "friendly": "drawParam",
+          "type": "int",
+          "meaning": "Auxiliary draw parameter (palette/variant) passed through to the sprite def's draw routine."
+        }
+      ]
+    },
+    "h": {
+      "friendly": "EnemyActor",
+      "extends": "g",
+      "methods": [
+        {
+          "orig": "h",
+          "sig": "(ILtjge/d;Ltjge/a;)V",
+          "friendly": "constructor",
+          "purpose": "构造敌人 Actor：调用父类构造并保存所属 GameScreen 主控（W）。"
+        },
+        {
+          "orig": "a",
+          "sig": "(III[BZ)Z",
+          "friendly": "spawnInit",
+          "purpose": "敌人生成/初始化：重置 AI 状态、设朝向与巡逻边界、按类型与生成参数字节配置血量与可攻击垂直区间。"
+        },
+        {
+          "orig": "a",
+          "sig": "()V",
+          "friendly": "update",
+          "purpose": "每帧主更新：处理被击退、近战触碰玩家，并按类型分派到 patrolUpdate/airUpdate/bossUpdate。"
+        },
+        {
+          "orig": "f",
+          "sig": "()V",
+          "friendly": "patrolUpdate",
+          "purpose": "地面巡逻型敌人（type 1/2）的 AI 状态机：巡逻、瞄准、近战/远程攻击、死亡与坠落。"
+        },
+        {
+          "orig": "g",
+          "sig": "()V",
+          "friendly": "airUpdate",
+          "purpose": "空中/降落型敌人的 AI 状态机：追踪玩家水平位置、降落、攻击、出屏回收。"
+        },
+        {
+          "orig": "h",
+          "sig": "()V",
+          "friendly": "bossUpdate",
+          "purpose": "Boss（type 18）的 AI 状态机：来回移动、冲撞、召唤、受击进入下一阶段。"
+        },
+        {
+          "orig": "i",
+          "sig": "()V",
+          "friendly": "spawnMeleeHitbox",
+          "purpose": "在玩家上方生成近战攻击判定弹体（type 20）并设其朝向，播放攻击动作。"
+        },
+        {
+          "orig": "b",
+          "sig": "(I)Ltjge/l;",
+          "friendly": "fireProjectile",
+          "purpose": "按朝向在身前生成远程子弹（type 21），返回生成的弹体或 null。"
+        },
+        {
+          "orig": "j",
+          "sig": "()V",
+          "friendly": "killTrailEffect",
+          "purpose": "若存在伴随特效（X）则将其销毁/释放。"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ltjge/l;)V",
+          "friendly": "onProjectileHit",
+          "purpose": "被弹体命中处理：按弹体类型扣命/即死，触发受击/死亡状态与音效。"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;II)V",
+          "friendly": "paint",
+          "purpose": "绘制覆写：受击闪烁计时期间隔帧跳过绘制，否则调用父类绘制。"
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "timerA",
+          "type": "int",
+          "meaning": "通用计时/计数器（如延迟生效计数、airUpdate 中按 60 帧节拍的横移随机触发计数）。"
+        },
+        {
+          "orig": "b",
+          "friendly": "timerB",
+          "type": "int",
+          "meaning": "通用计时/计数器（动作节拍、瞄准/攻击/死亡阶段的帧计数）。"
+        },
+        {
+          "orig": "c",
+          "friendly": "patrolBaseX",
+          "type": "int",
+          "meaning": "巡逻基准 x（定点，生成时取当前 C），用于计算左右边界。"
+        },
+        {
+          "orig": "d",
+          "friendly": "patrolRange",
+          "type": "int",
+          "meaning": "巡逻范围（格数；由生成参数 byArray[1] 给出，左移 10 转定点距离）。"
+        },
+        {
+          "orig": "e",
+          "friendly": "patrolDir",
+          "type": "int",
+          "meaning": "初始巡逻/朝向方向（生成参数 byArray[0]，0=向左基准、非0=向右基准）。"
+        },
+        {
+          "orig": "f",
+          "friendly": "attackRangeUpper",
+          "type": "int",
+          "meaning": "可攻击的垂直上界偏移（定点；由生成参数 byArray[3] 选档）。"
+        },
+        {
+          "orig": "g",
+          "friendly": "attackRangeLower",
+          "type": "int",
+          "meaning": "可攻击的垂直下界偏移（定点；由生成参数 byArray[3] 选档，为负值）。"
+        },
+        {
+          "orig": "h",
+          "friendly": "hitPoints",
+          "type": "int",
+          "meaning": "血量/连击数（巡逻型取 byArray[2]，Boss 为 0；>0 时启用连击攻击分支）。"
+        },
+        {
+          "orig": "i",
+          "friendly": "patrolLeftBound",
+          "type": "int",
+          "meaning": "巡逻左边界（定点 x）。"
+        },
+        {
+          "orig": "j",
+          "friendly": "patrolRightBound",
+          "type": "int",
+          "meaning": "巡逻右边界（定点 x）。"
+        },
+        {
+          "orig": "k",
+          "friendly": "facingFlag",
+          "type": "int",
+          "meaning": "朝向标志位：0 或 Integer.MIN_VALUE（最高位），与动作低位或运算生成镜像动作。"
+        },
+        {
+          "orig": "l",
+          "friendly": "rhythmThreshold",
+          "type": "int",
+          "meaning": "节奏/冷却阈值（攻击或切换的帧计数上限，随血量调整）。"
+        },
+        {
+          "orig": "m",
+          "friendly": "lives",
+          "type": "int",
+          "meaning": "剩余命数（初始为 hitPoints+1，被命中递减，<=0 进入死亡）。"
+        },
+        {
+          "orig": "n",
+          "friendly": "actionLow24",
+          "type": "int",
+          "meaning": "当前动作 ID 的低 24 位（t & 0xFFFFFF，去掉朝向位后的纯动作号）。"
+        },
+        {
+          "orig": "o",
+          "friendly": "aiState",
+          "type": "int",
+          "meaning": "AI 子状态机当前状态（巡逻=0、转身=1、行走=3、攻击=5/8、受击=9、死亡=4 等）。"
+        },
+        {
+          "orig": "O",
+          "friendly": "attackMode",
+          "type": "int",
+          "meaning": "攻击模式标志（0=远程/常规攻击分支，1=近战推挤分支）。"
+        },
+        {
+          "orig": "P",
+          "friendly": "hurtBlinkTimer",
+          "type": "int",
+          "meaning": "受击/死亡闪烁与延迟计时（>0 时 paint 隔帧跳过，并门控死亡回收）。"
+        },
+        {
+          "orig": "Q",
+          "friendly": "comboToggle",
+          "type": "boolean",
+          "meaning": "连击切换标志（在普通攻击与连击攻击之间交替）。"
+        },
+        {
+          "orig": "R",
+          "friendly": "knockedBack",
+          "type": "boolean",
+          "meaning": "被击退中标志（玩家近战互动触发，等待玩家动作结束）。"
+        },
+        {
+          "orig": "S",
+          "friendly": "aiming",
+          "type": "boolean",
+          "meaning": "已进入瞄准标志（在攻击距离内锁定玩家，准备出招）。"
+        },
+        {
+          "orig": "T",
+          "friendly": "isPatroller",
+          "type": "boolean",
+          "meaning": "巡逻模式标志（type 1/2 为 true，走 patrolUpdate；否则走 airUpdate）。"
+        },
+        {
+          "orig": "U",
+          "friendly": "fromSpawner",
+          "type": "boolean",
+          "meaning": "由刷怪点产生标志（影响死亡时是否回写关卡标记与递减计数）。"
+        },
+        {
+          "orig": "V",
+          "friendly": "target",
+          "type": "tjge.f",
+          "meaning": "AI 追踪/攻击目标，即玩家（取自 W.j，Player）。"
+        },
+        {
+          "orig": "W",
+          "friendly": "screen",
+          "type": "tjge.a",
+          "meaning": "所属 GameScreen 主控（提供玩家、关卡、相机边界、计数器、生成弹体/实体接口）。"
+        },
+        {
+          "orig": "X",
+          "friendly": "trailEffect",
+          "type": "tjge.e",
+          "meaning": "关联的伴随特效 EffectActor（跟随本体位置，可为 null）。"
+        }
+      ]
+    },
+    "i": {
+      "friendly": "SpriteAtlas",
+      "extends": null,
+      "methods": [
+        {
+          "orig": "<init>",
+          "sig": "()V",
+          "friendly": "constructor",
+          "purpose": "私有无参构造，仅由静态工厂 a(int) 内部实例化空图集对象"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;IIIII)V",
+          "friendly": "drawSprite",
+          "purpose": "绘制第 n3 张小图：从 4bit packed 像素按调色板组解码拼到缓冲 f，再经 Nokia drawPixels(4444) 带翻转/旋转贴到屏幕(x=n,y=n2,palette=n4,manip=n5)"
+        },
+        {
+          "orig": "a",
+          "sig": "(I)Ltjge/i;",
+          "friendly": "load",
+          "purpose": "静态工厂：从 /res/t.bin 第 n 条目解析整张图集（小图表+调色板+像素），异常返回 null"
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "flipHorizontalBit",
+          "type": "int",
+          "meaning": "静态：水平翻转请求位掩码(Integer.MIN_VALUE/0x80000000)，编码在小图索引高字节中"
+        },
+        {
+          "orig": "b",
+          "friendly": "flipVerticalBit",
+          "type": "int",
+          "meaning": "静态：垂直翻转请求位掩码(0x40000000)，编码在小图索引高字节中"
+        },
+        {
+          "orig": "c",
+          "friendly": "pixelBufferCapacity",
+          "type": "int",
+          "meaning": "静态：拼像素临时缓冲 f 的容量(4096)"
+        },
+        {
+          "orig": "g",
+          "friendly": "spriteCount",
+          "type": "short",
+          "meaning": "小图(子图)数量"
+        },
+        {
+          "orig": "h",
+          "friendly": "rowOffsets",
+          "type": "short[]",
+          "meaning": "每张小图在像素图中的行内偏移(列偏移，用于奇偶对齐与 4bit 半字节定位)"
+        },
+        {
+          "orig": "i",
+          "friendly": "startRows",
+          "type": "short[]",
+          "meaning": "每张小图的起始行号"
+        },
+        {
+          "orig": "d",
+          "friendly": "widths",
+          "type": "short[]",
+          "meaning": "每张小图的像素宽(0..255，负数解析时 +256，public)"
+        },
+        {
+          "orig": "e",
+          "friendly": "heights",
+          "type": "short[]",
+          "meaning": "每张小图的像素高(0..255，负数解析时 +256，public)"
+        },
+        {
+          "orig": "j",
+          "friendly": "paletteBaseIndices",
+          "type": "byte[]",
+          "meaning": "每张小图的调色板基址索引（使用时 <<4 得到组内色基偏移）"
+        },
+        {
+          "orig": "k",
+          "friendly": "bytesPerRow",
+          "type": "int",
+          "meaning": "像素图每行的字节数（解析时已 /2）"
+        },
+        {
+          "orig": "l",
+          "friendly": "totalRows",
+          "type": "int",
+          "meaning": "像素图总行数"
+        },
+        {
+          "orig": "m",
+          "friendly": "packedPixels",
+          "type": "byte[]",
+          "meaning": "4bit packed 像素数据(每字节 2 个调色板索引)，长度 bytesPerRow*totalRows"
+        },
+        {
+          "orig": "n",
+          "friendly": "palettes",
+          "type": "short[][]",
+          "meaning": "调色板表[组][色]=ARGB4444 颜色值"
+        },
+        {
+          "orig": "o",
+          "friendly": "paletteCount",
+          "type": "int",
+          "meaning": "调色板组数"
+        },
+        {
+          "orig": "f",
+          "friendly": "pixelBuffer",
+          "type": "short[]",
+          "meaning": "静态：拼像素临时缓冲(容量 c)，按 ARGB4444 逐像素填充后交给 drawPixels"
+        }
+      ]
+    },
+    "j": {
+      "friendly": "LevelLoader",
+      "extends": "java.lang.Object",
+      "methods": [
+        {
+          "orig": "a(II)V",
+          "sig": "public final void a(int n, int n2)",
+          "friendly": "activateScreenAt",
+          "purpose": "Jump-load the screen block at world pixel (n,n2): reset spawn flags, free all actor-pool slots, then spawn every actor listed for that block into the active array; records it as the current block."
+        },
+        {
+          "orig": "b(II)V",
+          "sig": "public final void b(int n, int n2)",
+          "friendly": "streamScreenTransitionTo",
+          "purpose": "Incremental scroll update to the block at world pixel (n,n2): diff the current block's actor list against the new one, despawn actors that left and spawn newcomers via the diff buffer; no-op if same block."
+        },
+        {
+          "orig": "a(I)Ltjge/g;",
+          "sig": "public final g a(int n)",
+          "friendly": "spawnActor",
+          "purpose": "Spawn actor index n by finding a free instance in its type pool, assigning its id, initializing it with its x/y/extra-data/flag, marking it in-use, and returning it (or null on failure)."
+        },
+        {
+          "orig": "a(Ltjge/a;II)V",
+          "sig": "public static final void a(a a2, int n, int n2)",
+          "friendly": "buildActorPool",
+          "purpose": "Static: build the type-n actor object pool of size n2 by asking the GameScreen to instantiate n2 actors from sprite definition b[n] (skips if already built)."
+        },
+        {
+          "orig": "a()V",
+          "sig": "public static final void a()",
+          "friendly": "releaseUnusedSpriteDefs",
+          "purpose": "Static: release sprite definitions 1..29 not marked as retained (calls dispose and nulls them out). Original trailing System.gc() omitted per port contract."
+        },
+        {
+          "orig": "b()V",
+          "sig": "public static final void b()",
+          "friendly": "refreshRetainFlags",
+          "purpose": "Static: recompute the retain flag for sprite definitions 1..29 from GameScreen.d(int), then invoke SpriteDef.c() cleanup."
+        },
+        {
+          "orig": "b(I)V",
+          "sig": "public static final void b(int n)",
+          "friendly": "retainSpriteDef",
+          "purpose": "Static: ensure sprite definition n is loaded (lazy-create via SpriteDef.b(n)), mark it retained, and flag its backing image as in-use in SpriteDef's static tables."
+        },
+        {
+          "orig": "c()V",
+          "sig": "public final void c()",
+          "friendly": "disposeLevel",
+          "purpose": "Tear down the whole level: dispose the tile map, refresh retain flags, null the active-actor array and all actor pools, and release the per-actor screen/x/y/extra-data/type tables."
+        },
+        {
+          "orig": "a(Ltjge/a;)V",
+          "sig": "public static final void a(a a2)",
+          "friendly": "initBootSprites",
+          "purpose": "Static: bootstrap the boot/common sprites — load sprite def 0, build its single-actor pool on the GameScreen, and retain sprite def 8."
+        },
+        {
+          "orig": "a(Ltjge/a;I)Ltjge/j;",
+          "sig": "public static final j a(a a2, int n)",
+          "friendly": "loadLevel",
+          "purpose": "Static factory: parse /res/s.bin entry n — header, enemy-type table, per-actor spawn table (type/x/y/extra-data), and the screen-block-to-actor-index table — building the tile map and a fully populated LevelLoader (null on failure)."
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "tileMap",
+          "type": "TileMap",
+          "meaning": "Static. The current level's tile map instance (class b). Built by loadLevel and torn down by disposeLevel."
+        },
+        {
+          "orig": "b",
+          "friendly": "spriteDefPool",
+          "type": "SpriteDef[]",
+          "meaning": "Static, length 30. Pool of sprite definitions (class d) indexed by sprite type id; entries are lazily loaded and nulled when unused."
+        },
+        {
+          "orig": "c",
+          "friendly": "spriteDefRetained",
+          "type": "boolean[]",
+          "meaning": "Static, length 30. Per-sprite-type retain flag; true means the corresponding spriteDefPool entry must be kept loaded."
+        },
+        {
+          "orig": "d",
+          "friendly": "actorPools",
+          "type": "Actor[][]",
+          "meaning": "Static, length 30. Object pools of reusable actors (class g) per type id; the inner array is the preallocated instances for that type."
+        },
+        {
+          "orig": "e",
+          "friendly": "activeActors",
+          "type": "Actor[]",
+          "meaning": "Static. Currently active/spawned actors indexed by actor index; entries set on spawn and nulled on despawn."
+        },
+        {
+          "orig": "m",
+          "friendly": "spawnDiffBuffer",
+          "type": "byte[]",
+          "meaning": "Private static, length 40. Scratch buffer holding actor indices that newly entered the visible block during streamScreenTransitionTo, processed for spawning afterward."
+        },
+        {
+          "orig": "f",
+          "friendly": "blockActorIndices",
+          "type": "byte[][]",
+          "meaning": "Instance. Screen-block to actor-index table: blockActorIndices[block] is the sorted list of actor indices belonging to that screen block."
+        },
+        {
+          "orig": "g",
+          "friendly": "currentBlock",
+          "type": "int",
+          "meaning": "Instance. Index of the screen block the camera currently occupies."
+        },
+        {
+          "orig": "h",
+          "friendly": "actorSpawnX",
+          "type": "short[]",
+          "meaning": "Instance. Per-actor initial spawn X coordinate (indexed by actor index)."
+        },
+        {
+          "orig": "i",
+          "friendly": "actorSpawnY",
+          "type": "short[]",
+          "meaning": "Instance. Per-actor initial spawn Y coordinate (indexed by actor index)."
+        },
+        {
+          "orig": "j",
+          "friendly": "actorTypeId",
+          "type": "int[]",
+          "meaning": "Instance. Per-actor type id mapping actor index to its sprite/pool type (used to pick the pool in spawnActor)."
+        },
+        {
+          "orig": "k",
+          "friendly": "actorSpawned",
+          "type": "boolean[]",
+          "meaning": "Instance. Per-actor already-spawned flag passed into actor init; reset at the start of activateScreenAt."
+        },
+        {
+          "orig": "l",
+          "friendly": "actorExtraData",
+          "type": "byte[][]",
+          "meaning": "Instance. Per-actor extra/parameter byte payload passed to actor initialization (may be null when empty)."
+        },
+        {
+          "orig": "n",
+          "friendly": "blockCount",
+          "type": "int",
+          "meaning": "Private instance. Total number of screen blocks, computed as (mapHeight/blockHeight)*(mapWidth/blockWidth)."
+        },
+        {
+          "orig": "o",
+          "friendly": "blockWidth",
+          "type": "int",
+          "meaning": "Private instance. Screen-block width in pixels (set to 176)."
+        },
+        {
+          "orig": "p",
+          "friendly": "blockHeight",
+          "type": "int",
+          "meaning": "Private instance. Screen-block height in pixels (set to 176)."
+        },
+        {
+          "orig": "q",
+          "friendly": "emptySlotMarker",
+          "type": "int",
+          "meaning": "Private instance. Sentinel value (0) marking empty/skip slots in the block actor-index lists during streaming diff."
+        }
+      ]
+    },
+    "k": {
+      "friendly": "PickupActor",
+      "extends": "g",
+      "methods": [
+        {
+          "orig": "k",
+          "sig": "(ILtjge/d;Ltjge/a;)V",
+          "friendly": "PickupItem",
+          "purpose": "构造函数：以类型 n、精灵定义 d2 和所属 GameScreen a2 初始化道具（调用 super(n,d2)）"
+        },
+        {
+          "orig": "a",
+          "sig": "(III[BZ)Z",
+          "friendly": "spawn",
+          "purpose": "生成/初始化道具实例：bl 为真直接返回 false 不生成；否则置位置与动画、清空闪烁计时与拾取标志，并按 q 类型从 byArray[0] 读取子类型与升空贴图，返回是否成功"
+        },
+        {
+          "orig": "a",
+          "sig": "()V",
+          "friendly": "update",
+          "purpose": "逐帧逻辑：处理拾取闪烁计时；按 q 类型（3=道具加成 11=补血 13=触发关卡事件）检测与玩家碰撞并施加效果，标记已拾取"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;II)V",
+          "friendly": "paint",
+          "purpose": "绘制：拾取后按奇偶帧闪烁地绘制本体，并在 q 为 3/11 时在道具上方绘制逐帧上升的拾取特效贴图"
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "screen",
+          "type": "tjge.a",
+          "meaning": "所属主画布/游戏屏幕（GameScreen），用于访问玩家 j、敌人组 g 及相机/状态等"
+        },
+        {
+          "orig": "b",
+          "friendly": "subType",
+          "type": "int",
+          "meaning": "道具子类型（q==3 时读自 byArray[0]）：决定加成方向（0/3 加 h，2/5 加 i，1/4 置 j），并决定升空贴图 d 取 6 还是 3"
+        },
+        {
+          "orig": "c",
+          "friendly": "pickupFlashTimer",
+          "type": "int",
+          "meaning": "拾取后闪烁/特效倒计时；>0 期间锁定 H=0 并按奇偶帧闪烁绘制本体与上升特效，归零后道具消失"
+        },
+        {
+          "orig": "d",
+          "friendly": "riseEffectTile",
+          "type": "int",
+          "meaning": "升空拾取特效的贴图索引/数值（q==3 由 subType 推得 6 或 3；q==11 直接取自 byArray[0]，同时作为补血量）"
+        },
+        {
+          "orig": "e",
+          "friendly": "pickedUp",
+          "type": "boolean",
+          "meaning": "已被拾取标志；置位后下一帧调用 b() 使道具失活"
+        }
+      ]
+    },
+    "l": {
+      "friendly": "ProjectileActor",
+      "extends": "g",
+      "methods": [
+        {
+          "orig": "l",
+          "sig": "(ILtjge/d;Ltjge/a;)V",
+          "friendly": "Projectile",
+          "purpose": "构造函数：以类型 id 和精灵定义构造抛射物，并绑定所属 GameScreen 世界。"
+        },
+        {
+          "orig": "a",
+          "sig": "()V",
+          "friendly": "update",
+          "purpose": "每帧逻辑推进：按抛射物类型(q=15/21/10/20/16)处理弹道飞行、与敌人/玩家/地形碰撞、命中触发特效与销毁。"
+        },
+        {
+          "orig": "a",
+          "sig": "(Ljavax/microedition/lcdui/Graphics;II)V",
+          "friendly": "paint",
+          "purpose": "框架绘制方法：定时弹(q=20)前两帧不可见，其余委托父类绘制。"
+        },
+        {
+          "orig": "f",
+          "sig": "()V",
+          "friendly": "computeHomingTrajectory",
+          "purpose": "计算朝最近目标的追踪/抛物弹道：选最近敌人，依据重力和水平距离求出竖直速度分量 H。"
+        },
+        {
+          "orig": "a",
+          "sig": "(Z)Z",
+          "friendly": "advanceAndCollide",
+          "purpose": "沿给定水平方向(bl)推进一步，检测与可命中敌人及地形格子的碰撞，命中返回 true。"
+        },
+        {
+          "orig": "b",
+          "sig": "(I)V",
+          "friendly": "launchArc",
+          "purpose": "依据与玩家的水平距离初始化抛物轨迹参数(初速、加速度、生命计时)，n 决定水平朝向。"
+        },
+        {
+          "orig": "c",
+          "sig": "(I)Z",
+          "friendly": "isEffectType",
+          "purpose": "判断给定类型 id 是否为可被命中的特效类敌人(7 或 9)。"
+        },
+        {
+          "orig": "d",
+          "sig": "(I)Z",
+          "friendly": "isHomingTarget",
+          "purpose": "判断给定类型 id 是否为追踪弹道的有效目标(2 或 1)。"
+        },
+        {
+          "orig": "a",
+          "sig": "(III[BZ)Z",
+          "friendly": "spawn",
+          "purpose": "重置/生成抛射物：从字节参数读取延迟、循环帧与子类型，初始化投掷类(q=10)的状态。"
+        }
+      ],
+      "fields": [
+        {
+          "orig": "a",
+          "friendly": "world",
+          "type": "tjge.a",
+          "meaning": "所属 GameScreen 世界引用，用于访问敌人数组 k、玩家 f、地图 f、相机 r、计时 t 等。"
+        },
+        {
+          "orig": "b",
+          "friendly": "frameCounter",
+          "type": "int",
+          "meaning": "多用计数器：投掷/弧线类(q=10/15/21)作存活帧倒数；定时弹(q=20)作上膛/可见帧累加(<2 时绘制隐藏)。"
+        },
+        {
+          "orig": "c",
+          "friendly": "launchOriginX",
+          "type": "int",
+          "meaning": "发射时的水平原点坐标，用于按最大射程(|C-c|>204800)判定子弹销毁。"
+        },
+        {
+          "orig": "d",
+          "friendly": "mode",
+          "type": "int",
+          "meaning": "模式/变体标记(如 d==1、d==2)，并作为命中特效工厂 a(16,...) 的第 6 个参数传入。"
+        },
+        {
+          "orig": "e",
+          "friendly": "lifeTimer",
+          "type": "int",
+          "meaning": "生命周期计时器：弧线发射时由 launchArc 设置，定时弹(q=20)中递减至 <0 触发落地结算。"
+        },
+        {
+          "orig": "f",
+          "friendly": "armingDelay",
+          "type": "int",
+          "meaning": "投掷类(q=10)的起爆/激活延迟倒数，源自 spawn 的 byArray[0]，归零前阻止后续逻辑。"
+        },
+        {
+          "orig": "g",
+          "friendly": "loopFrames",
+          "type": "int",
+          "meaning": "投掷类(q=10)阶段切换时重置 frameCounter 用的循环帧数，源自 spawn 的 byArray[1]。"
+        },
+        {
+          "orig": "h",
+          "friendly": "subType",
+          "type": "int",
+          "meaning": "投掷类(q=10)子类型标记，源自 spawn 的 byArray[2]：控制旋转角 M 及销毁分支(h==1 走 MIN_VALUE)。"
+        }
+      ]
+    }
+  }
+}

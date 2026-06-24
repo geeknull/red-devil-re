@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+.vite/
+packages/*/dist/
+
+# 浏览器自动化快照（运行时垃圾）
+.playwright-mcp/
+
+# 第三方工具二进制（开发/验证用，非交付物；版本与下载见 tools/README.md）
+tools/decompilers/
+tools/emulator/
+*.rms

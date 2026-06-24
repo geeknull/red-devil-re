@@ -1,0 +1,38 @@
+public final class tjge.k extends tjge.h {
+  public static final int[] a;
+    descriptor: [I
+  public int b;
+    descriptor: I
+  private int f;
+    descriptor: I
+  public int c;
+    descriptor: I
+  private boolean Q;
+    descriptor: Z
+  public boolean d;
+    descriptor: Z
+  private boolean R;
+    descriptor: Z
+  public boolean e;
+    descriptor: Z
+  public tjge.k(int, tjge.d);
+    descriptor: (ILtjge/d;)V
+
+  public final void b();
+    descriptor: ()V
+
+  protected final void c(tjge.h);
+    descriptor: (Ltjge/h;)V
+
+  public static final tjge.k a(int, int, int, int, int, int[]);
+    descriptor: (IIIII[I)Ltjge/k;
+
+  protected final int m();
+    descriptor: ()I
+
+  public final boolean a();
+    descriptor: ()Z
+
+  static {};
+    descriptor: ()V
+}

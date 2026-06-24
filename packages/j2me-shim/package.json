@@ -1,0 +1,11 @@
+{
+  "name": "@red-devil/j2me-shim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "J2ME (MIDP/CLDC) 兼容层：在 TS+Canvas 上复刻 Random/Graphics/Image/Resource/Sound，保证位级一致",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

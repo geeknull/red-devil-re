@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>1-jar-unpacked → signatures → porting-contract.json</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d; --txt:#e6edf3; --dim:#8b949e;
+    --bin:#6e7681; --tool:#3fb950; --json:#d98b2b; --ts:#3b82f6; --truth:#f0c674;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    --sans:-apple-system,"PingFang SC",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);padding:30px 26px 60px}
+  h1{font-size:19px;font-weight:600;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:8px}
+  .banner{display:inline-block;font-size:12px;color:var(--truth);background:#1c1607;border:1px solid #3a2f0a;border-radius:7px;padding:6px 11px;margin-bottom:26px}
+  .grid{display:flex;gap:46px;align-items:flex-start;flex-wrap:wrap}
+  .chain{display:flex;flex-direction:column;align-items:flex-start}
+  .ctitle{font-size:11px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+  .node{width:360px;border:1px solid var(--border);border-radius:11px;background:var(--panel);padding:13px 15px}
+  .node .tag{font-family:var(--mono);font-size:13px;font-weight:600}
+  .node .role{float:right;font-size:11px;color:var(--dim);font-weight:400}
+  .node .d{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.6}
+  code{font-family:var(--mono);font-size:11px;background:#0b0f14;padding:1px 5px;border-radius:4px;color:var(--txt)}
+  .bin{border-left:3px solid var(--bin)} .bin .tag{color:#adbac7}
+  .sig{border-left:3px solid var(--tool)} .sig .tag{color:var(--tool)}
+  .json{border-left:3px solid var(--json)} .json .tag{color:var(--json)}
+  .tsn{border-left:3px solid var(--ts)} .tsn .tag{color:#79b8ff}
+  .truth{box-shadow:0 0 0 1px var(--truth) inset}
+  .arrow{display:flex;align-items:center;gap:10px;padding:9px 0 9px 18px}
+  .arrow .ch{font-size:20px;color:#586069}
+  .arrow .lbl{font-family:var(--mono);font-size:11.5px;background:#0b0f14;border:1px solid var(--border);border-radius:6px;padding:3px 9px}
+  .arrow .lbl.t{color:var(--tool);border-color:#1c3a25}
+  .arrow .lbl.s{color:var(--json);border-color:#3a2f0a}
+  .arrow .sm{font-size:11px;color:var(--dim)}
+  /* worked example */
+  .ex{width:330px;border:1px solid var(--border);border-radius:12px;background:#11161d;padding:16px 18px}
+  .ex h3{margin:0 0 4px;font-size:13px;color:var(--txt)}
+  .ex .exs{font-size:11.5px;color:var(--dim);margin-bottom:14px}
+  .step{display:flex;gap:11px;align-items:flex-start;margin-bottom:2px}
+  .step .num{flex:none;width:20px;height:20px;border-radius:50%;background:#21262d;border:1px solid var(--border);font-size:11px;font-family:var(--mono);display:flex;align-items:center;justify-content:center;color:var(--dim);margin-top:1px}
+  .step .body{font-size:12px;line-height:1.5}
+  .step .k{color:var(--dim);font-size:11px}
+  .vline{margin:2px 0 2px 9px;border-left:1px dashed #3a4250;height:14px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:30px;font-size:12px;color:var(--dim)}
+  .legend b{color:var(--txt)}
+  .foot{margin-top:18px;font-size:12px;color:var(--dim);max-width:740px;line-height:1.75;border-top:1px solid var(--border);padding-top:14px}
+  .foot b{color:var(--txt)}
+</style>
+</head>
+<body>
+  <h1>1-jar-unpacked → signatures → porting-contract.json</h1>
+  <div class="sub">命名侧支：全部锚在字节码真值上，逐步确定性派生，零 AI。</div>
+  <div class="banner">▣ 整条链都是字节码（真值）派生 · javap 与脚本都是确定性工具 · 不碰 decompiled-cfr / readable</div>
+
+  <div class="grid">
+    <!-- 链 -->
+    <div class="chain">
+      <div class="ctitle">派生链（自上而下）</div>
+
+      <div class="node bin truth">
+        <span class="tag">1-jar-unpacked/tjge/*.class</span><span class="role">字节码 · 真值</span>
+        <div class="d">编译后的字节码（开发商原物的解包）。含常量池 + 方法/字段表 + 方法体。</div>
+      </div>
+
+      <div class="arrow">
+        <span class="ch">▼</span>
+        <span class="lbl t">javap -p -s</span>
+        <span class="sm">JDK 工具 · 逐类跑 · 无自定义脚本 · 只抽签名不抽方法体</span>
+      </div>
+
+      <div class="node sig">
+        <span class="tag">signatures/*.txt</span><span class="role">签名清单</span>
+        <div class="d">每类一份。列出所有字段/方法 + <b>精确 JVM 描述符</b>（<code>descriptor: (II)V</code>），<b>无方法体</b>。重载靠描述符区分。</div>
+      </div>
+
+      <div class="arrow">
+        <span class="ch">▼</span>
+        <span class="lbl s">gen_porting_contract.py</span>
+        <span class="sm">项目脚本 · 解析描述符 → 确定性命名规则</span>
+      </div>
+
+      <div class="node json">
+        <span class="tag">porting-contract.json</span><span class="role">重载消歧契约</span>
+        <div class="d">把每个 <b>(混淆名 + 描述符)</b> 映射到唯一 TS 名：<code>a(II)V → a_II</code>、<code>a(Graphics) → a_G</code>。框架方法/构造保留原名。</div>
+      </div>
+
+      <div class="arrow">
+        <span class="ch">▼</span>
+        <span class="lbl">移植时人照着命名</span>
+        <span class="sm">（不被代码 import，只是命名规范）</span>
+      </div>
+
+      <div class="node tsn">
+        <span class="tag">packages/game*/src/*.ts</span><span class="role">运行的游戏</span>
+        <div class="d">方法名 <code>a_II</code> / <code>h_I</code> <b>硬编码</b>在 TS 源码里。契约功成身退，留作可复现 + 速查。</div>
+      </div>
+    </div>
+
+    <!-- 工作示例 -->
+    <div class="ex">
+      <h3>跟一个方法走一遍</h3>
+      <div class="exs">以 <code>TileMap</code>(类 b) 的某个重载方法为例</div>
+
+      <div class="step"><span class="num">1</span><div class="body"><span class="k">字节码里有个方法</span><br><code>b.a(int,int) 返回 void</code></div></div>
+      <div class="vline"></div>
+      <div class="step"><span class="num">2</span><div class="body"><span class="k">javap 抽出签名 + 描述符</span><br><code>a  descriptor: (II)V</code></div></div>
+      <div class="vline"></div>
+      <div class="step"><span class="num">3</span><div class="body"><span class="k">脚本按规则命名（II=两个int）</span><br><code>a + _ + II  →  a_II</code></div></div>
+      <div class="vline"></div>
+      <div class="step"><span class="num">4</span><div class="body"><span class="k">TS 源码里就叫这个</span><br><code>this.a_II(x, y)</code></div></div>
+
+      <div style="margin-top:16px;font-size:11.5px;color:var(--dim);line-height:1.6;border-top:1px solid var(--border);padding-top:11px">
+        另一个重载 <code>a()返回int</code> → <code>(​)I</code> → <code>a_</code>；<br>
+        <code>a(Graphics)</code> → <code>a_G</code>。<br>
+        同名 <code>a</code> 因描述符不同 → 不同 TS 名，<b>无碰撞、可对回字节码</b>。
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>三者关系一句话</b>：<code>1-jar-unpacked</code> 的<b>字节码</b>是源头真值；<code>javap -p -s</code> 从中抽出<b>只含签名+描述符</b>的 <code>signatures/</code>；项目脚本再把这些描述符按确定性规则算成 <code>porting-contract.json</code>（混淆名→TS名）。
+    <br>每一步都是<b>确定性工具</b>、可一键重现，<b>整条钉在字节码上</b>——不经过 decompiled-cfr，也不经过 readable，所以这条命名线<b>零 AI 二手加工</b>。
+    <br><span style="color:var(--tool)">注</span>：<code>javap</code>（抽签名）和 <code>CFR</code>（还原方法体）是对同一份 <code>.class</code> 的两种读法——javap 浅、只要"目录"；CFR 深、要"正文"。
+  </div>
+</body>
+</html>

@@ -1,0 +1,96 @@
+public class tjge.g {
+  public boolean p;
+    descriptor: Z
+  protected int q;
+    descriptor: I
+  protected tjge.d r;
+    descriptor: Ltjge/d;
+  protected boolean s;
+    descriptor: Z
+  protected int t;
+    descriptor: I
+  protected boolean u;
+    descriptor: Z
+  protected int v;
+    descriptor: I
+  protected short w;
+    descriptor: S
+  protected int x;
+    descriptor: I
+  protected int y;
+    descriptor: I
+  protected int z;
+    descriptor: I
+  protected int A;
+    descriptor: I
+  public int B;
+    descriptor: I
+  public int C;
+    descriptor: I
+  public int D;
+    descriptor: I
+  public int E;
+    descriptor: I
+  public int F;
+    descriptor: I
+  public int G;
+    descriptor: I
+  public int H;
+    descriptor: I
+  public int I;
+    descriptor: I
+  public int J;
+    descriptor: I
+  public int K;
+    descriptor: I
+  public int L;
+    descriptor: I
+  public int M;
+    descriptor: I
+  public int N;
+    descriptor: I
+  public tjge.g(int, tjge.d);
+    descriptor: (ILtjge/d;)V
+
+  public boolean a(int, int, int, byte[], boolean);
+    descriptor: (III[BZ)Z
+
+  public final void b();
+    descriptor: ()V
+
+  public final void a(int);
+    descriptor: (I)V
+
+  public final void c();
+    descriptor: ()V
+
+  public final boolean d();
+    descriptor: ()Z
+
+  public void e();
+    descriptor: ()V
+
+  public void a();
+    descriptor: ()V
+
+  public void a(tjge.l);
+    descriptor: (Ltjge/l;)V
+
+  public void a(javax.microedition.lcdui.Graphics, int, int);
+    descriptor: (Ljavax/microedition/lcdui/Graphics;II)V
+
+  public final boolean a(tjge.g);
+    descriptor: (Ltjge/g;)Z
+
+  public final boolean a(tjge.b);
+    descriptor: (Ltjge/b;)Z
+
+  public final boolean b(tjge.b);
+    descriptor: (Ltjge/b;)Z
+
+  public boolean c(tjge.b);
+    descriptor: (Ltjge/b;)Z
+
+  public final boolean d(tjge.b);
+    descriptor: (Ltjge/b;)Z
+}

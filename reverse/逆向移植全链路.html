@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>红魔特种兵 · 逆向 → 移植 全链路</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d; --txt:#e6edf3; --dim:#8b949e;
+    --bin:#6e7681; --binbg:#21262d;
+    --java:#d98b2b; --javabg:#3a2a14;
+    --ts:#3b82f6; --tsbg:#142a4d;
+    --tool:#3fb950; --toolbg:#102a17;
+    --truth:#f0c674;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    --sans:-apple-system,"PingFang SC",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);padding:28px 24px 60px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:22px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:26px;font-size:12px}
+  .legend span{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:6px;border:1px solid var(--border)}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .wrap{display:flex;gap:34px;align-items:flex-start;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:0;align-items:center}
+  .coltitle{font-size:12px;color:var(--dim);letter-spacing:.08em;margin-bottom:10px;text-transform:uppercase}
+  .node{width:300px;border:1px solid var(--border);border-radius:10px;background:var(--panel);padding:12px 14px}
+  .node .tag{font-family:var(--mono);font-size:12px;font-weight:600}
+  .node .role{float:right;font-size:11px;color:var(--dim)}
+  .node .desc{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.55}
+  .node code{font-family:var(--mono);font-size:11px;background:#0b0f14;padding:1px 5px;border-radius:4px;color:var(--txt)}
+  .bin{border-left:3px solid var(--bin)} .bin .tag{color:#adbac7}
+  .java{border-left:3px solid var(--java)} .java .tag{color:var(--java)}
+  .ts{border-left:3px solid var(--ts)} .ts .tag{color:#79b8ff}
+  .tool{border-left:3px solid var(--tool)} .tool .tag{color:var(--tool)}
+  .truth{box-shadow:0 0 0 1px var(--truth) inset}
+  .arrow{display:flex;flex-direction:column;align-items:center;color:var(--dim);font-size:11px;padding:7px 0;line-height:1.2}
+  .arrow .lbl{font-family:var(--mono);background:#0b0f14;border:1px solid var(--border);border-radius:5px;padding:1px 7px;margin-bottom:2px}
+  .arrow .ch{font-size:16px;color:#586069}
+  .branch{display:flex;align-items:flex-start;gap:12px;margin:8px 0}
+  .branch .hb{color:#586069;font-size:15px;margin-top:6px}
+  .side{width:270px;border:1px dashed var(--border);border-radius:9px;padding:9px 11px;background:#11161d}
+  .side .h{font-size:11px;color:var(--dim);font-family:var(--mono)}
+  .side .b{font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.5}
+  .note{margin-top:7px;font-size:11px;color:var(--truth);background:#1c1607;border:1px solid #3a2f0a;border-radius:6px;padding:5px 8px;line-height:1.5}
+  .footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(--border);padding-top:14px;max-width:760px;line-height:1.7}
+  .footer b{color:var(--txt)}
+  .pill{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:4px}
+  .pj{background:var(--javabg);color:var(--java)} .pt{background:var(--tsbg);color:#79b8ff}
+</style>
+</head>
+<body>
+  <h1>红魔特种兵 · 逆向 → 移植 全链路</h1>
+  <div class="sub">原物字节码 → 反编译 Java → 可读 Java；以及独立的一条 → 浏览器里跑的 TS。两条侧支（资源 / 命名）。</div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--bin)"></i>二进制 / 原物</span>
+    <span><i class="dot" style="background:var(--java)"></i>Java（反编译）</span>
+    <span><i class="dot" style="background:var(--ts)"></i>TypeScript（运行的游戏）</span>
+    <span><i class="dot" style="background:var(--tool)"></i>工具 / 参考件</span>
+    <span style="border-color:var(--truth)">▣ 终极真值</span>
+  </div>
+
+  <div class="wrap">
+    <!-- 主派生链 -->
+    <div class="col">
+      <div class="coltitle">reverse/&lt;game&gt;/ 派生链（都是 Java/二进制，与 TS 无直接代码关系）</div>
+
+      <div class="node bin truth">
+        <span class="tag">0-jar/</span><span class="role">原物 · 终极真值</span>
+        <div class="desc">原始 <code>红魔特种兵.jar</code>（开发商 TGS 当年编译打包，原名保留）。</div>
+      </div>
+      <div class="arrow"><span class="lbl">unzip（纯解包）</span><span class="ch">▼</span></div>
+
+      <div class="node bin">
+        <span class="tag">1-jar-unpacked/</span><span class="role">解包真值</span>
+        <div class="desc"><code>tjge/*.class</code> 字节码 + <code>res/*.bin</code> 资源 + MANIFEST。</div>
+      </div>
+
+      <!-- 侧支：资源 -->
+      <div class="branch">
+        <span class="hb">└▶</span>
+        <div class="side">
+          <div class="h">res/*.bin —— 资源侧支</div>
+          <div class="b">解码 → <code>assets/</code>（给人看的图）<br>拷贝 → <code>packages/web/public/res/</code>（运行时用）</div>
+        </div>
+      </div>
+      <!-- 侧支：命名 -->
+      <div class="branch">
+        <span class="hb">└▶</span>
+        <div class="side">
+          <div class="h">tjge/*.class —— 命名侧支</div>
+          <div class="b">
+            <code>javap -p -s</code> → <code>signatures/</code><br>
+            → <code>gen_porting_contract.py</code> →<br>
+            <span class="pill pj">porting-contract.json</span> 重载消歧 <code>a_I/h_I</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow"><span class="lbl">CFR 0.152 反编译（只吃 .class）</span><span class="ch">▼</span></div>
+
+      <div class="node java truth">
+        <span class="tag">2-decompiled-cfr/</span><span class="role">权威基准</span>
+        <div class="desc">CFR 直出的 Java，<b>混淆名</b> <code>a/h/k[2]</code>。完整正确，但 game1 有 3 个方法是 <code>** GOTO</code>（不可化简控制流）→ 不是合法可编译 Java。</div>
+      </div>
+      <div class="arrow"><span class="lbl">人工重命名（套 glossary，逐字节等同）</span><span class="ch">▼</span></div>
+
+      <div class="node java">
+        <span class="tag">3-readable/</span><span class="role">阅读用 · 叶子</span>
+        <div class="desc"><b>友好名</b> Java <code>GameScreen/keyCodeToAction</code> + <code>SYMBOLS.md</code>/<code>glossary.json</code>。逻辑 = 2-decompiled-cfr（含同样的 <code>** GOTO</code>）。<br><span style="color:var(--bin)">无任何程序消费方——纯给人读。</span></div>
+      </div>
+    </div>
+
+    <!-- TS 侧 -->
+    <div class="col">
+      <div class="coltitle">packages/ —— 浏览器里真正跑的游戏（另一种语言，独立重写）</div>
+
+      <div class="node java" style="opacity:.55">
+        <span class="tag">2-decompiled-cfr/ *.java</span>
+        <div class="desc">（左列的权威基准）</div>
+      </div>
+      <div class="arrow">
+        <span class="lbl" style="color:var(--ts);border-color:var(--ts)">人逐行翻译（读懂 goto→写结构化 TS）</span>
+        <span class="ch">▼</span>
+      </div>
+
+      <div class="node ts truth">
+        <span class="tag">packages/game*/src/*.ts</span><span class="role">运行的游戏</span>
+        <div class="desc"><b>混淆名 TS</b> <code>class a</code> / <code>h_I()</code> / 字段 <code>q</code>。已 <code>tsc</code> 通过、浏览器跑通、对抗验证修过 11 个截断 bug。<br><span style="color:var(--truth)">和 Java 是<b>两种语言的独立实现</b>，靠"人翻译"连接，非机械生成。</span></div>
+      </div>
+
+      <div class="arrow">
+        <span class="lbl" style="color:var(--tool);border-color:var(--tool)">ts-morph 机械改名（确定性，非 AI 判断）</span>
+        <span class="ch" style="color:var(--tool)">▼</span>
+      </div>
+
+      <div class="node ts" style="border-style:dashed">
+        <span class="tag">可读 TS port</span><span class="role">提案 · 未来</span>
+        <div class="desc"><b>友好名 TS</b>。名字来自 <span class="pill pj">porting-contract</span> ⋈ <span class="pill pj">glossary</span>（已验证可拼通：类✅ 字段✅ 方法 16/16✅）；逻辑一行不动。</div>
+        <div class="note">⚙ 为什么走这条而不是"转译 readable 的 Java"：readable 含 <code>** GOTO</code> 非法语法，转译器 parse 不过；而现有 TS port 已把 goto/API/位宽这些硬骨头解决且验证，只欠改名。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <b>三条要点</b>：①「合法 Java」只对编译器/转译器重要——<b>人能读懂 <code>** GOTO</code> 并手写结构化 TS</b>，所以参考 2-decompiled-cfr 的移植无 bug；机械转译 readable 却卡在同样的 goto。
+    ② <span class="pj pill">porting-contract</span>（消歧名 <code>h_I</code>，服务 TS 移植）与 <span class="pj pill">glossary/SYMBOLS</span>（友好名 <code>keyCodeToAction</code>，服务 readable）是<b>两套独立命名系统</b>。
+    ③ 真值往上追：<code>3-readable</code> 存疑 → 查 <code>2-decompiled-cfr</code> → 查 <code>1-jar-unpacked</code> 字节码 → <code>0-jar</code> 原物。
+  </div>
+</body>
+</html>

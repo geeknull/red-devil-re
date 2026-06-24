@@ -1,0 +1,2176 @@
+{
+  "GameMIDlet": {
+    "methods": [
+      {
+        "java": "public tjge.GameMIDlet();",
+        "ts": "constructor",
+        "desc": "()V",
+        "orig": "<init>"
+      },
+      {
+        "java": "protected final void pauseApp();",
+        "ts": "pauseApp",
+        "desc": "()V",
+        "orig": "pauseApp"
+      },
+      {
+        "java": "protected final void startApp() throws javax.microedition.midlet.MIDletStateChangeException;",
+        "ts": "startApp",
+        "desc": "()V",
+        "orig": "startApp"
+      },
+      {
+        "java": "protected final void destroyApp(boolean) throws javax.microedition.midlet.MIDletStateChangeException;",
+        "ts": "destroyApp",
+        "desc": "(Z)V",
+        "orig": "destroyApp"
+      },
+      {
+        "java": "public static final int a(int);",
+        "ts": "a_I",
+        "desc": "(I)I",
+        "orig": "a"
+      },
+      {
+        "java": "public static final short a(java.io.InputStream) throws java.io.IOException;",
+        "ts": "a_In",
+        "desc": "(Ljava/io/InputStream;)S",
+        "orig": "a"
+      },
+      {
+        "java": "public static final byte b(java.io.InputStream) throws java.io.IOException;",
+        "ts": "b_In",
+        "desc": "(Ljava/io/InputStream;)B",
+        "orig": "b"
+      },
+      {
+        "java": "public static final int c(java.io.InputStream) throws java.io.IOException;",
+        "ts": "c_In",
+        "desc": "(Ljava/io/InputStream;)I",
+        "orig": "c"
+      },
+      {
+        "java": "static final java.io.InputStream a(java.lang.String, int);",
+        "ts": "a_SI",
+        "desc": "(Ljava/lang/String;I)Ljava/io/InputStream;",
+        "orig": "a"
+      }
+    ],
+    "fields": [
+      {
+        "java": "tjge.a a;",
+        "desc": "Ltjge/a;"
+      },
+      {
+        "java": "javax.microedition.lcdui.Display b;",
+        "desc": "Ljavax/microedition/lcdui/Display;"
+      },
+      {
+        "java": "public static java.util.Random c;",
+        "desc": "Ljava/util/Random;"
+      },
+      {
+        "java": "static byte[] d;",
+        "desc": "[B"
+      },
+      {
+        "java": "public static final java.lang.String[] e;",
+        "desc": "[Ljava/lang/String;"
+      },
+      {
+        "java": "static {};",
+        "desc": "()V"
+      }
+    ]
+  },
+  "a": {
+    "methods": [
+      {
+        "java": "public tjge.a(tjge.GameMIDlet);",
+        "ts": "constructor",
+        "desc": "(Ltjge/GameMIDlet;)V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final tjge.g a(int, tjge.d);",
+        "ts": "a_ITd",
+        "desc": "(ILtjge/d;)Ltjge/g;",
+        "orig": "a"
+      },
+      {
+        "java": "public final void paint(javax.microedition.lcdui.Graphics);",
+        "ts": "paint",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;)V",
+        "orig": "paint"
+      },
+      {
+        "java": "public final void a();",
+        "ts": "a_",
+        "desc": "()V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics);",
+        "ts": "a_G",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void b();",
+        "ts": "b_",
+        "desc": "()V",
+        "orig": "b"
+      },
+      {
+        "java": "public final void c();",
+        "ts": "c_",
+        "desc": "()V",
+        "orig": "c"
+      },
+      {
+        "java": "public final void d();",
+        "ts": "d_",
+        "desc": "()V",
+        "orig": "d"
+      },
+      {
+        "java": "public final void a(int);",
+        "ts": "a_I",
+        "desc": "(I)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void run();",
+        "ts": "run",
+        "desc": "()V",
+        "orig": "run"
+      },
+      {
+        "java": "private int h(int);",
+        "ts": "h_I",
+        "desc": "(I)I",
+        "orig": "h"
+      },
+      {
+        "java": "public final void keyPressed(int);",
+        "ts": "keyPressed",
+        "desc": "(I)V",
+        "orig": "keyPressed"
+      },
+      {
+        "java": "public final void keyReleased(int);",
+        "ts": "keyReleased",
+        "desc": "(I)V",
+        "orig": "keyReleased"
+      },
+      {
+        "java": "public final tjge.l a(int, int, int, int, int, int);",
+        "ts": "a_IIIIII",
+        "desc": "(IIIIII)Ltjge/l;",
+        "orig": "a"
+      },
+      {
+        "java": "public final void e();",
+        "ts": "e_",
+        "desc": "()V",
+        "orig": "e"
+      },
+      {
+        "java": "public final boolean b(int);",
+        "ts": "b_I",
+        "desc": "(I)Z",
+        "orig": "b"
+      },
+      {
+        "java": "public final boolean b(int, int, int, int, int, int);",
+        "ts": "b_IIIIII",
+        "desc": "(IIIIII)Z",
+        "orig": "b"
+      },
+      {
+        "java": "public final boolean a(int, int);",
+        "ts": "a_II",
+        "desc": "(II)Z",
+        "orig": "a"
+      },
+      {
+        "java": "private int h();",
+        "ts": "h_",
+        "desc": "()I",
+        "orig": "h"
+      },
+      {
+        "java": "private void a(int, boolean);",
+        "ts": "a_IZ",
+        "desc": "(IZ)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void f();",
+        "ts": "f_",
+        "desc": "()V",
+        "orig": "f"
+      },
+      {
+        "java": "private void i();",
+        "ts": "i_",
+        "desc": "()V",
+        "orig": "i"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics, int);",
+        "ts": "a_GI",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;I)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void b(javax.microedition.lcdui.Graphics);",
+        "ts": "b_G",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;)V",
+        "orig": "b"
+      },
+      {
+        "java": "public final void c(int);",
+        "ts": "c_I",
+        "desc": "(I)V",
+        "orig": "c"
+      },
+      {
+        "java": "private boolean b(javax.microedition.lcdui.Graphics, int, int, int, int, int);",
+        "ts": "b_GIIIII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;IIIII)Z",
+        "orig": "b"
+      },
+      {
+        "java": "private void j();",
+        "ts": "j_",
+        "desc": "()V",
+        "orig": "j"
+      },
+      {
+        "java": "private void b(javax.microedition.lcdui.Graphics, int);",
+        "ts": "b_GI",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;I)V",
+        "orig": "b"
+      },
+      {
+        "java": "static final boolean d(int);",
+        "ts": "d_I",
+        "desc": "(I)Z",
+        "orig": "d"
+      },
+      {
+        "java": "public static final java.lang.String a(long);",
+        "ts": "a_J",
+        "desc": "(J)Ljava/lang/String;",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics, int, int, int, boolean, boolean);",
+        "ts": "a_GIIIZZ",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;IIIZZ)V",
+        "orig": "a"
+      },
+      {
+        "java": "public static final void a(javax.microedition.lcdui.Graphics, int, int, int, int, int);",
+        "ts": "a_GIIIII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;IIIII)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void e(int);",
+        "ts": "e_I",
+        "desc": "(I)V",
+        "orig": "e"
+      },
+      {
+        "java": "private void c(javax.microedition.lcdui.Graphics);",
+        "ts": "c_G",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;)V",
+        "orig": "c"
+      },
+      {
+        "java": "private void k();",
+        "ts": "k_",
+        "desc": "()V",
+        "orig": "k"
+      },
+      {
+        "java": "private void l();",
+        "ts": "l_",
+        "desc": "()V",
+        "orig": "l"
+      },
+      {
+        "java": "public static final javax.microedition.lcdui.Image f(int);",
+        "ts": "f_I",
+        "desc": "(I)Ljavax/microedition/lcdui/Image;",
+        "orig": "f"
+      },
+      {
+        "java": "public final void hideNotify();",
+        "ts": "hideNotify",
+        "desc": "()V",
+        "orig": "hideNotify"
+      },
+      {
+        "java": "public static final void g();",
+        "ts": "g_",
+        "desc": "()V",
+        "orig": "g"
+      },
+      {
+        "java": "public static final void a(int, int, int);",
+        "ts": "a_III",
+        "desc": "(III)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void g(int);",
+        "ts": "g_I",
+        "desc": "(I)V",
+        "orig": "g"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics, int, int, int);",
+        "ts": "a_GIII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;III)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void b(javax.microedition.lcdui.Graphics, int, int, int);",
+        "ts": "b_GIII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;III)V",
+        "orig": "b"
+      }
+    ],
+    "fields": [
+      {
+        "java": "public static int a;",
+        "desc": "I"
+      },
+      {
+        "java": "public static int b;",
+        "desc": "I"
+      },
+      {
+        "java": "public static int c;",
+        "desc": "I"
+      },
+      {
+        "java": "public static int d;",
+        "desc": "I"
+      },
+      {
+        "java": "public static tjge.a e;",
+        "desc": "Ltjge/a;"
+      },
+      {
+        "java": "private long W;",
+        "desc": "J"
+      },
+      {
+        "java": "private boolean X;",
+        "desc": "Z"
+      },
+      {
+        "java": "private boolean Y;",
+        "desc": "Z"
+      },
+      {
+        "java": "private boolean Z;",
+        "desc": "Z"
+      },
+      {
+        "java": "private java.lang.Thread aa;",
+        "desc": "Ljava/lang/Thread;"
+      },
+      {
+        "java": "private tjge.GameMIDlet ab;",
+        "desc": "Ltjge/GameMIDlet;"
+      },
+      {
+        "java": "protected tjge.b f;",
+        "desc": "Ltjge/b;"
+      },
+      {
+        "java": "protected tjge.j g;",
+        "desc": "Ltjge/j;"
+      },
+      {
+        "java": "javax.microedition.lcdui.Image h;",
+        "desc": "Ljavax/microedition/lcdui/Image;"
+      },
+      {
+        "java": "javax.microedition.lcdui.Image i;",
+        "desc": "Ljavax/microedition/lcdui/Image;"
+      },
+      {
+        "java": "tjge.f j;",
+        "desc": "Ltjge/f;"
+      },
+      {
+        "java": "tjge.g[] k;",
+        "desc": "[Ltjge/g;"
+      },
+      {
+        "java": "tjge.l[][] l;",
+        "desc": "[[Ltjge/l;"
+      },
+      {
+        "java": "tjge.h[][] m;",
+        "desc": "[[Ltjge/h;"
+      },
+      {
+        "java": "tjge.c n;",
+        "desc": "Ltjge/c;"
+      },
+      {
+        "java": "int o;",
+        "desc": "I"
+      },
+      {
+        "java": "int p;",
+        "desc": "I"
+      },
+      {
+        "java": "int q;",
+        "desc": "I"
+      },
+      {
+        "java": "int r;",
+        "desc": "I"
+      },
+      {
+        "java": "int s;",
+        "desc": "I"
+      },
+      {
+        "java": "int t;",
+        "desc": "I"
+      },
+      {
+        "java": "int u;",
+        "desc": "I"
+      },
+      {
+        "java": "int v;",
+        "desc": "I"
+      },
+      {
+        "java": "int w;",
+        "desc": "I"
+      },
+      {
+        "java": "int x;",
+        "desc": "I"
+      },
+      {
+        "java": "int y;",
+        "desc": "I"
+      },
+      {
+        "java": "int z;",
+        "desc": "I"
+      },
+      {
+        "java": "int A;",
+        "desc": "I"
+      },
+      {
+        "java": "int B;",
+        "desc": "I"
+      },
+      {
+        "java": "int C;",
+        "desc": "I"
+      },
+      {
+        "java": "long D;",
+        "desc": "J"
+      },
+      {
+        "java": "boolean E;",
+        "desc": "Z"
+      },
+      {
+        "java": "int F;",
+        "desc": "I"
+      },
+      {
+        "java": "int G;",
+        "desc": "I"
+      },
+      {
+        "java": "int H;",
+        "desc": "I"
+      },
+      {
+        "java": "int I;",
+        "desc": "I"
+      },
+      {
+        "java": "short[] J;",
+        "desc": "[S"
+      },
+      {
+        "java": "com.nokia.mid.ui.DirectGraphics K;",
+        "desc": "Lcom/nokia/mid/ui/DirectGraphics;"
+      },
+      {
+        "java": "boolean L;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean M;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean N;",
+        "desc": "Z"
+      },
+      {
+        "java": "int O;",
+        "desc": "I"
+      },
+      {
+        "java": "private int ac;",
+        "desc": "I"
+      },
+      {
+        "java": "private int ad;",
+        "desc": "I"
+      },
+      {
+        "java": "private boolean ae;",
+        "desc": "Z"
+      },
+      {
+        "java": "private boolean af;",
+        "desc": "Z"
+      },
+      {
+        "java": "private boolean ag;",
+        "desc": "Z"
+      },
+      {
+        "java": "private boolean ah;",
+        "desc": "Z"
+      },
+      {
+        "java": "private boolean ai;",
+        "desc": "Z"
+      },
+      {
+        "java": "private int aj;",
+        "desc": "I"
+      },
+      {
+        "java": "private int ak;",
+        "desc": "I"
+      },
+      {
+        "java": "private int al;",
+        "desc": "I"
+      },
+      {
+        "java": "public static int P;",
+        "desc": "I"
+      },
+      {
+        "java": "private static int[] am;",
+        "desc": "[I"
+      },
+      {
+        "java": "private static int an;",
+        "desc": "I"
+      },
+      {
+        "java": "private static int ao;",
+        "desc": "I"
+      },
+      {
+        "java": "public static byte[] Q;",
+        "desc": "[B"
+      },
+      {
+        "java": "public static int R;",
+        "desc": "I"
+      },
+      {
+        "java": "public static com.nokia.mid.sound.Sound[] S;",
+        "desc": "[Lcom/nokia/mid/sound/Sound;"
+      },
+      {
+        "java": "public static int T;",
+        "desc": "I"
+      },
+      {
+        "java": "static java.lang.String U;",
+        "desc": "Ljava/lang/String;"
+      },
+      {
+        "java": "static java.lang.String V;",
+        "desc": "Ljava/lang/String;"
+      },
+      {
+        "java": "static {};",
+        "desc": "()V"
+      }
+    ]
+  },
+  "b": {
+    "methods": [
+      {
+        "java": "private tjge.b(int, int);",
+        "ts": "constructor",
+        "desc": "(II)V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final void a(int, int);",
+        "ts": "a_II",
+        "desc": "(II)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final int a();",
+        "ts": "a_",
+        "desc": "()I",
+        "orig": "a"
+      },
+      {
+        "java": "public final int b();",
+        "ts": "b_",
+        "desc": "()I",
+        "orig": "b"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics);",
+        "ts": "a_G",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final int a(int, int, boolean);",
+        "ts": "a_IIZ",
+        "desc": "(IIZ)I",
+        "orig": "a"
+      },
+      {
+        "java": "protected final int b(int, int) throws java.lang.Exception;",
+        "ts": "b_II",
+        "desc": "(II)I",
+        "orig": "b"
+      },
+      {
+        "java": "public final void c();",
+        "ts": "c_",
+        "desc": "()V",
+        "orig": "c"
+      },
+      {
+        "java": "private void a(boolean, int, int);",
+        "ts": "a_ZII",
+        "desc": "(ZII)V",
+        "orig": "a"
+      },
+      {
+        "java": "protected final void a(javax.microedition.lcdui.Graphics, int, int, int, int, int, int);",
+        "ts": "a_GIIIIII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;IIIIII)V",
+        "orig": "a"
+      },
+      {
+        "java": "protected final void b(javax.microedition.lcdui.Graphics, int, int, int, int, int, int);",
+        "ts": "b_GIIIIII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;IIIIII)V",
+        "orig": "b"
+      },
+      {
+        "java": "protected final void a(javax.microedition.lcdui.Graphics, int, int, int, int);",
+        "ts": "a_GIIII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;IIII)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void d();",
+        "ts": "d_",
+        "desc": "()V",
+        "orig": "d"
+      },
+      {
+        "java": "public static final tjge.b a(int, int, int);",
+        "ts": "a_III",
+        "desc": "(III)Ltjge/b;",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a(int);",
+        "ts": "a_I",
+        "desc": "(I)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final boolean c(int, int);",
+        "ts": "c_II",
+        "desc": "(II)Z",
+        "orig": "c"
+      }
+    ],
+    "fields": [
+      {
+        "java": "public int a;",
+        "desc": "I"
+      },
+      {
+        "java": "public int b;",
+        "desc": "I"
+      },
+      {
+        "java": "private byte[][] d;",
+        "desc": "[[B"
+      },
+      {
+        "java": "private int e;",
+        "desc": "I"
+      },
+      {
+        "java": "private int f;",
+        "desc": "I"
+      },
+      {
+        "java": "private int g;",
+        "desc": "I"
+      },
+      {
+        "java": "private int h;",
+        "desc": "I"
+      },
+      {
+        "java": "private int i;",
+        "desc": "I"
+      },
+      {
+        "java": "private int j;",
+        "desc": "I"
+      },
+      {
+        "java": "private int k;",
+        "desc": "I"
+      },
+      {
+        "java": "private int l;",
+        "desc": "I"
+      },
+      {
+        "java": "private int m;",
+        "desc": "I"
+      },
+      {
+        "java": "private int n;",
+        "desc": "I"
+      },
+      {
+        "java": "private int o;",
+        "desc": "I"
+      },
+      {
+        "java": "private int p;",
+        "desc": "I"
+      },
+      {
+        "java": "private int q;",
+        "desc": "I"
+      },
+      {
+        "java": "private int r;",
+        "desc": "I"
+      },
+      {
+        "java": "private byte[] s;",
+        "desc": "[B"
+      },
+      {
+        "java": "private static javax.microedition.lcdui.Image t;",
+        "desc": "Ljavax/microedition/lcdui/Image;"
+      },
+      {
+        "java": "static int c;",
+        "desc": "I"
+      },
+      {
+        "java": "private static javax.microedition.lcdui.Image u;",
+        "desc": "Ljavax/microedition/lcdui/Image;"
+      },
+      {
+        "java": "private static int v;",
+        "desc": "I"
+      },
+      {
+        "java": "private static int w;",
+        "desc": "I"
+      },
+      {
+        "java": "private static javax.microedition.lcdui.Graphics x;",
+        "desc": "Ljavax/microedition/lcdui/Graphics;"
+      },
+      {
+        "java": "private int y;",
+        "desc": "I"
+      },
+      {
+        "java": "private int z;",
+        "desc": "I"
+      },
+      {
+        "java": "private int A;",
+        "desc": "I"
+      },
+      {
+        "java": "private int B;",
+        "desc": "I"
+      },
+      {
+        "java": "static {};",
+        "desc": "()V"
+      }
+    ]
+  },
+  "c": {
+    "methods": [
+      {
+        "java": "public tjge.c(int, tjge.d, tjge.a);",
+        "ts": "constructor",
+        "desc": "(ILtjge/d;Ltjge/a;)V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final boolean a(int, int, int, byte[], boolean);",
+        "ts": "a_IIIAYZ",
+        "desc": "(III[BZ)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a();",
+        "ts": "a_",
+        "desc": "()V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a(tjge.l);",
+        "ts": "a_Tl",
+        "desc": "(Ltjge/l;)V",
+        "orig": "a"
+      },
+      {
+        "java": "private void f();",
+        "ts": "f_",
+        "desc": "()V",
+        "orig": "f"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics, int, int);",
+        "ts": "a_GII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;II)V",
+        "orig": "a"
+      }
+    ],
+    "fields": [
+      {
+        "java": "tjge.a a;",
+        "desc": "Ltjge/a;"
+      },
+      {
+        "java": "int b;",
+        "desc": "I"
+      },
+      {
+        "java": "int c;",
+        "desc": "I"
+      },
+      {
+        "java": "int d;",
+        "desc": "I"
+      },
+      {
+        "java": "int e;",
+        "desc": "I"
+      },
+      {
+        "java": "int f;",
+        "desc": "I"
+      },
+      {
+        "java": "int g;",
+        "desc": "I"
+      },
+      {
+        "java": "int h;",
+        "desc": "I"
+      },
+      {
+        "java": "int i;",
+        "desc": "I"
+      },
+      {
+        "java": "int j;",
+        "desc": "I"
+      },
+      {
+        "java": "boolean k;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean l;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean m;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean n;",
+        "desc": "Z"
+      },
+      {
+        "java": "tjge.h o;",
+        "desc": "Ltjge/h;"
+      }
+    ]
+  },
+  "d": {
+    "methods": [
+      {
+        "java": "private tjge.d();",
+        "ts": "constructor",
+        "desc": "()V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final short a();",
+        "ts": "a_",
+        "desc": "()S",
+        "orig": "a"
+      },
+      {
+        "java": "public final short a(int);",
+        "ts": "a_I",
+        "desc": "(I)S",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics, int, int, int, int, int, int);",
+        "ts": "a_GIIIIII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;IIIIII)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void b();",
+        "ts": "b_",
+        "desc": "()V",
+        "orig": "b"
+      },
+      {
+        "java": "public static final void c();",
+        "ts": "c_",
+        "desc": "()V",
+        "orig": "c"
+      },
+      {
+        "java": "public static final tjge.d b(int);",
+        "ts": "b_I",
+        "desc": "(I)Ltjge/d;",
+        "orig": "b"
+      }
+    ],
+    "fields": [
+      {
+        "java": "public static tjge.i[] a;",
+        "desc": "[Ltjge/i;"
+      },
+      {
+        "java": "public static boolean[] b;",
+        "desc": "[Z"
+      },
+      {
+        "java": "public static int[] c;",
+        "desc": "[I"
+      },
+      {
+        "java": "private short o;",
+        "desc": "S"
+      },
+      {
+        "java": "private short[] p;",
+        "desc": "[S"
+      },
+      {
+        "java": "private short[][] q;",
+        "desc": "[[S"
+      },
+      {
+        "java": "public byte[][] d;",
+        "desc": "[[B"
+      },
+      {
+        "java": "public byte[][] e;",
+        "desc": "[[B"
+      },
+      {
+        "java": "private short r;",
+        "desc": "S"
+      },
+      {
+        "java": "private short[] s;",
+        "desc": "[S"
+      },
+      {
+        "java": "private short[][] t;",
+        "desc": "[[S"
+      },
+      {
+        "java": "public byte[] f;",
+        "desc": "[B"
+      },
+      {
+        "java": "public byte[] g;",
+        "desc": "[B"
+      },
+      {
+        "java": "public byte[] h;",
+        "desc": "[B"
+      },
+      {
+        "java": "public byte[] i;",
+        "desc": "[B"
+      },
+      {
+        "java": "public short j;",
+        "desc": "S"
+      },
+      {
+        "java": "public short k;",
+        "desc": "S"
+      },
+      {
+        "java": "public short l;",
+        "desc": "S"
+      },
+      {
+        "java": "public short m;",
+        "desc": "S"
+      },
+      {
+        "java": "public short n;",
+        "desc": "S"
+      },
+      {
+        "java": "private tjge.i u;",
+        "desc": "Ltjge/i;"
+      },
+      {
+        "java": "static {};",
+        "desc": "()V"
+      }
+    ]
+  },
+  "e": {
+    "methods": [
+      {
+        "java": "public tjge.e(int, tjge.d, tjge.a);",
+        "ts": "constructor",
+        "desc": "(ILtjge/d;Ltjge/a;)V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final boolean a(int, int, int, byte[], boolean);",
+        "ts": "a_IIIAYZ",
+        "desc": "(III[BZ)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a();",
+        "ts": "a_",
+        "desc": "()V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics, int, int);",
+        "ts": "a_GII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;II)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a(tjge.l);",
+        "ts": "a_Tl",
+        "desc": "(Ltjge/l;)V",
+        "orig": "a"
+      }
+    ],
+    "fields": [
+      {
+        "java": "int a;",
+        "desc": "I"
+      },
+      {
+        "java": "int b;",
+        "desc": "I"
+      },
+      {
+        "java": "int c;",
+        "desc": "I"
+      },
+      {
+        "java": "int d;",
+        "desc": "I"
+      },
+      {
+        "java": "int e;",
+        "desc": "I"
+      },
+      {
+        "java": "int f;",
+        "desc": "I"
+      },
+      {
+        "java": "int g;",
+        "desc": "I"
+      },
+      {
+        "java": "boolean h;",
+        "desc": "Z"
+      },
+      {
+        "java": "tjge.a i;",
+        "desc": "Ltjge/a;"
+      }
+    ]
+  },
+  "f": {
+    "methods": [
+      {
+        "java": "public tjge.f(int, tjge.d, tjge.a);",
+        "ts": "constructor",
+        "desc": "(ILtjge/d;Ltjge/a;)V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final boolean c(tjge.b);",
+        "ts": "c_Tb",
+        "desc": "(Ltjge/b;)Z",
+        "orig": "c"
+      },
+      {
+        "java": "public final boolean e(tjge.b);",
+        "ts": "e_Tb",
+        "desc": "(Ltjge/b;)Z",
+        "orig": "e"
+      },
+      {
+        "java": "public final boolean f(tjge.b);",
+        "ts": "f_Tb",
+        "desc": "(Ltjge/b;)Z",
+        "orig": "f"
+      },
+      {
+        "java": "public final boolean a(tjge.b, boolean);",
+        "ts": "a_TbZ",
+        "desc": "(Ltjge/b;Z)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final boolean a(int, int, int, byte[], boolean);",
+        "ts": "a_IIIAYZ",
+        "desc": "(III[BZ)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final void f();",
+        "ts": "f_",
+        "desc": "()V",
+        "orig": "f"
+      },
+      {
+        "java": "public final void e();",
+        "ts": "e_",
+        "desc": "()V",
+        "orig": "e"
+      },
+      {
+        "java": "public final void a();",
+        "ts": "a_",
+        "desc": "()V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void g();",
+        "ts": "g_",
+        "desc": "()V",
+        "orig": "g"
+      },
+      {
+        "java": "public final void h();",
+        "ts": "h_",
+        "desc": "()V",
+        "orig": "h"
+      },
+      {
+        "java": "public final void b(int);",
+        "ts": "b_I",
+        "desc": "(I)V",
+        "orig": "b"
+      },
+      {
+        "java": "public final void c(int);",
+        "ts": "c_I",
+        "desc": "(I)V",
+        "orig": "c"
+      },
+      {
+        "java": "public final void i();",
+        "ts": "i_",
+        "desc": "()V",
+        "orig": "i"
+      },
+      {
+        "java": "public final void j();",
+        "ts": "j_",
+        "desc": "()V",
+        "orig": "j"
+      },
+      {
+        "java": "public final void k();",
+        "ts": "k_",
+        "desc": "()V",
+        "orig": "k"
+      },
+      {
+        "java": "public final void l();",
+        "ts": "l_",
+        "desc": "()V",
+        "orig": "l"
+      },
+      {
+        "java": "public final void d(int);",
+        "ts": "d_I",
+        "desc": "(I)V",
+        "orig": "d"
+      },
+      {
+        "java": "public final void e(int);",
+        "ts": "e_I",
+        "desc": "(I)V",
+        "orig": "e"
+      },
+      {
+        "java": "public final boolean g(tjge.b);",
+        "ts": "g_Tb",
+        "desc": "(Ltjge/b;)Z",
+        "orig": "g"
+      },
+      {
+        "java": "private void o();",
+        "ts": "o_",
+        "desc": "()V",
+        "orig": "o"
+      },
+      {
+        "java": "public final boolean a(tjge.b, int);",
+        "ts": "a_TbI",
+        "desc": "(Ltjge/b;I)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final boolean b(tjge.b, int);",
+        "ts": "b_TbI",
+        "desc": "(Ltjge/b;I)Z",
+        "orig": "b"
+      },
+      {
+        "java": "public final void a(tjge.l);",
+        "ts": "a_Tl",
+        "desc": "(Ltjge/l;)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void f(int);",
+        "ts": "f_I",
+        "desc": "(I)V",
+        "orig": "f"
+      },
+      {
+        "java": "public final void m();",
+        "ts": "m_",
+        "desc": "()V",
+        "orig": "m"
+      },
+      {
+        "java": "public final void n();",
+        "ts": "n_",
+        "desc": "()V",
+        "orig": "n"
+      }
+    ],
+    "fields": [
+      {
+        "java": "int a;",
+        "desc": "I"
+      },
+      {
+        "java": "int b;",
+        "desc": "I"
+      },
+      {
+        "java": "int c;",
+        "desc": "I"
+      },
+      {
+        "java": "int d;",
+        "desc": "I"
+      },
+      {
+        "java": "int e;",
+        "desc": "I"
+      },
+      {
+        "java": "int f;",
+        "desc": "I"
+      },
+      {
+        "java": "int g;",
+        "desc": "I"
+      },
+      {
+        "java": "int h;",
+        "desc": "I"
+      },
+      {
+        "java": "int i;",
+        "desc": "I"
+      },
+      {
+        "java": "int j;",
+        "desc": "I"
+      },
+      {
+        "java": "int k;",
+        "desc": "I"
+      },
+      {
+        "java": "int l;",
+        "desc": "I"
+      },
+      {
+        "java": "int m;",
+        "desc": "I"
+      },
+      {
+        "java": "int n;",
+        "desc": "I"
+      },
+      {
+        "java": "int o;",
+        "desc": "I"
+      },
+      {
+        "java": "int O;",
+        "desc": "I"
+      },
+      {
+        "java": "int P;",
+        "desc": "I"
+      },
+      {
+        "java": "int Q;",
+        "desc": "I"
+      },
+      {
+        "java": "int R;",
+        "desc": "I"
+      },
+      {
+        "java": "int S;",
+        "desc": "I"
+      },
+      {
+        "java": "int T;",
+        "desc": "I"
+      },
+      {
+        "java": "boolean U;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean V;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean W;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean X;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean Y;",
+        "desc": "Z"
+      },
+      {
+        "java": "tjge.e Z;",
+        "desc": "Ltjge/e;"
+      },
+      {
+        "java": "tjge.c aa;",
+        "desc": "Ltjge/c;"
+      },
+      {
+        "java": "tjge.a ab;",
+        "desc": "Ltjge/a;"
+      }
+    ]
+  },
+  "g": {
+    "methods": [
+      {
+        "java": "public tjge.g(int, tjge.d);",
+        "ts": "constructor",
+        "desc": "(ILtjge/d;)V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public boolean a(int, int, int, byte[], boolean);",
+        "ts": "a_IIIAYZ",
+        "desc": "(III[BZ)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final void b();",
+        "ts": "b_",
+        "desc": "()V",
+        "orig": "b"
+      },
+      {
+        "java": "public final void a(int);",
+        "ts": "a_I",
+        "desc": "(I)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void c();",
+        "ts": "c_",
+        "desc": "()V",
+        "orig": "c"
+      },
+      {
+        "java": "public final boolean d();",
+        "ts": "d_",
+        "desc": "()Z",
+        "orig": "d"
+      },
+      {
+        "java": "public void e();",
+        "ts": "e_",
+        "desc": "()V",
+        "orig": "e"
+      },
+      {
+        "java": "public void a();",
+        "ts": "a_",
+        "desc": "()V",
+        "orig": "a"
+      },
+      {
+        "java": "public void a(tjge.l);",
+        "ts": "a_Tl",
+        "desc": "(Ltjge/l;)V",
+        "orig": "a"
+      },
+      {
+        "java": "public void a(javax.microedition.lcdui.Graphics, int, int);",
+        "ts": "a_GII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;II)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final boolean a(tjge.g);",
+        "ts": "a_Tg",
+        "desc": "(Ltjge/g;)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final boolean a(tjge.b);",
+        "ts": "a_Tb",
+        "desc": "(Ltjge/b;)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final boolean b(tjge.b);",
+        "ts": "b_Tb",
+        "desc": "(Ltjge/b;)Z",
+        "orig": "b"
+      },
+      {
+        "java": "public boolean c(tjge.b);",
+        "ts": "c_Tb",
+        "desc": "(Ltjge/b;)Z",
+        "orig": "c"
+      },
+      {
+        "java": "public final boolean d(tjge.b);",
+        "ts": "d_Tb",
+        "desc": "(Ltjge/b;)Z",
+        "orig": "d"
+      }
+    ],
+    "fields": [
+      {
+        "java": "public boolean p;",
+        "desc": "Z"
+      },
+      {
+        "java": "protected int q;",
+        "desc": "I"
+      },
+      {
+        "java": "protected tjge.d r;",
+        "desc": "Ltjge/d;"
+      },
+      {
+        "java": "protected boolean s;",
+        "desc": "Z"
+      },
+      {
+        "java": "protected int t;",
+        "desc": "I"
+      },
+      {
+        "java": "protected boolean u;",
+        "desc": "Z"
+      },
+      {
+        "java": "protected int v;",
+        "desc": "I"
+      },
+      {
+        "java": "protected short w;",
+        "desc": "S"
+      },
+      {
+        "java": "protected int x;",
+        "desc": "I"
+      },
+      {
+        "java": "protected int y;",
+        "desc": "I"
+      },
+      {
+        "java": "protected int z;",
+        "desc": "I"
+      },
+      {
+        "java": "protected int A;",
+        "desc": "I"
+      },
+      {
+        "java": "public int B;",
+        "desc": "I"
+      },
+      {
+        "java": "public int C;",
+        "desc": "I"
+      },
+      {
+        "java": "public int D;",
+        "desc": "I"
+      },
+      {
+        "java": "public int E;",
+        "desc": "I"
+      },
+      {
+        "java": "public int F;",
+        "desc": "I"
+      },
+      {
+        "java": "public int G;",
+        "desc": "I"
+      },
+      {
+        "java": "public int H;",
+        "desc": "I"
+      },
+      {
+        "java": "public int I;",
+        "desc": "I"
+      },
+      {
+        "java": "public int J;",
+        "desc": "I"
+      },
+      {
+        "java": "public int K;",
+        "desc": "I"
+      },
+      {
+        "java": "public int L;",
+        "desc": "I"
+      },
+      {
+        "java": "public int M;",
+        "desc": "I"
+      },
+      {
+        "java": "public int N;",
+        "desc": "I"
+      }
+    ]
+  },
+  "h": {
+    "methods": [
+      {
+        "java": "public tjge.h(int, tjge.d, tjge.a);",
+        "ts": "constructor",
+        "desc": "(ILtjge/d;Ltjge/a;)V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final boolean a(int, int, int, byte[], boolean);",
+        "ts": "a_IIIAYZ",
+        "desc": "(III[BZ)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a();",
+        "ts": "a_",
+        "desc": "()V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void f();",
+        "ts": "f_",
+        "desc": "()V",
+        "orig": "f"
+      },
+      {
+        "java": "public final void g();",
+        "ts": "g_",
+        "desc": "()V",
+        "orig": "g"
+      },
+      {
+        "java": "private final void i();",
+        "ts": "i_",
+        "desc": "()V",
+        "orig": "i"
+      },
+      {
+        "java": "private final tjge.l b(int);",
+        "ts": "b_I",
+        "desc": "(I)Ltjge/l;",
+        "orig": "b"
+      },
+      {
+        "java": "private final void j();",
+        "ts": "j_",
+        "desc": "()V",
+        "orig": "j"
+      },
+      {
+        "java": "public final void h();",
+        "ts": "h_",
+        "desc": "()V",
+        "orig": "h"
+      },
+      {
+        "java": "public final void a(tjge.l);",
+        "ts": "a_Tl",
+        "desc": "(Ltjge/l;)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics, int, int);",
+        "ts": "a_GII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;II)V",
+        "orig": "a"
+      }
+    ],
+    "fields": [
+      {
+        "java": "int a;",
+        "desc": "I"
+      },
+      {
+        "java": "int b;",
+        "desc": "I"
+      },
+      {
+        "java": "int c;",
+        "desc": "I"
+      },
+      {
+        "java": "int d;",
+        "desc": "I"
+      },
+      {
+        "java": "int e;",
+        "desc": "I"
+      },
+      {
+        "java": "int f;",
+        "desc": "I"
+      },
+      {
+        "java": "int g;",
+        "desc": "I"
+      },
+      {
+        "java": "int h;",
+        "desc": "I"
+      },
+      {
+        "java": "int i;",
+        "desc": "I"
+      },
+      {
+        "java": "int j;",
+        "desc": "I"
+      },
+      {
+        "java": "int k;",
+        "desc": "I"
+      },
+      {
+        "java": "int l;",
+        "desc": "I"
+      },
+      {
+        "java": "int m;",
+        "desc": "I"
+      },
+      {
+        "java": "int n;",
+        "desc": "I"
+      },
+      {
+        "java": "int o;",
+        "desc": "I"
+      },
+      {
+        "java": "int O;",
+        "desc": "I"
+      },
+      {
+        "java": "int P;",
+        "desc": "I"
+      },
+      {
+        "java": "boolean Q;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean R;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean S;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean T;",
+        "desc": "Z"
+      },
+      {
+        "java": "boolean U;",
+        "desc": "Z"
+      },
+      {
+        "java": "tjge.f V;",
+        "desc": "Ltjge/f;"
+      },
+      {
+        "java": "tjge.a W;",
+        "desc": "Ltjge/a;"
+      },
+      {
+        "java": "tjge.e X;",
+        "desc": "Ltjge/e;"
+      }
+    ]
+  },
+  "i": {
+    "methods": [
+      {
+        "java": "private tjge.i();",
+        "ts": "constructor",
+        "desc": "()V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics, int, int, int, int, int);",
+        "ts": "a_GIIIII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;IIIII)V",
+        "orig": "a"
+      },
+      {
+        "java": "public static final tjge.i a(int);",
+        "ts": "a_I",
+        "desc": "(I)Ltjge/i;",
+        "orig": "a"
+      }
+    ],
+    "fields": [
+      {
+        "java": "public static int a;",
+        "desc": "I"
+      },
+      {
+        "java": "public static int b;",
+        "desc": "I"
+      },
+      {
+        "java": "public static int c;",
+        "desc": "I"
+      },
+      {
+        "java": "private short g;",
+        "desc": "S"
+      },
+      {
+        "java": "private short[] h;",
+        "desc": "[S"
+      },
+      {
+        "java": "private short[] i;",
+        "desc": "[S"
+      },
+      {
+        "java": "public short[] d;",
+        "desc": "[S"
+      },
+      {
+        "java": "public short[] e;",
+        "desc": "[S"
+      },
+      {
+        "java": "private byte[] j;",
+        "desc": "[B"
+      },
+      {
+        "java": "private int k;",
+        "desc": "I"
+      },
+      {
+        "java": "private int l;",
+        "desc": "I"
+      },
+      {
+        "java": "private byte[] m;",
+        "desc": "[B"
+      },
+      {
+        "java": "private short[][] n;",
+        "desc": "[[S"
+      },
+      {
+        "java": "private int o;",
+        "desc": "I"
+      },
+      {
+        "java": "static short[] f;",
+        "desc": "[S"
+      },
+      {
+        "java": "static {};",
+        "desc": "()V"
+      }
+    ]
+  },
+  "j": {
+    "methods": [
+      {
+        "java": "private tjge.j();",
+        "ts": "constructor",
+        "desc": "()V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final void a(int, int);",
+        "ts": "a_II",
+        "desc": "(II)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void b(int, int);",
+        "ts": "b_II",
+        "desc": "(II)V",
+        "orig": "b"
+      },
+      {
+        "java": "public final tjge.g a(int);",
+        "ts": "a_I",
+        "desc": "(I)Ltjge/g;",
+        "orig": "a"
+      },
+      {
+        "java": "public static final void a(tjge.a, int, int);",
+        "ts": "a_TaII",
+        "desc": "(Ltjge/a;II)V",
+        "orig": "a"
+      },
+      {
+        "java": "public static final void a();",
+        "ts": "a_",
+        "desc": "()V",
+        "orig": "a"
+      },
+      {
+        "java": "public static final void b();",
+        "ts": "b_",
+        "desc": "()V",
+        "orig": "b"
+      },
+      {
+        "java": "public static final void b(int);",
+        "ts": "b_I",
+        "desc": "(I)V",
+        "orig": "b"
+      },
+      {
+        "java": "public final void c();",
+        "ts": "c_",
+        "desc": "()V",
+        "orig": "c"
+      },
+      {
+        "java": "public static final void a(tjge.a);",
+        "ts": "a_Ta",
+        "desc": "(Ltjge/a;)V",
+        "orig": "a"
+      },
+      {
+        "java": "public static final tjge.j a(tjge.a, int);",
+        "ts": "a_TaI",
+        "desc": "(Ltjge/a;I)Ltjge/j;",
+        "orig": "a"
+      }
+    ],
+    "fields": [
+      {
+        "java": "public static tjge.b a;",
+        "desc": "Ltjge/b;"
+      },
+      {
+        "java": "public static tjge.d[] b;",
+        "desc": "[Ltjge/d;"
+      },
+      {
+        "java": "public static boolean[] c;",
+        "desc": "[Z"
+      },
+      {
+        "java": "public static tjge.g[][] d;",
+        "desc": "[[Ltjge/g;"
+      },
+      {
+        "java": "public static tjge.g[] e;",
+        "desc": "[Ltjge/g;"
+      },
+      {
+        "java": "private static byte[] m;",
+        "desc": "[B"
+      },
+      {
+        "java": "public byte[][] f;",
+        "desc": "[[B"
+      },
+      {
+        "java": "public int g;",
+        "desc": "I"
+      },
+      {
+        "java": "public short[] h;",
+        "desc": "[S"
+      },
+      {
+        "java": "public short[] i;",
+        "desc": "[S"
+      },
+      {
+        "java": "public int[] j;",
+        "desc": "[I"
+      },
+      {
+        "java": "public boolean[] k;",
+        "desc": "[Z"
+      },
+      {
+        "java": "public byte[][] l;",
+        "desc": "[[B"
+      },
+      {
+        "java": "private int n;",
+        "desc": "I"
+      },
+      {
+        "java": "private int o;",
+        "desc": "I"
+      },
+      {
+        "java": "private int p;",
+        "desc": "I"
+      },
+      {
+        "java": "private int q;",
+        "desc": "I"
+      },
+      {
+        "java": "static {};",
+        "desc": "()V"
+      }
+    ]
+  },
+  "k": {
+    "methods": [
+      {
+        "java": "public tjge.k(int, tjge.d, tjge.a);",
+        "ts": "constructor",
+        "desc": "(ILtjge/d;Ltjge/a;)V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final boolean a(int, int, int, byte[], boolean);",
+        "ts": "a_IIIAYZ",
+        "desc": "(III[BZ)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a();",
+        "ts": "a_",
+        "desc": "()V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics, int, int);",
+        "ts": "a_GII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;II)V",
+        "orig": "a"
+      }
+    ],
+    "fields": [
+      {
+        "java": "tjge.a a;",
+        "desc": "Ltjge/a;"
+      },
+      {
+        "java": "int b;",
+        "desc": "I"
+      },
+      {
+        "java": "int c;",
+        "desc": "I"
+      },
+      {
+        "java": "int d;",
+        "desc": "I"
+      },
+      {
+        "java": "boolean e;",
+        "desc": "Z"
+      }
+    ]
+  },
+  "l": {
+    "methods": [
+      {
+        "java": "public tjge.l(int, tjge.d, tjge.a);",
+        "ts": "constructor",
+        "desc": "(ILtjge/d;Ltjge/a;)V",
+        "orig": "<init>"
+      },
+      {
+        "java": "public final void a();",
+        "ts": "a_",
+        "desc": "()V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void a(javax.microedition.lcdui.Graphics, int, int);",
+        "ts": "a_GII",
+        "desc": "(Ljavax/microedition/lcdui/Graphics;II)V",
+        "orig": "a"
+      },
+      {
+        "java": "public final void f();",
+        "ts": "f_",
+        "desc": "()V",
+        "orig": "f"
+      },
+      {
+        "java": "public final boolean a(boolean);",
+        "ts": "a_Z",
+        "desc": "(Z)Z",
+        "orig": "a"
+      },
+      {
+        "java": "public final void b(int);",
+        "ts": "b_I",
+        "desc": "(I)V",
+        "orig": "b"
+      },
+      {
+        "java": "private boolean c(int);",
+        "ts": "c_I",
+        "desc": "(I)Z",
+        "orig": "c"
+      },
+      {
+        "java": "private boolean d(int);",
+        "ts": "d_I",
+        "desc": "(I)Z",
+        "orig": "d"
+      },
+      {
+        "java": "public final boolean a(int, int, int, byte[], boolean);",
+        "ts": "a_IIIAYZ",
+        "desc": "(III[BZ)Z",
+        "orig": "a"
+      }
+    ],
+    "fields": [
+      {
+        "java": "tjge.a a;",
+        "desc": "Ltjge/a;"
+      },
+      {
+        "java": "int b;",
+        "desc": "I"
+      },
+      {
+        "java": "int c;",
+        "desc": "I"
+      },
+      {
+        "java": "int d;",
+        "desc": "I"
+      },
+      {
+        "java": "int e;",
+        "desc": "I"
+      },
+      {
+        "java": "int f;",
+        "desc": "I"
+      },
+      {
+        "java": "int g;",
+        "desc": "I"
+      },
+      {
+        "java": "int h;",
+        "desc": "I"
+      }
+    ]
+  }
+}

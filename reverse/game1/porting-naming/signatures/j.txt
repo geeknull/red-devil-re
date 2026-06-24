@@ -1,0 +1,71 @@
+public final class tjge.j {
+  public static tjge.b a;
+    descriptor: Ltjge/b;
+  public static tjge.d[] b;
+    descriptor: [Ltjge/d;
+  public static boolean[] c;
+    descriptor: [Z
+  public static tjge.g[][] d;
+    descriptor: [[Ltjge/g;
+  public static tjge.g[] e;
+    descriptor: [Ltjge/g;
+  private static byte[] m;
+    descriptor: [B
+  public byte[][] f;
+    descriptor: [[B
+  public int g;
+    descriptor: I
+  public short[] h;
+    descriptor: [S
+  public short[] i;
+    descriptor: [S
+  public int[] j;
+    descriptor: [I
+  public boolean[] k;
+    descriptor: [Z
+  public byte[][] l;
+    descriptor: [[B
+  private int n;
+    descriptor: I
+  private int o;
+    descriptor: I
+  private int p;
+    descriptor: I
+  private int q;
+    descriptor: I
+  private tjge.j();
+    descriptor: ()V
+
+  public final void a(int, int);
+    descriptor: (II)V
+
+  public final void b(int, int);
+    descriptor: (II)V
+
+  public final tjge.g a(int);
+    descriptor: (I)Ltjge/g;
+
+  public static final void a(tjge.a, int, int);
+    descriptor: (Ltjge/a;II)V
+
+  public static final void a();
+    descriptor: ()V
+
+  public static final void b();
+    descriptor: ()V
+
+  public static final void b(int);
+    descriptor: (I)V
+
+  public final void c();
+    descriptor: ()V
+
+  public static final void a(tjge.a);
+    descriptor: (Ltjge/a;)V
+
+  public static final tjge.j a(tjge.a, int);
+    descriptor: (Ltjge/a;I)Ltjge/j;
+
+  static {};
+    descriptor: ()V
+}

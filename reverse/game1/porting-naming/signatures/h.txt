@@ -1,0 +1,84 @@
+public final class tjge.h extends tjge.g {
+  int a;
+    descriptor: I
+  int b;
+    descriptor: I
+  int c;
+    descriptor: I
+  int d;
+    descriptor: I
+  int e;
+    descriptor: I
+  int f;
+    descriptor: I
+  int g;
+    descriptor: I
+  int h;
+    descriptor: I
+  int i;
+    descriptor: I
+  int j;
+    descriptor: I
+  int k;
+    descriptor: I
+  int l;
+    descriptor: I
+  int m;
+    descriptor: I
+  int n;
+    descriptor: I
+  int o;
+    descriptor: I
+  int O;
+    descriptor: I
+  int P;
+    descriptor: I
+  boolean Q;
+    descriptor: Z
+  boolean R;
+    descriptor: Z
+  boolean S;
+    descriptor: Z
+  boolean T;
+    descriptor: Z
+  boolean U;
+    descriptor: Z
+  tjge.f V;
+    descriptor: Ltjge/f;
+  tjge.a W;
+    descriptor: Ltjge/a;
+  tjge.e X;
+    descriptor: Ltjge/e;
+  public tjge.h(int, tjge.d, tjge.a);
+    descriptor: (ILtjge/d;Ltjge/a;)V
+
+  public final boolean a(int, int, int, byte[], boolean);
+    descriptor: (III[BZ)Z
+
+  public final void a();
+    descriptor: ()V
+
+  public final void f();
+    descriptor: ()V
+
+  public final void g();
+    descriptor: ()V
+
+  private final void i();
+    descriptor: ()V
+
+  private final tjge.l b(int);
+    descriptor: (I)Ltjge/l;
+
+  private final void j();
+    descriptor: ()V
+
+  public final void h();
+    descriptor: ()V
+
+  public final void a(tjge.l);
+    descriptor: (Ltjge/l;)V
+
+  public final void a(javax.microedition.lcdui.Graphics, int, int);
+    descriptor: (Ljavax/microedition/lcdui/Graphics;II)V
+}

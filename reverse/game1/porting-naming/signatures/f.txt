@@ -1,0 +1,140 @@
+public final class tjge.f extends tjge.g {
+  int a;
+    descriptor: I
+  int b;
+    descriptor: I
+  int c;
+    descriptor: I
+  int d;
+    descriptor: I
+  int e;
+    descriptor: I
+  int f;
+    descriptor: I
+  int g;
+    descriptor: I
+  int h;
+    descriptor: I
+  int i;
+    descriptor: I
+  int j;
+    descriptor: I
+  int k;
+    descriptor: I
+  int l;
+    descriptor: I
+  int m;
+    descriptor: I
+  int n;
+    descriptor: I
+  int o;
+    descriptor: I
+  int O;
+    descriptor: I
+  int P;
+    descriptor: I
+  int Q;
+    descriptor: I
+  int R;
+    descriptor: I
+  int S;
+    descriptor: I
+  int T;
+    descriptor: I
+  boolean U;
+    descriptor: Z
+  boolean V;
+    descriptor: Z
+  boolean W;
+    descriptor: Z
+  boolean X;
+    descriptor: Z
+  boolean Y;
+    descriptor: Z
+  tjge.e Z;
+    descriptor: Ltjge/e;
+  tjge.c aa;
+    descriptor: Ltjge/c;
+  tjge.a ab;
+    descriptor: Ltjge/a;
+  public tjge.f(int, tjge.d, tjge.a);
+    descriptor: (ILtjge/d;Ltjge/a;)V
+
+  public final boolean c(tjge.b);
+    descriptor: (Ltjge/b;)Z
+
+  public final boolean e(tjge.b);
+    descriptor: (Ltjge/b;)Z
+
+  public final boolean f(tjge.b);
+    descriptor: (Ltjge/b;)Z
+
+  public final boolean a(tjge.b, boolean);
+    descriptor: (Ltjge/b;Z)Z
+
+  public final boolean a(int, int, int, byte[], boolean);
+    descriptor: (III[BZ)Z
+
+  public final void f();
+    descriptor: ()V
+
+  public final void e();
+    descriptor: ()V
+
+  public final void a();
+    descriptor: ()V
+
+  public final void g();
+    descriptor: ()V
+
+  public final void h();
+    descriptor: ()V
+
+  public final void b(int);
+    descriptor: (I)V
+
+  public final void c(int);
+    descriptor: (I)V
+
+  public final void i();
+    descriptor: ()V
+
+  public final void j();
+    descriptor: ()V
+
+  public final void k();
+    descriptor: ()V
+
+  public final void l();
+    descriptor: ()V
+
+  public final void d(int);
+    descriptor: (I)V
+
+  public final void e(int);
+    descriptor: (I)V
+
+  public final boolean g(tjge.b);
+    descriptor: (Ltjge/b;)Z
+
+  private void o();
+    descriptor: ()V
+
+  public final boolean a(tjge.b, int);
+    descriptor: (Ltjge/b;I)Z
+
+  public final boolean b(tjge.b, int);
+    descriptor: (Ltjge/b;I)Z
+
+  public final void a(tjge.l);
+    descriptor: (Ltjge/l;)V
+
+  public final void f(int);
+    descriptor: (I)V
+
+  public final void m();
+    descriptor: ()V
+
+  public final void n();
+    descriptor: ()V
+}

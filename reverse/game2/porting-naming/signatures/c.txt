@@ -1,0 +1,64 @@
+public final class tjge.c extends tjge.h {
+  public static final int[][] a;
+    descriptor: [[I
+  public static final int[][] b;
+    descriptor: [[I
+  public int c;
+    descriptor: I
+  private int N;
+    descriptor: I
+  private int O;
+    descriptor: I
+  private int P;
+    descriptor: I
+  private int Q;
+    descriptor: I
+  private int R;
+    descriptor: I
+  private int S;
+    descriptor: I
+  private int T;
+    descriptor: I
+  private int U;
+    descriptor: I
+  private int V;
+    descriptor: I
+  public boolean d;
+    descriptor: Z
+  private boolean W;
+    descriptor: Z
+  private boolean X;
+    descriptor: Z
+  public boolean e;
+    descriptor: Z
+  private tjge.h Y;
+    descriptor: Ltjge/h;
+  public static tjge.c f;
+    descriptor: Ltjge/c;
+  public tjge.c(int, tjge.d);
+    descriptor: (ILtjge/d;)V
+
+  public final boolean a(byte[]);
+    descriptor: ([B)Z
+
+  public final void a();
+    descriptor: ()V
+
+  public final void b();
+    descriptor: ()V
+
+  public final boolean c();
+    descriptor: ()Z
+
+  protected final boolean a(tjge.h);
+    descriptor: (Ltjge/h;)Z
+
+  protected final boolean d();
+    descriptor: ()Z
+
+  public final void a(tjge.k);
+    descriptor: (Ltjge/k;)V
+
+  static {};
+    descriptor: ()V
+}

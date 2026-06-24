@@ -1,0 +1,2 @@
+Summary for tools/emulator/freej2me-v1.52/freej2me.jar
+Decompiled with CFR 0.152

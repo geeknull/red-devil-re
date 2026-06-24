@@ -1,0 +1,23 @@
+Summary for 红魔特种兵.jar
+Decompiled with CFR 0.152
+
+
+tjge.a
+----------------------------
+
+paint(javax.microedition.lcdui.Graphics )
+  Unable to fully structure code
+
+
+tjge.e
+----------------------------
+
+a()
+  Unable to fully structure code
+
+
+tjge.f
+----------------------------
+
+h()
+  Unable to fully structure code

@@ -1,0 +1,43 @@
+public final class tjge.i {
+  public static int a;
+    descriptor: I
+  public static int b;
+    descriptor: I
+  public static int c;
+    descriptor: I
+  private short g;
+    descriptor: S
+  private short[] h;
+    descriptor: [S
+  private short[] i;
+    descriptor: [S
+  public short[] d;
+    descriptor: [S
+  public short[] e;
+    descriptor: [S
+  private byte[] j;
+    descriptor: [B
+  private int k;
+    descriptor: I
+  private int l;
+    descriptor: I
+  private byte[] m;
+    descriptor: [B
+  private short[][] n;
+    descriptor: [[S
+  private int o;
+    descriptor: I
+  static short[] f;
+    descriptor: [S
+  private tjge.i();
+    descriptor: ()V
+
+  public final void a(javax.microedition.lcdui.Graphics, int, int, int, int, int);
+    descriptor: (Ljavax/microedition/lcdui/Graphics;IIIII)V
+
+  public static final tjge.i a(int);
+    descriptor: (I)Ltjge/i;
+
+  static {};
+    descriptor: ()V
+}

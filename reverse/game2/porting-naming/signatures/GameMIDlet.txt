@@ -1,0 +1,91 @@
+public class tjge.GameMIDlet extends javax.microedition.midlet.MIDlet {
+  tjge.a a;
+    descriptor: Ltjge/a;
+  javax.microedition.lcdui.Display b;
+    descriptor: Ljavax/microedition/lcdui/Display;
+  public static java.util.Random c;
+    descriptor: Ljava/util/Random;
+  static byte[] d;
+    descriptor: [B
+  static byte[] e;
+    descriptor: [B
+  static byte[] f;
+    descriptor: [B
+  public static int g;
+    descriptor: I
+  public static int h;
+    descriptor: I
+  public static javax.microedition.media.Player[] i;
+    descriptor: [Ljavax/microedition/media/Player;
+  public static int j;
+    descriptor: I
+  public static byte[] k;
+    descriptor: [B
+  static java.lang.String l;
+    descriptor: Ljava/lang/String;
+  static java.lang.String m;
+    descriptor: Ljava/lang/String;
+  static java.lang.String n;
+    descriptor: Ljava/lang/String;
+  public static final java.lang.String[] o;
+    descriptor: [Ljava/lang/String;
+  public static final java.lang.String[] p;
+    descriptor: [Ljava/lang/String;
+  public static final java.lang.String[] q;
+    descriptor: [Ljava/lang/String;
+  public static final java.lang.String[] r;
+    descriptor: [Ljava/lang/String;
+  public tjge.GameMIDlet();
+    descriptor: ()V
+
+  protected final void pauseApp();
+    descriptor: ()V
+
+  protected final void startApp() throws javax.microedition.midlet.MIDletStateChangeException;
+    descriptor: ()V
+
+  protected final void destroyApp(boolean) throws javax.microedition.midlet.MIDletStateChangeException;
+    descriptor: (Z)V
+
+  public static final int a(int);
+    descriptor: (I)I
+
+  public static final byte a(java.io.InputStream) throws java.io.IOException;
+    descriptor: (Ljava/io/InputStream;)B
+
+  public static final short b(java.io.InputStream) throws java.io.IOException;
+    descriptor: (Ljava/io/InputStream;)S
+
+  public static final int a(byte[], int, int);
+    descriptor: ([BII)I
+
+  public static final void a();
+    descriptor: ()V
+
+  public static final void b();
+    descriptor: ()V
+
+  public static final void a(int, int);
+    descriptor: (II)V
+
+  public static final void c();
+    descriptor: ()V
+
+  public static final void b(int);
+    descriptor: (I)V
+
+  public static final void a(int, java.lang.String);
+    descriptor: (ILjava/lang/String;)V
+
+  public static final javax.microedition.lcdui.Image a(java.lang.String, int);
+    descriptor: (Ljava/lang/String;I)Ljavax/microedition/lcdui/Image;
+
+  static final java.io.InputStream b(java.lang.String, int);
+    descriptor: (Ljava/lang/String;I)Ljava/io/InputStream;
+
+  static final byte[] c(java.lang.String, int);
+    descriptor: (Ljava/lang/String;I)[B
+
+  static {};
+    descriptor: ()V
+}

@@ -1,0 +1,1505 @@
+/**
+ * 游戏1《红魔特种兵》玩家 Actor 类 f，继承 g。
+ * 逐行移植自 reverse/game1/2-decompiled-cfr/tjge/f.java（CFR 权威源）。
+ * 移植规约见 docs/05-移植规约.md；方法名映射见 reverse/game1/porting-naming/porting-contract.json。
+ *
+ * 职责：玩家角色。移动/跳跃/重力(重力 J=4096，跳跃 H=-10240，横移 G=±8192)、
+ *   武器系统(3 把武器，k=当前武器，h/i/j=弹药，l=当前弹匣，换弹 n_())、
+ *   输入响应 h_()（依据 ab.q 输入位掩码）、状态机 g_()（依据 c=动作 id）。
+ *
+ * 字段别名（混淆名沿用原版）：
+ *   a=状态位掩码(bit0=着地, bit13=0x2000=梯子态), b=移动标志, c=动作 id(t&0xFFFFFF),
+ *   d=朝向标志(t&0xFF000000), e=生命, f/g=输入计数, h/i/j=三种弹药数, k=当前武器索引,
+ *   l=当前弹匣, m=帧计数, n=爬升检测结果, o=子状态, O/P/Q/R/S/T=各类计数/坐标,
+ *   U=朝向(true=左), V/W/X/Y=布尔标志, Z=关联 e(敌人), aa=关联 c(Boss), ab=主控 a。
+ *   基类 g 字段：t=动作位标志, C/D=定点坐标(<<10), E/F=速度, G/H=目标速度,
+ *   I/J=加速度, K/L=速度上限, z=帧水平包围盒下界。
+ *
+ * 跨类方法名按契约表：
+ *   ab(tjge.a): a_IIIIII(...)→生成 tjge.l 并返回, a_III(...)→静态音效（音频后续接入，调用保留），
+ *     字段 x/p/q/r/t/u/n/f/B/L；静态字段 a.a=屏幕宽, a.c=关卡像素宽。
+ *   b(tjge.b): a_IIZ(x,y,b)→查询地图瓦片碰撞值, a_()→关卡像素宽。
+ *   aa(tjge.c): a_Tg(g)→包围盒相交（继承自 g）。
+ *   l(tjge.l): a_Z(bool)、a_I(n)、b_()、f_()、字段 C/D/G/H/J/L。
+ *   基类 g：a_I(n)=a(int)切帧, c_()=步进, a_IIIAYZ=初始化, d_()=动画完毕,
+ *     d_Tb=顶部碰撞。
+ *
+ * 必要偏差：本类无资源/像素管线直接调用；tjge.a.a_III 为静态音效播放
+ * （音频后续接入，调用保留，详见规约 new Sound 暂静音）。
+ */
+import { GameScreen } from "./GameScreen.ts";
+import { TileMap } from "./TileMap.ts";
+import { BossActor } from "./BossActor.ts";
+import { SpriteDef } from "./SpriteDef.ts";
+import { EffectActor } from "./EffectActor.ts";
+import { ActorBase } from "./ActorBase.ts";
+import { ProjectileActor } from "./ProjectileActor.ts";
+
+export class PlayerActor extends ActorBase {
+  stateFlags: number = 0;
+  movingFlag: number = 0;
+  actionId: number = 0;
+  facingFlag: number = 0;
+  health: number = 0;
+  lastInputDir: number = 0;
+  inputHoldCount: number = 0;
+  ammoReserveB: number = 0;
+  ammoReserveC: number = 0;
+  grenadeCount: number = 0;
+  weaponIndex: number = 0;
+  magazineAmmo: number = 0;
+  frameTimer: number = 0;
+  climbResult: number = 0;
+  subState: number = 0;
+  spareO: number = 0;
+  spareP: number = 0;
+  climbAnimState: number = 0;
+  invulnTimer: number = 0;
+  climbTargetX: number = 0;
+  climbTargetY: number = 0;
+  facingLeft: boolean = false;
+  actionFlag: boolean = false;
+  canClimb: boolean = false;
+  climbAdvance: boolean = false;
+  ledgeGrabFlag: boolean = false;
+  linkedEnemy: EffectActor | null;
+  linkedBoss: BossActor | null;
+  screen: GameScreen;
+
+  constructor(n: number, d2: SpriteDef, a2: GameScreen) {
+    super(n, d2);
+    this.screen = a2;
+    this.linkedEnemy = null;
+    this.linkedBoss = null;
+  }
+
+  // c(tjge.b) → c_Tb（覆写基类 c_Tb：玩家专用落地/侧壁检测）
+  collideGround(b2: TileMap): boolean {
+    if (this.velY < 0) {
+      return false;
+    }
+    const bl = false;
+    void bl;
+    const bl2 = false;
+    void bl2;
+    const n = (this.posY + this.velY) >> 14;
+    const n2 = (((this.posX + this.velX) >> 10) + -5) >> 4;
+    const n3 = (((this.posX + this.velX) >> 10) + 5) >> 4;
+    let bl3 = false;
+    let bl4 = false;
+    if (b2.queryColumnTileAt(n2, n, true) === 1) {
+      bl3 = true;
+    }
+    if (b2.queryColumnTileAt(n3, n, true) === 1) {
+      bl4 = true;
+    }
+    if (bl3 && bl4) {
+      this.targetVelY = 0;
+      this.posY &= 0xfffffc00;
+      this.velY = (n << 14) - this.posY;
+      return true;
+    }
+    if (this.facingFlag !== 0 && (bl3 || bl4)) {
+      if (bl3 && !bl4) {
+        const n4 = (n2 << 4) + 16 - (((this.posX + this.velX) >> 10) + -5);
+        this.targetVelX = 0;
+        if (n4 > 6 || (n4 >= 4 && (this.actionId === 4 || this.actionId === 3))) {
+          this.targetVelY = 0;
+          this.velX = (((n2 << 4) + 7) << 10) - this.posX;
+          this.velY = (n << 14) - this.posY;
+          return true;
+        }
+        this.velX = (((n2 << 4) + 25) << 10) - this.posX;
+      } else if (!bl3 && bl4 && (this.stateFlags & 1) === 0) {
+        const n5 = (n3 << 4) - (((this.posX + this.velX) >> 10) + -5);
+        this.targetVelX = 0;
+        if (n5 < 7) {
+          this.targetVelY = 0;
+          this.velX = (((n3 << 4) + 7) << 10) - this.posX;
+          this.velY = (n << 14) - this.posY;
+          return true;
+        }
+        this.velX = (((n3 << 4) - 9) << 10) - this.posX;
+      } else if (!bl3 && bl4) {
+        this.velY = 2048;
+      }
+    } else if (this.facingFlag === 0 && (bl4 || bl3)) {
+      if (bl4 && !bl3) {
+        const n6 = ((this.posX + this.velX) >> 10) + 5 - (n3 << 4);
+        this.targetVelX = 0;
+        if (n6 > 6 || (n6 >= 4 && (this.actionId === 4 || this.actionId === 3))) {
+          this.targetVelY = 0;
+          this.velX = (((n3 << 4) + 7) << 10) - this.posX;
+          this.velY = (n << 14) - this.posY;
+          return true;
+        }
+        this.velX = (((n3 << 4) - 9) << 10) - this.posX;
+      } else if (!bl4 && bl3 && (this.stateFlags & 1) === 0) {
+        const n7 = ((this.posX + this.velX) >> 10) + 5 - (n3 << 4);
+        this.targetVelX = 0;
+        if (n7 < 7) {
+          this.targetVelY = 0;
+          this.velX = (((n2 << 4) + 9) << 10) - this.posX;
+          this.velY = (n << 14) - this.posY;
+          return true;
+        }
+        this.velX = (((n2 << 4) + 25) << 10) - this.posX;
+      } else if (!bl4 && bl3) {
+        this.velY = 2048;
+      }
+    }
+    this.accelY = 4096;
+    return false;
+  }
+
+  // e(tjge.b) → e_Tb（爬升顶部碰撞检测）
+  checkLedgeTop(b2: TileMap): boolean {
+    if (this.velY < 0) {
+      return false;
+    }
+    const n = (this.posX + this.velX) >> 14;
+    const n2 = (this.posY - 10240) >> 14;
+    let n3 = 0;
+    while (n3 < 3) {
+      if (b2.queryColumnTileAt(n, n2 + n3, true) === 1) {
+        return true;
+      }
+      ++n3;
+    }
+    return false;
+  }
+
+  // f(tjge.b) → f_Tb（前方贴墙检测）
+  checkWallAhead(b2: TileMap): boolean {
+    let n = this.facingLeft ? this.posX - 2048 : this.posX + 2048;
+    const n2 = ((this.posY >> 10) - 34) >> 4;
+    return b2.queryColumnTileAt((n >>= 14), n2, true) === 1;
+  }
+
+  // a(tjge.b,boolean) → a_TbZ（侧向墙体碰撞）
+  checkLadderTile(b2: TileMap, bl: boolean): boolean {
+    let n = bl
+      ? (this.posY - 30720) >> 14
+      : (this.stateFlags & 0x2000) !== 0
+        ? (this.posY + this.velY) >> 14
+        : (this.posY + this.velY + 20480) >> 14;
+    const n2 = ((this.posX >> 10) - 3) >> 4;
+    const n3 = ((this.posX >> 10) + 3) >> 4;
+    let n4 = n2;
+    while (n4 <= n3) {
+      const n5 = b2.queryColumnTileAt(n4, n, true);
+      if (n5 === 2) {
+        this.posX = ((n4 << 4) + 8) << 10;
+        this.velX = 0;
+        this.targetVelX = 0;
+        return true;
+      }
+      ++n4;
+    }
+    if ((this.stateFlags & 0x2000) !== 0) {
+      if (bl) {
+        ++n;
+        this.posY = (n <<= 14) + 10240;
+      } else {
+        this.posY = n <<= 14;
+      }
+      this.targetVelY = 0;
+    }
+    return false;
+  }
+
+  // a(int,int,int,byte[],boolean) → a_IIIAYZ（初始化）
+  spawnAt(n: number, n2: number, n3: number, byArray: Int8Array, bl: boolean): boolean {
+    super.spawnAt(n, n2, n3, byArray, bl);
+    this.health = 10;
+    this.movingFlag = 0;
+    this.linkedEnemy = null;
+    this.linkedBoss = null;
+    this.accelY = 4096;
+    this.stateFlags = 1;
+    return true;
+  }
+
+  // f() → f_（进入关卡/复位时调用）
+  resetForLevel(): void {
+    this.stateFlags = this.screen.levelIndex === 4 ? (this.stateFlags &= 0xfffffffe) : 1;
+    this.health = 10;
+    this.subState = 0;
+    this.canClimb = true;
+    this.actionFlag = false;
+    this.climbAnimState = 18;
+    this.linkedEnemy = null;
+    this.frameTimer = 0;
+    this.movingFlag = 0;
+    this.accelY = 0;
+    this.targetVelY = 0;
+  }
+
+  // e() → e_（物理步进，覆写基类 e_）
+  stepPhysics(): void {
+    this.actionId = this.frameIndex & 0xffffff;
+    this.facingFlag = this.frameIndex & 0xff000000;
+    --this.invulnTimer;
+    this.advanceAnimation();
+    this.velX = this.targetVelX;
+    this.velY = this.targetVelY;
+    this.targetVelX += this.accelX;
+    if (this.accelX > 0 && this.targetVelX > this.maxVelX) {
+      this.targetVelX = this.maxVelX;
+    }
+    if (this.accelX < 0 && this.targetVelX < this.maxVelX) {
+      this.targetVelX = this.maxVelX;
+    }
+    this.targetVelY += this.accelY;
+    if (this.accelY > 0 && this.targetVelY > this.maxVelY) {
+      this.targetVelY = this.maxVelY;
+    }
+    if (this.accelY < 0 && this.targetVelY < this.maxVelY) {
+      this.targetVelY = this.maxVelY;
+    }
+    switch (this.screen.state) {
+      case 14:
+      case 19: {
+        this.posX += this.velX;
+        this.posY += this.velY;
+        return;
+      }
+      case 10: {
+        let n: number;
+        const n2 = GameScreen.viewWidthFx;
+        if (this.screen.levelIndex === 4) {
+          if (this.screen.reinforceBudget-- > 25) {
+            this.targetVelX = 0;
+          } else if (this.screen.reinforceBudget > 12) {
+            this.targetVelX = 10240;
+          } else if (this.screen.reinforceBudget <= 12) {
+            this.screen.cameraVelX = 8192;
+          }
+          if (
+            this.screen.boss!.active &&
+            this.linkedBoss!.intersectsActor(this.screen.boss!) &&
+            ((this.linkedBoss!.posX < this.screen.boss!.posX && this.targetVelX > this.screen.cameraVelX) ||
+              (this.linkedBoss!.posX > this.screen.boss!.posX && this.targetVelX < this.screen.cameraVelX))
+          ) {
+            this.targetVelX = this.screen.cameraVelX;
+            this.velX = this.screen.cameraVelX;
+          }
+          this.posX += this.velX;
+          if (this.screen.cameraVelX <= 0) break;
+          if (this.posX < this.screen.cameraX + 20480) {
+            this.posX = this.screen.cameraX + 20480;
+            return;
+          }
+          if (this.posX - this.screen.cameraX <= n2 - 20480) break;
+          this.posX = this.screen.cameraX + n2 - 20480;
+          return;
+        }
+        if ((this.stateFlags & 0x2000) === 0) {
+          if (this.collideCeiling(this.screen.tileMap!)) {
+            if (!this.collideGround(this.screen.tileMap!)) {
+              this.targetVelY = 5120;
+              this.beginFall();
+            } else {
+              this.setFrame(5 | this.facingFlag);
+            }
+          } else {
+            if (this.facingFlag !== 0) {
+              n = this.checkWallLeft(this.screen.tileMap!, 0) ? 1 : 0;
+              if (n !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
+                this.setFrame(0 | this.facingFlag);
+              }
+            } else {
+              n = this.checkWallRight(this.screen.tileMap!, 0) ? 1 : 0;
+              if (n !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
+                this.setFrame(0);
+              }
+            }
+            if (this.collideGround(this.screen.tileMap!)) {
+              this.land();
+            } else {
+              this.beginFall();
+            }
+          }
+          if (
+            (this.actionId === 3 || this.actionId === 4 || this.actionId === 17) &&
+            (this.stateFlags & 1) === 0 &&
+            this.subState !== 5 &&
+            this.checkLadderTile(this.screen.tileMap!, true)
+          ) {
+            this.actionId = 18;
+            this.stateFlags |= 0x2000;
+            this.movingFlag = 0;
+            this.targetVelX = 0;
+            this.targetVelY = 0;
+            this.setFrame(0x12 | this.facingFlag);
+          }
+        }
+        this.posX += this.velX;
+        this.posY += this.velY;
+        if (
+          (this.stateFlags & 1) !== 0 &&
+          (this.actionId === 2 || this.actionId === 0) &&
+          (n = this.posX % 8192) > 2048 &&
+          n < 6144
+        ) {
+          if (n > 4096) {
+            n = 8192 - n;
+            this.posX += n;
+          } else {
+            this.posX -= n;
+          }
+        }
+        if (this.screen.scriptFlagL && this.screen.levelIndex !== 7 && this.screen.levelIndex !== 2) {
+          if (this.posX < this.screen.cameraX + 10240) {
+            this.posX = this.screen.cameraX + 10240;
+            this.targetVelX = 0;
+            return;
+          }
+          if (this.posX <= this.screen.cameraX + n2 - 10240) break;
+          this.posX = this.screen.cameraX + n2 - 10240;
+          this.targetVelX = 0;
+          return;
+        }
+        this.screen.cameraVelX =
+          this.facingFlag === 0
+            ? this.posX > (((GameScreen.screenWidth / 5) | 0) << 10)
+              ? this.targetVelX + 14336
+              : 0
+            : this.posX < ((this.screen.tileMap!.getPixelWidth() - ((GameScreen.screenWidth / 5) | 0)) << 10)
+              ? this.targetVelX + -14336
+              : 0;
+        this.screen.cameraVelY = -4096;
+      }
+    }
+  }
+
+  // a() → a_（每帧更新，覆写基类 a_）
+  update(): void {
+    this.facingLeft = (this.frameIndex & 0xff000000) !== 0;
+    this.runActionStateMachine();
+    this.actionId = this.frameIndex & 0xffffff;
+    this.handleInput();
+    if (this.health <= 0 && this.actionId !== 23 && this.actionId !== 15 && this.actionId !== 16) {
+      this.setFrame(0x17 | this.facingFlag);
+    }
+  }
+
+  // g() → g_（动作状态机）
+  runActionStateMachine(): void {
+    switch (this.actionId) {
+      case 3: {
+        switch (this.subState) {
+          case 0: {
+            this.checkClimbable(this.screen.tileMap!);
+            if (this.climbResult === 2 && this.canClimb) {
+              this.posX = this.facingLeft ? this.climbTargetX + 10240 : this.climbTargetX - 10240;
+              this.posY = this.climbTargetY + 36864;
+              this.subState = 3;
+              this.setFrame(0x16 | this.facingFlag);
+              return;
+            }
+            if (this.targetVelY <= -3120) break;
+            this.setFrame(4 | this.facingFlag);
+            break;
+          }
+          case 1: {
+            if ((this.stateFlags & 1) === 0) break;
+            this.accelY = 0;
+            this.targetVelX = 0;
+            this.setFrame(0 | this.facingFlag);
+            break;
+          }
+          case 3: {
+            this.checkClimbable(this.screen.tileMap!);
+            if (this.climbResult !== 2 || !this.canClimb) break;
+            this.posX = this.facingLeft ? this.climbTargetX + 10240 : this.climbTargetX - 10240;
+            this.posY = this.climbTargetY + 36864;
+            this.setFrame(0x16 | this.facingFlag);
+            break;
+          }
+          case 4: {
+            if (this.targetVelY <= 3120) break;
+            this.setFrame(0x11 | this.facingFlag);
+          }
+        }
+        return;
+      }
+      case 4: {
+        switch (this.subState) {
+          case 0: {
+            if (this.targetVelY <= 3120) break;
+            this.setFrame(0x11 | this.facingFlag);
+            break;
+          }
+          case 2:
+          case 3: {
+            if (this.posY >= this.climbTargetY) break;
+            this.targetVelX =
+              this.subState === 3 ? (this.facingLeft ? -8192 : 8192) : this.facingLeft ? -4096 : 4096;
+            this.setFrame(0x11 | this.facingFlag);
+          }
+        }
+        return;
+      }
+      case 17: {
+        switch (this.subState) {
+          case 0: {
+            this.checkClimbable(this.screen.tileMap!);
+            if (this.climbResult === 2 && !this.checkLedgeTop(this.screen.tileMap!) && this.canClimb) {
+              this.subState = 6;
+              return;
+            }
+            // fall through
+          }
+          case 2:
+          case 3:
+          case 4: {
+            if ((this.stateFlags & 1) === 0) break;
+            this.targetVelX = 0;
+            this.setFrame(0 | this.facingFlag);
+            break;
+          }
+          case 5: {
+            if (this.frameTimer++ <= 0) break;
+            this.frameTimer = 0;
+            this.targetVelX = 0;
+            this.subState = 0;
+            break;
+          }
+          case 6: {
+            this.posX = this.facingLeft ? this.climbTargetX + 10240 : this.climbTargetX - 10240;
+            this.posY = this.climbTargetY + 36864;
+            this.targetVelY = -4096;
+            this.subState = 3;
+            this.setFrame(0x16 | this.facingFlag);
+          }
+        }
+        return;
+      }
+      case 22: {
+        if (this.subState !== 2 && this.subState !== 3) break;
+        this.canClimb = false;
+        this.accelY = 4096;
+        const n = (this.targetVelX = this.facingLeft ? -4096 : 4096);
+        void n;
+        if (this.subState === 3) {
+          this.targetVelY = -15360;
+        }
+        this.setFrame(4 | this.facingFlag);
+        return;
+      }
+      case 1:
+      case 28: {
+        if (!this.isAnimationDone()) break;
+        this.reloadFromReserve();
+        if (this.actionId === 1) {
+          this.setFrame(0 | this.facingFlag);
+          return;
+        }
+        this.setFrame(5 | this.facingFlag);
+        return;
+      }
+      case 6:
+      case 8:
+      case 29: {
+        if (!this.isAnimationDone()) break;
+        this.setFrame(0 | this.facingFlag);
+        return;
+      }
+      case 7: {
+        if (!this.isAnimationDone()) break;
+        this.setFrame(8 | this.facingFlag);
+        return;
+      }
+      case 9:
+      case 11:
+      case 30: {
+        if (!this.isAnimationDone()) break;
+        this.setFrame(5 | this.facingFlag);
+        return;
+      }
+      case 10: {
+        if (!this.isAnimationDone()) break;
+        this.setFrame(0xb | this.facingFlag);
+        return;
+      }
+      case 20: {
+        if (this.frameTimer++ <= 1) break;
+        this.frameTimer = 0;
+        this.setFrame(0x15 | this.facingFlag);
+        return;
+      }
+      case 21: {
+        if (this.frameTimer++ <= 1) break;
+        this.frameTimer = 0;
+        this.setFrame(0 | this.facingFlag);
+        return;
+      }
+      case 13: {
+        this.screen.state = 20;
+        return;
+      }
+      case 19: {
+        if (this.frameTimer++ <= 5) break;
+        if (this.checkWallAhead(this.screen.tileMap!)) {
+          this.setFrame(5 | this.facingFlag);
+        } else {
+          this.setFrame(0 | this.facingFlag);
+        }
+        this.movingFlag = 0;
+        this.frameTimer = 0;
+        this.targetVelX = 0;
+        this.lastInputDir = 0;
+        this.inputHoldCount = 0;
+        return;
+      }
+      case 18:
+      case 24:
+      case 25:
+      case 26: {
+        if (!this.climbAdvance) {
+          return;
+        }
+        switch (this.climbAnimState) {
+          case 18: {
+            this.climbAnimState = 24;
+            break;
+          }
+          case 24: {
+            this.climbAnimState = 25;
+            break;
+          }
+          case 25: {
+            this.climbAnimState = 26;
+            break;
+          }
+          case 26: {
+            this.climbAnimState = 18;
+          }
+        }
+        this.climbAdvance = false;
+        if ((this.frameIndex & 0xffffff) === 23) break;
+        this.setFrame(this.climbAnimState | this.facingFlag);
+        return;
+      }
+      case 27: {
+        if (!this.ledgeGrabFlag) {
+          this.climbAnimState = 24;
+          this.setFrame(this.climbAnimState | this.facingFlag);
+        } else {
+          this.accelY = 4096;
+          this.posY -= 25600;
+          this.stateFlags &= 0xffffdfff;
+          this.setFrame(0 | this.facingFlag);
+        }
+        this.climbAdvance = false;
+        return;
+      }
+      case 23: {
+        if (this.screen.levelIndex !== 4 && (this.stateFlags & 1) === 0) break;
+        if (this.health <= 0) {
+          this.setFrame(0xf | this.facingFlag);
+          GameScreen.playSound(4, 1, 200);
+          return;
+        }
+        this.setFrame(0 | this.facingFlag);
+        return;
+      }
+      case 15: {
+        if (this.frameTimer++ <= 2) break;
+        this.setFrame(0x10 | this.facingFlag);
+        return;
+      }
+      case 16: {
+        if (this.frameTimer++ <= 4) break;
+        this.frameTimer = 0;
+        this.screen.state = 20;
+      }
+    }
+  }
+
+  /*
+   * Unable to fully structure code（CFR 原注：无法完全结构化；
+   * 以下 block88..block95 跳转逻辑严格按 CFR 字节码顺序逐行移植，
+   * 用标号 break 复刻 Java 的多层 block 跳出。）
+   */
+  // h() → h_（输入处理：依据 ab.q 输入位掩码驱动移动/跳跃/射击/换弹）
+  handleInput(): void {
+    block92: {
+      block95: {
+        block93: {
+          block94: {
+            block88: {
+              block91: {
+                block89: {
+                  block90: {
+                    if (this.screen.state !== 10) {
+                      return;
+                    }
+                    if (
+                      this.actionId === 23 ||
+                      (this.actionId !== 0 &&
+                        this.actionId !== 5 &&
+                        this.actionId !== 2 &&
+                        this.actionId !== 1 &&
+                        this.actionId !== 28 &&
+                        (this.stateFlags & 8192) === 0)
+                    ) {
+                      return;
+                    }
+                    if (this.screen.levelIndex === 4) {
+                      this.handleVehicleInput();
+                      return;
+                    }
+                    if ((this.stateFlags & 8192) !== 0) {
+                      this.targetVelY = 0;
+                      this.accelY = 0;
+                    }
+                    if (
+                      this.screen.heldKeyAction === 4 &&
+                      this.actionId !== 5 &&
+                      !this.actionFlag &&
+                      (this.stateFlags & 8192) === 0 &&
+                      !this.checkLadderTile(this.screen.tileMap!, true)
+                    ) {
+                      this.screen.heldKeyAction &= -5;
+                      if (this.inputHoldCount > 0) {
+                        this.screen.heldKeyAction = this.facingLeft !== false ? 64 : 128;
+                      }
+                    }
+                    if (this.screen.heldKeyAction === 1) {
+                      if ((this.stateFlags & 1) !== 0) {
+                        if (this.actionId !== 2) {
+                          if (this.facingLeft) {
+                            if (this.actionId === 5 && this.checkWallAhead(this.screen.tileMap!)) {
+                              return;
+                            }
+                            if (!this.checkWallLeft(this.screen.tileMap!, 2)) {
+                              this.walkLeft();
+                            }
+                          } else {
+                            this.setFrame(this.actionId | -2147483648);
+                          }
+                        }
+                      } else if ((this.stateFlags & 8192) !== 0 && !this.checkWallLeft(this.screen.tileMap!, 14)) {
+                        if (this.checkLadderTile(this.screen.tileMap!, false)) {
+                          this.frameTimer = 0;
+                          this.movingFlag = 1;
+                          this.targetVelY = 10240;
+                          this.targetVelX = -8192;
+                          this.subState = 5;
+                          this.setFrame(-2147483631);
+                        } else {
+                          this.velY = 4096;
+                          this.setFrame(-2147483648);
+                        }
+                        this.stateFlags &= -8193;
+                      }
+                      this.lastInputDir = 1;
+                      return;
+                    }
+                    if (this.screen.heldKeyAction === 2) {
+                      if ((this.stateFlags & 1) !== 0) {
+                        if (this.actionId !== 2) {
+                          if (!this.facingLeft) {
+                            if (this.actionId === 5 && this.checkWallAhead(this.screen.tileMap!)) {
+                              return;
+                            }
+                            if (!this.checkWallRight(this.screen.tileMap!, 2)) {
+                              this.walkRight();
+                            }
+                          } else {
+                            this.setFrame(this.actionId);
+                          }
+                        }
+                      } else if ((this.stateFlags & 8192) !== 0 && !this.checkWallRight(this.screen.tileMap!, 14)) {
+                        if (this.checkLadderTile(this.screen.tileMap!, false)) {
+                          this.frameTimer = 0;
+                          this.movingFlag = 1;
+                          this.targetVelY = 10240;
+                          this.targetVelX = 8192;
+                          this.subState = 5;
+                          this.setFrame(17);
+                        } else {
+                          this.velY = 4096;
+                          this.setFrame(0);
+                        }
+                        this.stateFlags &= -8193;
+                      }
+                      this.lastInputDir = 2;
+                      return;
+                    }
+                    if (this.screen.heldKeyAction === 4) {
+                      if (this.actionFlag && (this.stateFlags & 1) !== 0) {
+                        if (this.linkedEnemy !== null) {
+                          this.setFrame(13 | this.facingFlag);
+                        }
+                      } else if (this.actionId === 5) {
+                        if (!this.checkWallAhead(this.screen.tileMap!)) {
+                          this.setFrame(0 | this.facingFlag);
+                        }
+                      } else if (this.checkLadderTile(this.screen.tileMap!, true)) {
+                        this.climbAdvance = true;
+                        this.stateFlags &= -2;
+                        this.stateFlags |= 8192;
+                        this.targetVelY = -5120;
+                        this.movingFlag = 0;
+                        this.setFrame(this.climbAnimState | this.facingFlag);
+                      } else if ((this.stateFlags & 8192) !== 0) {
+                        this.ledgeGrabFlag = true;
+                        this.setFrame(27 | this.facingFlag);
+                      }
+                      this.lastInputDir = 4;
+                      this.inputHoldCount = 0;
+                      return;
+                    }
+                    if (this.screen.heldKeyAction === 8) {
+                      this.targetVelX = 0;
+                      if (this.checkLadderTile(this.screen.tileMap!, false)) {
+                        if ((this.stateFlags & 8192) === 0) {
+                          this.stateFlags &= -2;
+                          this.stateFlags |= 8192;
+                          this.movingFlag = 0;
+                          this.ledgeGrabFlag = false;
+                          this.posY += 30720;
+                          this.setFrame(27 | this.facingFlag);
+                        } else {
+                          this.setFrame(this.climbAnimState | this.facingFlag);
+                        }
+                        this.targetVelY = 5120;
+                        this.climbAdvance = true;
+                      } else if ((this.stateFlags & 8192) !== 0) {
+                        this.stateFlags &= -8193;
+                        this.velY = 4096;
+                        this.setFrame(0 | this.facingFlag);
+                      } else if (
+                        (this.stateFlags & 1) !== 0 &&
+                        ((this.inputHoldCount > 0 && this.inputHoldCount < 3 && this.lastInputDir === 8) ||
+                          (this.actionId === 5 && this.inputHoldCount > 0))
+                      ) {
+                        this.movingFlag = 1;
+                        this.targetVelX = this.facingLeft === false ? 8192 : -8192;
+                        this.setFrame(19 | this.facingFlag);
+                      } else if ((this.stateFlags & 1) !== 0 && this.inputHoldCount > 0) {
+                        this.setFrame(5 | this.facingFlag);
+                      }
+                      this.lastInputDir = 8;
+                      this.inputHoldCount = 0;
+                      return;
+                    }
+                    if (this.screen.heldKeyAction !== 64) break block88;
+                    if ((this.stateFlags & 1) === 0) break block89;
+                    if (this.actionId === 5 && this.checkWallAhead(this.screen.tileMap!)) {
+                      return;
+                    }
+                    if (!this.facingLeft) {
+                      this.setFrame(this.actionId | -2147483648);
+                      return;
+                    }
+                    this.velY = 0;
+                    this.velX = 0;
+                    if (!this.checkClimbable(this.screen.tileMap!)) break block90;
+                    this.subState = this.climbResult;
+                    switch (this.subState) {
+                      case 1:
+                      case 4: {
+                        if (this.subState === 4) {
+                          if (!this.checkWallLeft(this.screen.tileMap!, 2)) {
+                            this.subState = 0;
+                            this.targetVelX = -8192;
+                          }
+                        } else if (this.subState === 1) {
+                          this.targetVelX = -4096;
+                        }
+                        // fall through (lbl138)
+                      }
+                      case 3: {
+                        this.startLeapLeft(-10240);
+                        break;
+                      }
+                      case 2: {
+                        this.startLeapLeft(-15360);
+                      }
+                    }
+                    break block91;
+                  }
+                  // block90:
+                  this.subState = 0;
+                  this.startLeapLeft(-10240);
+                  this.targetVelX = -8192;
+                  break block91;
+                }
+                // block89:
+                if ((this.stateFlags & 8192) !== 0) {
+                  this.accelY = 0;
+                  this.targetVelY = 0;
+                }
+              }
+              // block91:
+              this.lastInputDir = 64;
+              this.screen.heldKeyAction = 0;
+              return;
+            }
+            // block88:
+            if (this.screen.heldKeyAction !== 128) break block92;
+            if ((this.stateFlags & 1) === 0) break block93;
+            if (this.actionId === 5 && this.checkWallAhead(this.screen.tileMap!)) {
+              return;
+            }
+            if (this.facingLeft) {
+              this.setFrame(this.actionId);
+              return;
+            }
+            this.velY = 0;
+            this.velX = 0;
+            if (!this.checkClimbable(this.screen.tileMap!)) break block94;
+            this.subState = this.climbResult;
+            switch (this.subState) {
+              case 1:
+              case 4: {
+                if (this.subState === 4) {
+                  if (!this.checkWallRight(this.screen.tileMap!, 2)) {
+                    this.subState = 0;
+                    this.targetVelX = 8192;
+                  }
+                } else if (this.subState === 1) {
+                  this.targetVelX = 4096;
+                }
+                // fall through (lbl178)
+              }
+              case 3: {
+                this.startLeapRight(-10240);
+                break;
+              }
+              case 2: {
+                this.startLeapRight(-15360);
+              }
+            }
+            break block95;
+          }
+          // block94:
+          this.subState = 0;
+          this.startLeapRight(-10240);
+          this.targetVelX = 8192;
+          break block95;
+        }
+        // block93:
+        if ((this.stateFlags & 8192) !== 0) {
+          this.accelY = 0;
+          this.targetVelY = 0;
+        }
+      }
+      // block95:
+      this.lastInputDir = 128;
+      this.screen.heldKeyAction = 0;
+      return;
+    }
+    // block92:
+    if (this.screen.heldKeyAction === 16) {
+      if ((this.stateFlags & 8192) !== 0) {
+        return;
+      }
+      if (this.inputHoldCount === 0) {
+        ++this.inputHoldCount;
+        return;
+      }
+      switch (this.weaponIndex) {
+        case 0:
+        case 1: {
+          this.fireWeapon(21);
+          break;
+        }
+        case 2: {
+          this.fireWeapon(15);
+        }
+      }
+      this.inputHoldCount = 0;
+      this.targetVelX = 0;
+      this.screen.heldKeyAction &= -17;
+      return;
+    }
+    if (this.screen.heldKeyAction === 32) {
+      if ((this.stateFlags & 8192) === 0 && this.inputHoldCount > 1) {
+        switch (this.weaponIndex) {
+          case 0: {
+            if (this.ammoReserveB !== 0 || this.ammoReserveC !== 0) break;
+            return;
+          }
+          case 1: {
+            this.ammoReserveB += this.magazineAmmo;
+            break;
+          }
+          case 2: {
+            this.ammoReserveC += this.magazineAmmo;
+          }
+        }
+        this.inputHoldCount = 0;
+        this.magazineAmmo = 0;
+        ++this.weaponIndex;
+        this.switchOrReloadWeapon(32);
+      }
+      this.targetVelX = 0;
+      this.screen.heldKeyAction &= -33;
+      return;
+    }
+    if (this.screen.heldKeyAction === 2048) {
+      if (this.actionId !== 1 && this.actionId !== 28 && (this.stateFlags & 8192) === 0 && this.inputHoldCount > 1) {
+        this.switchOrReloadWeapon(2048);
+        this.inputHoldCount = 0;
+      }
+      this.targetVelX = 0;
+      this.screen.heldKeyAction &= -2049;
+      return;
+    }
+    if (this.screen.heldKeyAction === 1024) {
+      if ((this.stateFlags & 8192) !== 0 || this.inputHoldCount === 0) {
+        return;
+      }
+      this.fireWeapon(20);
+      this.inputHoldCount = 0;
+      this.targetVelX = 0;
+      this.screen.heldKeyAction &= -1025;
+      return;
+    }
+    ++this.inputHoldCount;
+    if (this.movingFlag === 0) {
+      this.targetVelX = 0;
+    }
+    if (this.actionId === 2 && (this.stateFlags & 1) !== 0) {
+      this.setFrame(0 | this.facingFlag);
+    }
+  }
+
+  // b(int) → b_I（向左跳跃/落地动作分支设定）
+  startLeapLeft(n: number): void {
+    if (this.subState === 2) {
+      this.posX = this.climbTargetX + 12288;
+      this.setFrame(-2147483626);
+    } else if (this.subState === 5) {
+      this.setFrame(-2147483631);
+    } else {
+      this.setFrame(-2147483645);
+    }
+    this.targetVelY = n;
+    this.accelY = 4096;
+    this.stateFlags &= 0xfffffffe;
+    this.movingFlag = 1;
+  }
+
+  // c(int) → c_I（向右跳跃/落地动作分支设定）
+  startLeapRight(n: number): void {
+    if (this.subState === 2) {
+      this.posX = this.climbTargetX - 12288;
+      this.setFrame(22);
+    } else if (this.subState === 5) {
+      this.setFrame(17);
+    } else {
+      this.setFrame(3);
+    }
+    this.targetVelY = n;
+    this.accelY = 4096;
+    this.stateFlags &= 0xfffffffe;
+    this.movingFlag = 1;
+  }
+
+  // i() → i_（着地复位）
+  land(): void {
+    if ((this.stateFlags & 1) === 0) {
+      this.targetVelX = 0;
+      this.accelY = 0;
+      this.movingFlag = 0;
+      this.canClimb = true;
+      this.stateFlags |= 1;
+      if (this.actionId !== 23) {
+        this.setFrame(0 | this.facingFlag);
+      }
+    }
+  }
+
+  // j() → j_（离地起跳/坠落）
+  beginFall(): void {
+    if (
+      this.screen.levelIndex === 4 ||
+      this.actionId === 15 ||
+      this.actionId === 16 ||
+      this.actionId === 3 ||
+      this.actionId === 4 ||
+      this.actionId === 17 ||
+      this.actionId === 22
+    ) {
+      return;
+    }
+    this.stateFlags &= 0xfffffffe;
+    if (this.actionId === 23 || this.velY > 0) {
+      this.targetVelY = 10240;
+      this.accelY = 4096;
+      this.maxVelY = 12288;
+      this.frameTimer = 0;
+      this.movingFlag = 1;
+      if (this.actionId === 23) {
+        this.targetVelX = 0;
+        return;
+      }
+      this.subState = 5;
+      this.targetVelX = this.facingLeft ? -8192 : 8192;
+      this.setFrame(0x11 | this.facingFlag);
+    }
+  }
+
+  // k() → k_（向左移动）
+  walkLeft(): void {
+    this.targetVelX = -8192;
+    this.movingFlag = 0;
+    this.setFrame(-2147483646);
+  }
+
+  // l() → l_（向右移动）
+  walkRight(): void {
+    this.targetVelX = 8192;
+    this.movingFlag = 0;
+    this.setFrame(2);
+  }
+
+  // d(int) → d_I（开火/投掷，按武器类型 n 生成子弹/手雷）
+  fireWeapon(n: number): void {
+    let l2: ProjectileActor | null;
+    switch (n) {
+      case 10:
+      case 21: {
+        if (this.magazineAmmo <= 0) {
+          if (this.actionId === 5) {
+            this.setFrame(0x1e | this.facingFlag);
+            return;
+          }
+          this.setFrame(0x1d | this.facingFlag);
+          return;
+        }
+        if (this.weaponIndex === 0) {
+          let n2 = !this.facingLeft ? 25 : -25;
+          n2 = n2 << 10;
+          l2 = this.screen.spawnProjectile(21, 0 | this.facingFlag, 0, this.posX + n2, this.posY - 20480, 0);
+        } else {
+          let n3 = !this.facingLeft ? 35 : -35;
+          n3 = n3 << 10;
+          l2 = this.screen.spawnProjectile(
+            10,
+            0 | (this.facingFlag === 0 ? -2147483648 : 0),
+            1,
+            this.posX + n3,
+            this.posY - 23552,
+            0,
+          );
+        }
+        if (l2 !== null) {
+          if (this.actionId === 5) {
+            l2.posY += 5120;
+            this.setFrame(9 | this.facingFlag);
+          } else {
+            this.setFrame(6 | this.facingFlag);
+          }
+          if (this.screen.levelIndex !== 4 && this.weaponIndex === 0 && l2.advanceAndCollide(this.facingLeft)) {
+            l2.setFrame(1);
+          } else if (this.weaponIndex === 0) {
+            l2.targetVelX = l2.targetVelX + (!this.facingLeft ? 12288 : -12288);
+          }
+          --this.magazineAmmo;
+        }
+        GameScreen.playSound(3, 1, 100);
+        break;
+      }
+      case 20: {
+        if (this.grenadeCount === 0 && this.screen.levelIndex !== 4) {
+          return;
+        }
+        l2 = this.screen.spawnProjectile(20, 0, 0, this.posX, this.posY - 35840, 0);
+        if (l2 === null) break;
+        if (--this.grenadeCount < 0) {
+          this.grenadeCount = 0;
+        }
+        if (this.actionId === 5) {
+          l2.posY += 4096;
+          this.setFrame(0xa | this.facingFlag);
+        } else {
+          this.setFrame(7 | this.facingFlag);
+        }
+        l2.targetVelX = l2.targetVelX + (!this.facingLeft ? 8192 : -8192);
+        l2.targetVelY = -6656;
+        l2.accelY = 1128;
+        l2.maxVelY = 15360;
+        break;
+      }
+      case 15: {
+        if (this.magazineAmmo <= 0) {
+          if (this.actionId === 5) {
+            this.setFrame(0x1e | this.facingFlag);
+            return;
+          }
+          this.setFrame(0x1d | this.facingFlag);
+          return;
+        }
+        let n4 = !this.facingLeft ? 40 : -40;
+        l2 = this.screen.spawnProjectile(15, 0 | this.facingFlag, 0, this.posX + (n4 = n4 << 10), this.posY - 18432, 0);
+        if (l2 === null) break;
+        --this.magazineAmmo;
+        if (this.actionId === 5) {
+          l2.posY += 4096;
+          this.setFrame(9 | this.facingFlag);
+        } else {
+          this.setFrame(6 | this.facingFlag);
+        }
+        if (this.screen.levelIndex !== 4 && l2.advanceAndCollide(this.facingLeft)) {
+          this.screen.spawnProjectile(16, 0, 0, l2.posX, l2.posY, 0);
+          l2.deactivate();
+          break;
+        }
+        l2.computeHomingTrajectory();
+      }
+    }
+    l2 = null;
+    void l2;
+  }
+
+  // e(int) → e_I（受击：扣血并进入受击动作）
+  takeDamage(n: number): void {
+    if (this.screen.state !== 10) {
+      return;
+    }
+    if (this.actionId === 13 || this.actionId === 19 || this.actionId === 15 || this.actionId === 16 || this.invulnTimer > 0) {
+      return;
+    }
+    this.health -= n;
+    this.frameTimer = 0;
+    this.invulnTimer = 5;
+    this.stateFlags &= 0xffffdfff;
+    this.setFrame(0x17 | this.facingFlag);
+    if (this.screen.levelIndex !== 4) {
+      this.targetVelX = 0;
+    }
+  }
+
+  // g(tjge.b) → g_Tb（爬升/攀爬检测，结果写入 n/S/T）
+  checkClimbable(b2: TileMap): boolean {
+    const bl = false;
+    void bl;
+    const bl2 = false;
+    void bl2;
+    const bl3 = false;
+    void bl3;
+    const n = (((this.posY + this.velY) >> 10) + -56) >> 4;
+    const n2 = (((this.posY + this.velY) >> 10) - 3) >> 4;
+    let n3 = (this.posX + this.velX) >> 10;
+    n3 += this.facingLeft ? -16 : 16;
+    n3 >>= 4;
+    let n4 = n;
+    while (n4 <= n2) {
+      const n5 = b2.queryColumnTileAt(n3, n4, true);
+      if (n5 === 1) {
+        if (n4 < n + 1) {
+          this.climbResult = 4;
+          return true;
+        }
+        if (n4 < n + 2 || n4 < n + 3) {
+          this.climbTargetX = this.facingLeft ? ((n3 << 4) + 16) << 10 : n3 << 14;
+          this.climbTargetY = n4 << 14;
+          this.climbResult = n4 === n + 1 ? 3 : 2;
+          return true;
+        }
+        if (n4 < n + 4) {
+          this.climbResult = 1;
+          return true;
+        }
+      }
+      ++n4;
+    }
+    this.climbResult = 0;
+    return false;
+  }
+
+  // o() → o_（关卡 x==4 特殊载具/场景下的输入处理）
+  private handleVehicleInput(): void {
+    if (this.screen.heldKeyAction === 1) {
+      if (!this.facingLeft) {
+        this.setFrame(this.actionId | -2147483648);
+        return;
+      }
+      this.targetVelX = 0;
+      return;
+    }
+    if (this.screen.heldKeyAction === 2) {
+      if (this.facingLeft) {
+        this.setFrame(this.actionId);
+        return;
+      }
+      this.targetVelX = 16384;
+      return;
+    }
+    if (this.screen.heldKeyAction === 4) {
+      if (this.actionId !== 0) {
+        this.setFrame(0 | this.facingFlag);
+        return;
+      }
+    } else if (this.screen.heldKeyAction === 8) {
+      if (this.actionId !== 5) {
+        this.setFrame(5 | this.facingFlag);
+        return;
+      }
+    } else {
+      if (this.screen.heldKeyAction === 16) {
+        if (this.inputHoldCount === 0) {
+          ++this.inputHoldCount;
+          return;
+        }
+        switch (this.weaponIndex) {
+          case 0:
+          case 1: {
+            this.fireWeapon(21);
+            break;
+          }
+          case 2: {
+            this.fireWeapon(15);
+          }
+        }
+        this.inputHoldCount = 0;
+        this.screen.heldKeyAction &= 0xffffffef;
+        return;
+      }
+      if (this.screen.heldKeyAction === 32) {
+        if (this.inputHoldCount > 1) {
+          switch (this.weaponIndex) {
+            case 0: {
+              if (this.ammoReserveB !== 0 || this.ammoReserveC !== 0) break;
+              return;
+            }
+            case 1: {
+              this.ammoReserveB += this.magazineAmmo;
+              break;
+            }
+            case 2: {
+              this.ammoReserveC += this.magazineAmmo;
+            }
+          }
+          this.inputHoldCount = 0;
+          this.magazineAmmo = 0;
+          ++this.weaponIndex;
+          this.switchOrReloadWeapon(32);
+          return;
+        }
+      } else if (this.screen.heldKeyAction === 2048) {
+        if (this.inputHoldCount > 1) {
+          this.switchOrReloadWeapon(2048);
+          this.inputHoldCount = 0;
+          return;
+        }
+      } else if (this.screen.heldKeyAction === 1024) {
+        if (this.inputHoldCount > 0) {
+          this.fireWeapon(20);
+          this.inputHoldCount = 0;
+          return;
+        }
+      } else {
+        ++this.inputHoldCount;
+        if (this.screen.reinforceBudget <= 12) {
+          this.targetVelX = this.screen.cameraVelX;
+        }
+        this.targetVelY = 0;
+        this.accelY = 0;
+      }
+    }
+  }
+
+  // a(tjge.b,int) → a_TbI（向左侧地形碰撞，n=偏移；n==100 表示忽略 E 方向限制）
+  checkWallLeft(b2: TileMap, n: number): boolean {
+    if (n !== 100) {
+      if (this.velX > 0) {
+        return false;
+      }
+    } else {
+      n = 0;
+    }
+    let n2 = this.boundsTop;
+    const bl = false;
+    void bl;
+    if ((this.stateFlags & 0x2000) !== 0) {
+      n2 = -20;
+    }
+    let n3 = (this.posY + this.velY) >> 10;
+    const n4 = (((this.posX + this.velX) >> 10) + -9 - n) >> 4;
+    const n5 = (n3 + n2 - 2) >> 4;
+    const n6 = (n3 - 10) >> 4;
+    let n7 = n5;
+    while (n7 <= n6) {
+      n3 = b2.queryColumnTileAt(n4, n7, true);
+      if (n3 === 1) {
+        n3 = b2.queryColumnTileAt(n4 + 1, n7, true);
+        if (n3 !== 1) {
+          this.targetVelX = 0;
+          this.posX &= 0xfffffc00;
+          this.velX = (((n4 << 4) + 25) << 10) - this.posX;
+        }
+        return true;
+      }
+      ++n7;
+    }
+    return false;
+  }
+
+  // b(tjge.b,int) → b_TbI（向右侧地形碰撞，n=偏移；n==100 表示忽略 E 方向限制）
+  checkWallRight(b2: TileMap, n: number): boolean {
+    if (n !== 100) {
+      if (this.velX < 0) {
+        return false;
+      }
+    } else {
+      n = 0;
+    }
+    let n2 = this.boundsTop;
+    const bl = false;
+    void bl;
+    if ((this.stateFlags & 0x2000) !== 0) {
+      n2 = -20;
+    }
+    let n3 = (this.posY + this.velY) >> 10;
+    const n4 = (((this.posX + this.velX) >> 10) + 9 + n) >> 4;
+    const n5 = (n3 + n2 - 2) >> 4;
+    const n6 = (n3 - 10) >> 4;
+    let n7 = n5;
+    while (n7 <= n6) {
+      n3 = b2.queryColumnTileAt(n4, n7, true);
+      if (n3 === 1) {
+        n3 = b2.queryColumnTileAt(n4 - 1, n7, true);
+        if (n3 !== 1) {
+          this.targetVelX = 0;
+          this.posX &= 0xfffffc00;
+          this.velX = (((n4 << 4) - 10) << 10) - this.posX;
+        }
+        return true;
+      }
+      ++n7;
+    }
+    return false;
+  }
+
+  // a(tjge.l) → a_Tl（被子弹/拾取物命中处理，覆写基类 a_Tl）
+  onProjectileHit(l2: ProjectileActor): void {
+    if (this.actionId !== 19 && this.actionId !== 23 && this.actionId !== 15 && this.actionId !== 16) {
+      switch (l2.typeId) {
+        case 21: {
+          if (this.facingLeft && l2.targetVelX < 0) {
+            this.facingFlag = 0;
+            this.facingLeft = false;
+          } else if (!this.facingLeft && l2.targetVelX > 0) {
+            this.facingFlag = -2147483648; // Integer.MIN_VALUE
+            this.facingLeft = true;
+          }
+          if ((l2.frameIndex & 0xffffff) !== 0) break;
+          this.takeDamage(1);
+          l2.deactivate();
+          return;
+        }
+        case 20: {
+          const n = l2.targetVelX > 0 ? 8192 : -8192;
+          this.screen.spawnProjectile(16, 0, 0, l2.posX + n, l2.posY + 8192, l2.mode);
+          l2.deactivate();
+          GameScreen.playSound(5, 1, 220);
+          return;
+        }
+        case 16: {
+          this.takeDamage(3);
+        }
+      }
+    }
+  }
+
+  // f(int) → f_I（换弹/切换武器，n=武器类型；k=当前武器，l=弹匣，h/i=备弹）
+  switchOrReloadWeapon(n: number): void {
+    let bl = false;
+    if (this.weaponIndex > 2) {
+      this.weaponIndex = 0;
+    }
+    while (!bl) {
+      if (this.weaponIndex === 1) {
+        if (n === 32) {
+          if (this.ammoReserveB <= 0) {
+            this.weaponIndex = 2;
+          } else {
+            bl = true;
+          }
+        } else {
+          if (this.magazineAmmo >= 3 || this.ammoReserveB <= 0) break;
+          bl = true;
+        }
+      }
+      if (this.weaponIndex === 2) {
+        if (n === 32) {
+          if (this.ammoReserveC === 0) {
+            this.weaponIndex = 0;
+          } else {
+            bl = true;
+          }
+        } else {
+          if (this.magazineAmmo >= 1 || this.ammoReserveC <= 0) break;
+          bl = true;
+        }
+      }
+      if (this.weaponIndex !== 0) continue;
+      if (n === 32) {
+        bl = true;
+        continue;
+      }
+      if (this.magazineAmmo >= 10) break;
+      bl = true;
+    }
+    if (bl) {
+      if (this.actionId === 5 || this.actionId === 28) {
+        this.setFrame(0x1c | this.facingFlag);
+        return;
+      }
+      this.setFrame(1 | this.facingFlag);
+    }
+  }
+
+  // m() → m_（弹药满装初始化）
+  fullAmmoInit(): void {
+    this.weaponIndex = 0;
+    this.ammoReserveB = 6;
+    this.ammoReserveC = 3;
+    this.grenadeCount = 3;
+    this.magazineAmmo = 10;
+  }
+
+  // n() → n_（换弹回收：将当前弹匣余弹归还备弹池）
+  reloadFromReserve(): void {
+    let n = 0;
+    void n;
+    if (this.magazineAmmo < 0) {
+      this.magazineAmmo = 0;
+    }
+    switch (this.weaponIndex) {
+      case 0: {
+        this.magazineAmmo = 10;
+        return;
+      }
+      case 1: {
+        n = 3 - this.magazineAmmo;
+        if (this.ammoReserveB > n) {
+          this.ammoReserveB -= n;
+          this.magazineAmmo = 3;
+          return;
+        }
+        this.magazineAmmo += this.ammoReserveB;
+        this.ammoReserveB = 0;
+        return;
+      }
+      case 2: {
+        n = 1 - this.magazineAmmo;
+        if (this.ammoReserveC > n) {
+          this.ammoReserveC -= n;
+          this.magazineAmmo = 1;
+          return;
+        }
+        this.magazineAmmo += this.ammoReserveC;
+        this.ammoReserveC = 0;
+      }
+    }
+  }
+}
