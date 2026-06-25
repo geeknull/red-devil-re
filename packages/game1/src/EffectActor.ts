@@ -30,6 +30,28 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
 
+/**
+ * EffectActor —— 特效/通用交互演员（继承 {@link ActorBase}）。
+ * CFR 基准：reverse/game1/2-decompiled-cfr/tjge/e.java；语义见
+ * docs/game1-红魔特种兵/类清单与职责.md 与 reverse/game1/3-readable/SYMBOLS.md。
+ *
+ * 角色：按 {@link ActorBase.typeId}（CFR 的 q）扮演多种特效/可交互单位，
+ * 由 GameScreen.createActor 在精灵类型 4..22 时实例化。已知类型：
+ *   - 4  ：感应/触发器（玩家进入感应区且按住动作位 → 切 GoalCutscene）。
+ *   - 5  ：关键目标/感应器（可被弹丸打爆推进 CaptureCutscene/GoalCutscene）。
+ *   - 7/9：可破坏物（油桶/掩体类，typeId 9 含再生与多帧损坏表现）。
+ *   - 12 ：解谜门控特效（受世界事件标志 flagE 门控其逻辑与绘制）。
+ *   - 19 ：静态装饰帧（spawnAt 直接按 byArray[0] 定帧）。
+ *   - 22 ：交互锚点/触发区（玩家进入时联动主角 actionFlag/linkedEnemy）。
+ *
+ * 关键字段（友好名 ← CFR 单字母，详见 SYMBOLS.md）：
+ *   destroyedFlag←a、anchorX←b、anchorY←c、hitPoints←d、shakeTick←e、
+ *   tintBits←f、regenTimer←g、activated←h、world←i。
+ *
+ * 协作者：{@link world}（GameScreen）经由它访问玩家焦点单位 player、瓦片地图
+ * tileMap、关卡数据/加载器，以及生成投射物特效（spawnProjectile）与播放音效
+ * （GameScreen.playSound）。
+ */
 export class EffectActor extends ActorBase {
   destroyedFlag: number = 0;
   anchorX: number = 0;
@@ -41,11 +63,26 @@ export class EffectActor extends ActorBase {
   activated: boolean = false;
   world: GameScreen;
 
+  /**
+   * 构造特效/可交互演员。
+   * @param n  精灵类型 id（赋给基类 typeId，决定本演员扮演的角色，见类注释）。
+   * @param d2 精灵帧定义 {@link SpriteDef}（透传给基类做帧动画）。
+   * @param a2 所属游戏世界 {@link GameScreen}，存入 {@link world} 供后续访问玩家/地图/关卡。
+   */
   public constructor(n: number, d2: SpriteDef, a2: GameScreen) {
     super(n, d2);
     this.world = a2;
   }
 
+  /**
+   * 覆写基类初始化（CFR e.a(int,int,int,byte[],boolean)）：先调 super.spawnAt，再按
+   * {@link ActorBase.typeId} 设置各类型的初始状态字段——
+   * 19 定帧；22 存交互锚点格(anchorX/anchorY)；5 置 hitPoints=4 并落入 4 复位 destroyedFlag；
+   * 7/9 置耐久(3 或 9)并记录重生锚点(anchorX/anchorY=当前坐标)。
+   * @param byArray 关卡布置参数（部分类型读取其前两字节作锚点/帧）。
+   * @param bl 复用/快速跳过标志：为 true 时直接返回 false 表示不在此处创建。
+   * @returns 是否完成初始化（true=已激活创建）。
+   */
   public spawnAt(n: number, n2: number, n3: number, byArray: Int8Array, bl: boolean): boolean {
     if (bl) {
       return false;
@@ -80,6 +117,18 @@ export class EffectActor extends ActorBase {
     return true;
   }
 
+  /**
+   * 每帧行为更新（CFR e.a()），由 GameScreen.updateWorld 逐个 actor 调用。
+   * 按 {@link ActorBase.typeId} 分派各类型逻辑：
+   *   - 22：与玩家包围盒相交时联动主角（actionFlag/linkedEnemy/spareO/spareP）。
+   *   - 12：受世界事件标志 flagE 门控；玩家进入且按住动作位 → 切 GoalCutscene。
+   *   - 9 →7：可破坏物主体（9 先按耐久选损坏帧再回退进 7 主体）：耐久耗尽时
+   *           生成爆炸投射物、清理上方瓦片并销毁；激活后做横向晃动；type 9 还按
+   *           regenTimer 再生耐久。
+   *   - 4：感应触发器，命中且按动作位 → GoalCutscene。
+   *   - 5：关键目标，被打爆(destroyedFlag)或满足清场条件 → 切 Capture/GoalCutscene。
+   * 每帧首行用 frameIndex 高位刷新 {@link tintBits} 以在改帧时保留染色。
+   */
   /*
    * Unable to fully structure code（CFR 原注释）。
    * 下面以 if/标号-跳转的等价形式忠实还原 case 9 → case 7 的回退控制流。
@@ -222,6 +271,13 @@ export class EffectActor extends ActorBase {
     }
   }
 
+  /**
+   * 覆写基类绘制（CFR e.a(Graphics,int,int)）：当 typeId===12 且世界事件标志
+   * {@link GameScreen.flagE} 尚未置位时跳过绘制（该解谜门控特效隐藏），
+   * 否则委托父类 {@link ActorBase.paint} 正常渲染。
+   * @param n 屏幕绘制偏移 X（相机偏移）。
+   * @param n2 屏幕绘制偏移 Y（相机偏移）。
+   */
   public paint(graphics: Graphics, n: number, n2: number): void {
     if (this.typeId === 12 && !this.world.flagE) {
       return;
@@ -229,6 +285,16 @@ export class EffectActor extends ActorBase {
     super.paint(graphics, n, n2);
   }
 
+  /**
+   * 被弹丸/单位命中回调（CFR e.a(tjge.l)），由 {@link ProjectileActor} 的碰撞检测调用。
+   * 依本体 {@link ActorBase.typeId} 与来袭弹丸 l2 的类型分派结算：
+   *   - 7/9 可破坏物：近战(21)/普通弹(10) 激活并扣 1 点耐久（21 还击退并改帧）；
+   *     火箭/重弹(15/20) 生成爆炸特效、销毁弹丸、扣 3 点并放音效。
+   *   - 5 关键目标：近战(21) 销毁弹丸并扣耐久，归零则置 destroyedFlag 并放音效；
+   *     火箭/重弹(15/20) 生成爆炸、销毁弹丸并直接置 destroyedFlag。
+   * 命中时清 {@link shakeTick} 以触发受击晃动。
+   * @param l2 命中本体的投射物。
+   */
   public onProjectileHit(l2: ProjectileActor): void {
     block18: {
       switch (this.typeId) {

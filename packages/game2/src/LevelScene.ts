@@ -123,10 +123,21 @@ export class LevelScene {
     [20, 10], [21, 1], [22, 4],
   ];
 
+  /**
+   * 私有构造函数（对应 CFR `private tjge.j()`）。
+   * 仅创建空实例；真正的场景装配由静态工厂 {@link LevelScene.loadLevel} 解析 /res/s.bin 完成。
+   * 二开请勿直接 new，应走 `LevelScene.loadLevel(canvas, levelIndex)`。
+   */
   // private tjge.j();
   private constructor() {
   }
 
+  /**
+   * 每帧准备阶段（CFR j.java `a()`）。在 {@link tick} 开头被调用。
+   * 流程：跑当前屏的触发器 → 把所有存活 actor（先常驻槽、后动态槽）收入本帧绘制列表 `drawList`，
+   * 再对列表中每个 actor 依次调 `step()`（物理）与 `update()`（行为）。
+   * 是 actor 物理/AI 推进的统一入口，绘制列表 `drawList`/`drawCount` 即在此填充。
+   */
   // public final void a();  → a_
   buildDrawList(): void {
     let n: number;
@@ -164,6 +175,11 @@ export class LevelScene {
     }
   }
 
+  /**
+   * 计算本帧相机目标点（CFR j.java `a(boolean)`）。写入 {@link cameraTargetX}/{@link cameraTargetY}。
+   * @param bl true=跟随玩家（按朝向把镜头偏到玩家身前 1/4 或 3/4 屏，纵向考虑速度/跳跃留头部空间）；
+   *           false=回到剧情锁定的缓存目标 {@link cameraTargetCacheX}/{@link cameraTargetCacheY}（运镜用）。
+   */
   // public final void a(boolean);  → a_Z
   updateCameraTarget(bl: boolean): void {
     const g2: PlayerActor = this.canvas.player!;
@@ -180,6 +196,13 @@ export class LevelScene {
     }
   }
 
+  /**
+   * 场景主更新（CFR j.java `b()`）。GameCanvas 在 `b==10` 游戏中每帧调用（紧接 {@link render}）。
+   * 先调 {@link buildDrawList} 推进所有 actor，再按子状态机 {@link subState}（{@link LevelSubState}）分派：
+   * 常规跟拍 / 战斗波（{@link spawnWave}）/ Boss 剧本 / 剧情演出（{@link runCutscene}）/ 任务对话（{@link runDialogChoice}）/
+   * 屏幕过渡（黑幕高度 {@link transitionMaskHeight} 推进与传送）。末尾推进相机 {@link GameCanvas.followCamera}
+   * 并按分屏格号调 {@link switchCell} 做屏块切换；纵向卷屏关（{@link isVerticalScrollLevel}）走特殊卷屏分支。
+   */
   // public final void b();  → b_
   tick(): void {
     this.cameraTargetX = this.canvas.cameraX;
@@ -258,6 +281,12 @@ export class LevelScene {
     LevelScene.camera.setCameraPosition(n, n2);
   }
 
+  /**
+   * 场景渲染（CFR j.java `a(Graphics)`）。GameCanvas 在游戏中每帧调用。
+   * 流程：先画地图（{@link LevelScene.camera} 渲染）→ 按 actor 的绘制层 `layer` 对 `drawList` 做选择排序（深度排序，低层在后）→
+   * 逐个 `paint`（传入相机像素坐标 cameraX>>10 / cameraY>>10）→ 末尾按子状态 {@link subState} 叠加：
+   * 过渡黑幕（{@link LevelScene.fillBlackBand}）、HUD（{@link renderHud}）、任务对话条（{@link renderDialogBar}）。
+   */
   // public final void a(Graphics);  → a_G
   render(graphics: Graphics): void {
     LevelScene.camera.render(graphics);
@@ -308,6 +337,13 @@ export class LevelScene {
     }
   }
 
+  /**
+   * 剧情演出脚本机（CFR j.java `e()`，巨型方法，子状态 {@link LevelSubState.Cutscene} 下每帧调用）。
+   * 按剧情参数 {@link LevelScene.cutsceneState}（i[]：i[0]=场次 0-6、i[1]=子步、i[2]=相机锁定、i[3]/i[4]=临时坐标）
+   * 配合静态计步 {@link LevelScene.cutsceneStep}/{@link LevelScene.cutsceneSubStep} 推进各关的开场/过场/Boss 登场演出：
+   * 含玩家动作脚本（投雷队列 {@link PlayerActor.throwCooldownQueue}）、相机运镜、生成敌人/Boss（{@link spawnActor}）、
+   * 切到任务对话（{@link setSubState}(MissionDialog)）或进结算/简报（{@link GameCanvas.showResult}/{@link GameCanvas.enterBriefing}）。
+   */
   // private void e();  → e_
   private runCutscene(): void {
     const g2: PlayerActor = this.canvas.player!;
@@ -728,6 +764,12 @@ export class LevelScene {
     }
   }
 
+  /**
+   * 关内底部任务对话条的逐字/翻页推进（CFR j.java `f()`，子状态 {@link LevelSubState.MissionDialog} 下每帧调用）。
+   * 据 {@link renderDialogBar} 写入的两个标志推进：{@link dialogAdvancePressed}=本段文字已显示完（按场次 {@link LevelScene.cutsceneState} 收尾或回切剧情演出）；
+   * {@link dialogPagePressed}=本框翻到下一段（推进 {@link GameCanvas.briefingLineState}/{@link LevelScene.dialogState}，轮换说话人，到指定段数时结束对话）；
+   * 都不满足则继续吐字。倒计时由 briefingLineState[3] 驱动，按确认键（inputAction==16）可跳过等待。
+   */
   // private void f();  → f_
   private runDialogChoice(): void {
     block22: {
@@ -811,6 +853,11 @@ export class LevelScene {
     this.dialogPagePressed = false;
   }
 
+  /**
+   * 绘制关内底部任务/对话框（CFR j.java `c(Graphics)`，子状态 {@link LevelSubState.MissionDialog} 下由 {@link render} 调）。
+   * 在屏幕底部画 32px 对话条，用 HUD 字模 {@link LevelScene.hudFont} 画边框/说话人头像（坐标按 {@link LevelScene.dialogState} 的对话框样式选取），
+   * 再折行绘制文本，并把"本段是否到末/本框是否满"两标志写回 {@link dialogAdvancePressed}/{@link dialogPagePressed} 供 {@link runDialogChoice} 推进，末尾清按键。
+   */
   // private void c(Graphics);  → c_G
   private renderDialogBar(graphics: Graphics): void {
     const nArray: number[] = [14, 134, 134, 134];
@@ -831,6 +878,12 @@ export class LevelScene {
     this.canvas.inputAction = 0;
   }
 
+  /**
+   * 切换场景子状态机 {@link subState}（CFR j.java `a(int)`）。
+   * 保存返回态到 {@link prevSubState}，复位剧情计步 {@link LevelScene.cutsceneStep}/{@link LevelScene.cutsceneSubStep}；
+   * 进入过渡（TransitionOut）时清黑幕高度，进入任务对话（MissionDialog）时初始化对话/按键状态。
+   * @param n 目标子状态，取 {@link LevelSubState} 之一。
+   */
   // public final void a(int);  → a_I
   setSubState(n: number): void {
     switch (n) {
@@ -854,6 +907,11 @@ export class LevelScene {
     LevelScene.cutsceneSubStep = 0;
   }
 
+  /**
+   * 绘制关内 HUD（CFR j.java `b(Graphics)`）。由 {@link render} 在常规/战斗/剧情/过渡子状态下调用。
+   * 用 HUD 字模 {@link LevelScene.hudFont} 画血格（按 {@link PlayerActor} 血量）、雷数、当前武器弹药/备弹数字（{@link LevelScene.drawNumber}），
+   * 并闪烁高亮当前选中武器框（按 {@link GameCanvas.globalFrame} 取模实现闪烁）。
+   */
   // public final void b(Graphics);  → b_G
   renderHud(graphics: Graphics): void {
     const g2: PlayerActor = this.canvas.player!;
@@ -881,6 +939,12 @@ export class LevelScene {
     }
   }
 
+  /**
+   * 在屏幕指定纵向区间填黑（CFR j.java `a(Graphics,int,int,int)`）。过渡子状态的卷帘黑幕即用此绘制。
+   * @param n  原始参数（CFR 中传入但实际未用于绘制，按位级保真保留）。
+   * @param n2 黑带起始 y。
+   * @param n3 黑带高度。
+   */
   // public static final void a(Graphics,int,int,int);  → a_GIII
   static fillBlackBand(graphics: Graphics, n: number, n2: number, n3: number): void {
     graphics.setColor(0);
@@ -888,6 +952,16 @@ export class LevelScene {
     graphics.fillRect(0, n2, 176, n3);
   }
 
+  /**
+   * 用 HUD 字模 {@link LevelScene.hudFont} 右对齐绘制十进制数字（CFR j.java `a(Graphics,int,int,int,boolean,boolean)`）。
+   * 从右往左逐位（最多 5 位，每位宽 8px）画字符格。
+   * @param n   右边界 x（绘制从此处向左推进）。
+   * @param n2  y 坐标。
+   * @param n3  要显示的数值（负数按 0 处理）。
+   * @param bl  true 时在数字左侧追加一个前缀格（字符 38）。
+   * @param bl2 true 时个位为 0 仍补一位前导 0。
+   * @returns 绘制后剩余的左边界 x。
+   */
   // public static final int a(Graphics,int,int,int,boolean,boolean);  → a_GIIIZZ
   static drawNumber(graphics: Graphics, n: number, n2: number, n3: number, bl: boolean, bl2: boolean): number {
     let n4: number = 0;
@@ -912,6 +986,14 @@ export class LevelScene {
     return n;
   }
 
+  /**
+   * 进入/重置某分屏格（CFR j.java `a(int,int)`，对应文档"进入新场景/重置"）。
+   * 复位波刷计数、子状态回 Normal，清触发器命中/已触发标志、清活动 actor 表与 actor 池存活位，
+   * 然后生成全局常驻 actor（{@link globalActors}，含主角）与本格的常驻 actor（{@link cellActors}），
+   * 设当前格号 {@link currentCell}、相机对焦、复位编队状态，并据关号判定是否纵向卷屏关。
+   * @param n  目标格的地图像素 x。
+   * @param n2 目标格的地图像素 y。
+   */
   // public final void a(int,int);  → a_II
   loadCell(n: number, n2: number): void {
     this.waveSpawnCount = 0;
@@ -962,6 +1044,12 @@ export class LevelScene {
     this.isVerticalScrollLevel = this.canvas.levelIndex === 6;
   }
 
+  /**
+   * 处理单个触发器（CFR j.java `b(int)`）。由 {@link buildDrawList} 对当前格触发器列表逐个调用。
+   * 已触发（{@link triggerFiredFlags}）则跳过；否则从 {@link triggerTable} 读 AABB 区域，
+   * 判定玩家是否命中后转 {@link fireTrigger}（命中传 true，否则 false）。
+   * @param n 触发器索引。
+   */
   // public final void b(int);  → b_I
   runTrigger(n: number): void {
     let n2: number;
@@ -978,6 +1066,13 @@ export class LevelScene {
     this.fireTrigger(n, false);
   }
 
+  /**
+   * 相机跨格时的屏块切换（CFR j.java `b(int,int)`）。由 {@link tick} 末尾按相机像素坐标调用。
+   * 算出目标格号，若与 {@link currentCell} 不同则做差分：对比旧格/新格的常驻 actor 列表（{@link cellActors}），
+   * 离开旧格的 actor（远离玩家的近距敌人会被回收）销毁，进入新格的 actor 经 {@link spawnActor} 生成，最后更新 {@link currentCell}。
+   * @param n  相机的地图像素 x。
+   * @param n2 相机的地图像素 y。
+   */
   // public final void b(int,int);  → b_II
   switchCell(n: number, n2: number): void {
     let by: number;
@@ -1050,6 +1145,14 @@ export class LevelScene {
     this.currentCell = n3;
   }
 
+  /**
+   * 从 actor 池生成一个 actor 并登记到活动表（CFR j.java `c(int,int)`，全场生成的统一入口）。
+   * 在类型 `n` 的对象池里找空闲槽复用（对象池模式，无 GC 压力）。
+   * @param n  actor 类型；传 <0 时表示按实例索引生成，类型从 {@link actorInstanceTable}[n2][0] 读取。
+   * @param n2 实例槽索引；>=0 时从 {@link actorInstanceTable} 反序列化实例（{@link ActorBase.spawnFromBytes}）并占用固定槽；
+   *           <0 时分配到 {@link residentActorSlots} 之后的动态槽段并按类型设绘制层。
+   * @returns 生成的 actor；池满或反序列化失败返回 null。
+   */
   // public final tjge.h c(int,int);  → c_II
   spawnActor(n: number, n2: number): ActorBase | null {
     if (n < 0) {
@@ -1085,6 +1188,13 @@ export class LevelScene {
     return null;
   }
 
+  /**
+   * 执行触发器动作（CFR j.java `a(int,boolean)`）。由 {@link runTrigger} 调用，从 {@link triggerTable}[n] 读类型与参数。
+   * 触发器类型：0=相机点（设玩家开关）、1=战斗波（填 {@link LevelScene.triggerParams} 并切到 BattleWave）、
+   * 2=剧情演出（填 {@link LevelScene.cutsceneState} 并切到 BossScript）、3=多段机关（生成成组 actor 并记入 {@link LevelScene.formationState}）。
+   * @param n  触发器索引。
+   * @param bl 是否命中：命中（true）走对应类型分支；未命中（false）用于类型 3 的离开/清理逻辑。
+   */
   // public final void a(int,boolean);  → a_IZ
   fireTrigger(n: number, bl: boolean): void {
     const n2: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 0, 1);
@@ -1189,6 +1299,12 @@ export class LevelScene {
     }
   }
 
+  /**
+   * 生成一波敌人（CFR j.java `c()`）。由 {@link tick} 在 {@link LevelSubState.BattleWave} 子状态下调用。
+   * 据 {@link LevelScene.triggerParams}（敌型/数量/编队，0 时随机）决定本波敌人类型、数量与入场方式
+   * （左侧涌入 / 右侧涌入 / 斜向交替，由 {@link diagonalFormationToggle} 切换），逐个经 {@link spawnActor} 生成、
+   * 用临时缓冲 {@link LevelScene.spawnBytes} 反序列化定位，并累加 {@link waveSpawnCount}、递减剩余刷怪数。
+   */
   // public final void c();  → c_
   spawnWave(): void {
     const n: number = LevelScene.triggerParams[2] << 4;
@@ -1252,6 +1368,11 @@ export class LevelScene {
     }
   }
 
+  /**
+   * 卸载整个场景（CFR j.java `d()`）。退出关卡 / 加载下一关前由 GameCanvas 调用。
+   * 释放地图 {@link LevelScene.camera}、对话 actor、活动 actor 表、本格/实例/触发器表与临时文本引用（全部置 null 以便 GC）。
+   * 必要偏差：原版末尾的 `System.gc()` 已按移植规约删除并在原位置注释。
+   */
   // public final void d();  → d_
   dispose(): void {
     if (LevelScene.camera != null) {
@@ -1292,6 +1413,13 @@ export class LevelScene {
     // System.gc();  // 原位置 System.gc()，按规约删除
   }
 
+  /**
+   * 为某 actor 类型分配对象池（CFR j.java `a(tjge.a,int,int)`）。
+   * 若该类型池已存在则跳过；否则预创建 n2 个该类型 actor 实例填入 {@link LevelScene.actorPool}[n]，供 {@link spawnActor} 复用。
+   * @param a2 当前 GameCanvas（用于经 {@link GameCanvas.createActor} 创建 actor）。
+   * @param n  actor 类型。
+   * @param n2 池容量（该类型同屏最大并发数）。
+   */
   // public static final void a(tjge.a,int,int);  → a_TaII
   static allocActorPool(a2: GameCanvas, n: number, n2: number): void {
     if (LevelScene.actorPool[n] != null) {
@@ -1305,6 +1433,11 @@ export class LevelScene {
     }
   }
 
+  /**
+   * 按需加载某 actor 类型的精灵定义（CFR j.java `c(int)`）。
+   * 若 {@link LevelScene.actorDefs}[n] 未加载则经 {@link SpriteDef.loadFromArchive} 解码，并置好加载标志。
+   * @param n actor 类型。
+   */
   // public static final void c(int);  → c_I
   static loadActorDef(n: number): void {
     if (LevelScene.actorDefs[n] == null) {
@@ -1314,6 +1447,14 @@ export class LevelScene {
     SpriteDef.loadedFlags[SpriteDef.idMap[n]] = true;
   }
 
+  /**
+   * 分步加载资源（CFR j.java `a(tjge.a,int)`）。加载进度由调用方递增 n 驱动，用于关卡加载进度条/分帧加载。
+   * 按 {@link LevelScene.resourceLoadTable} 前 n 项依次加载 actor 精灵定义（{@link loadActorDef}）并分配对象池（{@link allocActorPool}）；
+   * 当 n===3 时额外加载 HUD 字模 {@link LevelScene.hudFont}。
+   * @param a2 当前 GameCanvas。
+   * @param n  本次加载到第几项（步进游标）。
+   * @returns 是否已加载完整张资源表（全部完成时为 true）。
+   */
   // public static final boolean a(tjge.a,int);  → a_TaI
   static loadResourcesUpTo(a2: GameCanvas, n: number): boolean {
     let n2: number = 0;
@@ -1329,6 +1470,16 @@ export class LevelScene {
     return n2 >= LevelScene.resourceLoadTable.length;
   }
 
+  /**
+   * 场景工厂：从 /res/s.bin 第 n 条加载并装配一个完整 LevelScene（CFR j.java `b(tjge.a,int)`）。
+   * 这是创建关卡运行时的唯一入口（构造函数私有）。流程：建 {@link TileMap}（地图/相机）、读 actor 类型表并分配对象池、
+   * 读触发器表 {@link triggerTable}、actor 实例表 {@link actorInstanceTable}、分屏触发器 {@link cellTriggers}、
+   * 全局常驻 actor {@link globalActors} 与各分屏常驻 actor {@link cellActors}；非 0/2 关额外载入剧情字符串。
+   * 解析全程经 {@link GameMIDlet} 的小端字节读取保持位级一致；任何异常返回 null。
+   * @param a2 当前 GameCanvas（场景持有它以访问玩家/输入/相机）。
+   * @param n  关卡号（s.bin 中的条目索引，0~6）。
+   * @returns 装配好的场景实例；加载失败返回 null。
+   */
   // public static final tjge.j b(tjge.a,int);  → b_TaI
   static loadLevel(a2: GameCanvas, n: number): LevelScene | null {
     const j2: LevelScene = new LevelScene();

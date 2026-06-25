@@ -61,6 +61,10 @@ export class SpriteAtlas {
   private paletteCount: number = 0;
   static pixelBuffer: Int16Array = new Int16Array(SpriteAtlas.pixelBufferCapacity); // short[c]
 
+  /**
+   * i.<init>()：私有无参构造。仅由静态工厂 {@link SpriteAtlas.load} 内部用于
+   * 实例化一个空图集对象，随后由 load 从 t.bin 逐字段填充；外部不可直接 new。
+   */
   private constructor() {
   }
 

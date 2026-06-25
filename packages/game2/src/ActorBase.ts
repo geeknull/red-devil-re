@@ -68,6 +68,14 @@ export class ActorBase {
   private lastContactId: number = 0;
   drawThisFrame: boolean = true;
 
+  /**
+   * 构造 Actor 基类实例（对应 CFR `public h(int, tjge.d)`）。
+   * 记录类型 ID 与精灵/动画定义，默认未激活（alive=false）、动画循环（animLoop=true），
+   * 绑定全局 GameCanvas 单例，并从静态计数器 idCounter 领取本实例唯一 ID 段
+   * （每实例步进 1000000，配合动作变更时的自增，用于同帧防重复碰撞判定）。
+   * @param n 类型 ID（决定子类与行为，对应字段 typeId）
+   * @param d2 精灵/动画定义（对应字段 spriteDef，CFR tjge.d）
+   */
   // public h(int, tjge.d) → constructor
   constructor(n: number, d2: SpriteDef) {
     this.typeId = n;
@@ -79,6 +87,15 @@ export class ActorBase {
     ActorBase.idCounter += 1000000;
   }
 
+  /**
+   * 从关卡实例参数字节流初始化本 Actor（对应 CFR `public boolean a(byte[])`）。
+   * 读取小端坐标（字节 1-2 → X、3-4 → Y，左移 10 转定点）、初始动作码（字节 5，低 7 位为动作 ID，
+   * 0x80/0x40 位经 <<24 还原为朝向/翻转标志位）、调色板组（字节 6）；并置默认重力/速度上限
+   * （maxVelX/Y=15360）、清零各速度与受击闪烁、按 typeId 查表设置绘制层级。
+   * 若该槽位为常驻实体且已被触发消耗（triggerHitFlags），除 typeId===13 外直接返回 false 不再生成。
+   * @param byArray 关卡数据中的本实体参数块
+   * @returns 是否成功生成（false=被回收标志拦截，本帧不出现）
+   */
   // public boolean a(byte[]) → a_AY
   spawnFromBytes(byArray: Int8Array): boolean {
     let bl = false;
@@ -113,12 +130,20 @@ export class ActorBase {
     return true;
   }
 
+  /**
+   * 回收本 Actor（对应 CFR `public final void e()`）：置 alive=false 并从全局活动表
+   * activeActors 中清空本槽位，使其可被复用。
+   */
   // public final void e() → e_
   kill(): void {
     this.alive = false;
     jref().activeActors[this.slotIndex] = null;
   }
 
+  /**
+   * 回收并标记已消耗（对应 CFR `public final void f()`）：在 kill() 基础上，若本槽位属于
+   * 常驻实体范围，则置 triggerHitFlags=true，使关卡重入该区域时不再重新生成该实体。
+   */
   // public final void f() → f_
   killAndMarkSpawned(): void {
     this.kill();
@@ -127,6 +152,14 @@ export class ActorBase {
     }
   }
 
+  /**
+   * 切换当前动作（对应 CFR `public final void a(int)`）。入参为完整动作码：
+   * 高字节保存为 actionHighByte，低 24 位作为帧组索引 frameGroupIndex。
+   * 按朝向位（MIRROR_FLAG）镜像左右碰撞盒 boxLeft/boxRight、按垂直翻转位（FLIP_VERTICAL_BIT）
+   * 翻转上下碰撞盒 boxTop/boxBottom，再取该动作组帧数并复位帧序与 animDone，最后自增 uniqueId
+   * （用于 isNewContact 的同帧防重判定）。动作码越界时仅记录不更新盒/帧。
+   * @param n 完整动作码（含动作 ID 与朝向/翻转标志位）
+   */
   // public final void a(int) → a_I
   setAction(n: number): void {
     this.actionCode = n;
@@ -155,6 +188,10 @@ export class ActorBase {
     ++this.uniqueId;
   }
 
+  /**
+   * 推进一帧动画（对应 CFR `public final void g()`）：帧序前进，到达末帧后——若循环则回到 0，
+   * 否则停在末帧——并置 animDone=true 标记本组动画已播完。
+   */
   // public final void g() → g_
   advanceFrame(): void {
     ++this.frameIndex;
@@ -164,11 +201,19 @@ export class ActorBase {
     }
   }
 
+  /**
+   * 当前动作组动画是否已播完（对应 CFR `public final boolean h()`），即非循环动画停在末帧。
+   */
   // public final boolean h() → h_
   isAnimationDone(): boolean {
     return this.animDone;
   }
 
+  /**
+   * 默认物理步进（对应 CFR `public void i()`）：先推进动画，再把目标速度 targetVelX/Y 提交为
+   * 本帧速度 velX/Y，按加速度 accelX/Y 累加目标速度并钳制到 ±maxVelX/Y，最后将速度积分进定点坐标
+   * posX/posY。子类常在此前后做碰撞修正。
+   */
   // public void i() → i_
   step(): void {
     this.advanceFrame();
@@ -192,10 +237,23 @@ export class ActorBase {
     this.posY += this.velY;
   }
 
+  /**
+   * 每帧行为更新钩子（对应 CFR `public void b()`）。基类为空实现，由各子类（玩家/敌人/子弹等）
+   * 覆写以实现具体 AI/输入/生命周期逻辑。
+   */
   // public void b() → b_
   update(): void {
   }
 
+  /**
+   * 绘制本 Actor（对应 CFR `public void a(Graphics, int, int)`）。
+   * 处理隔帧绘制开关 drawThisFrame；处理受击闪烁 hitFlashTimer（递减并按奇偶帧跳过绘制）；
+   * 将定点世界坐标转屏幕坐标（减去摄像机偏移 n/n2），据朝向/翻转位计算精灵包围范围并做视锥剔除
+   * （屏外不绘），最后委托 spriteDef.drawFrame 用当前帧/调色板/透明度绘制。
+   * @param graphics 目标画布
+   * @param n 摄像机 X 偏移（像素）
+   * @param n2 摄像机 Y 偏移（像素）
+   */
   // public void a(Graphics, int, int) → a_GII
   paint(graphics: Graphics, n: number, n2: number): void {
     if (!this.drawThisFrame) {
@@ -235,6 +293,11 @@ export class ActorBase {
     }
   }
 
+  /**
+   * 本 Actor 碰撞盒与给定矩形是否相交（对应 CFR `public final boolean a(int,int,int,int)`）。
+   * 用本实体的定点坐标（>>10 转像素）加碰撞盒偏移得到 AABB，与矩形 [n,n2,n3,n4] 做标准重叠测试。
+   * @param n 矩形左 @param n2 矩形上 @param n3 矩形右 @param n4 矩形下（均为像素）
+   */
   // public final boolean a(int, int, int, int) → a_IIII
   intersectsRect(n: number, n2: number, n3: number, n4: number): boolean {
     const n5 = (this.posX >> 10) + this.boxLeft;
@@ -244,6 +307,11 @@ export class ActorBase {
     return n6 >= n && n5 <= n3 && n8 >= n2 && n7 <= n4;
   }
 
+  /**
+   * 两 Actor 间 AABB 碰撞判定（对应 CFR `public final boolean b(tjge.h)`）。
+   * 任一方碰撞盒退化（宽或高为 0）则不碰撞；否则取对方 AABB 后委托 intersectsRect。
+   * @param h2 待判定的另一 Actor
+   */
   // public final boolean b(tjge.h) → b_Th
   collidesWith(h2: ActorBase): boolean {
     if (this.boxLeft === this.boxRight || this.boxTop === this.boxBottom || h2.boxLeft === h2.boxRight || h2.boxTop === h2.boxBottom) {
@@ -256,6 +324,11 @@ export class ActorBase {
     return this.intersectsRect(n, n3, n2, n4);
   }
 
+  /**
+   * 向左移动时与地形的碰撞检测与修正（对应 CFR `public boolean j()`）。
+   * 仅当本帧速度 velX<0（向左）时生效：扫描运动路径覆盖的 8px 网格列，若命中实心瓦片（tileAt===1），
+   * 则清零目标横向速度、对齐坐标并修正 velX 使其恰好贴靠墙面，返回 true 表示发生碰撞。
+   */
   // public boolean j() → j_
   collideLeft(): boolean {
     if (this.velX > 0) {
@@ -283,6 +356,11 @@ export class ActorBase {
     return false;
   }
 
+  /**
+   * 向右移动时与地形的碰撞检测与修正（对应 CFR `public boolean k()`）。
+   * 仅当本帧速度 velX>0（向右）时生效：逻辑与 collideLeft 镜像，命中实心瓦片则清零目标横速、
+   * 对齐坐标并修正 velX 贴靠墙面，返回 true。
+   */
   // public boolean k() → k_
   collideRight(): boolean {
     if (this.velX < 0) {
@@ -310,6 +388,11 @@ export class ActorBase {
     return false;
   }
 
+  /**
+   * 纵向移动（向上）时与地形的碰撞检测与修正（对应 CFR `public boolean l()`）。
+   * 仅当本帧速度 velY<0 时生效：扫描运动路径覆盖的 8px 网格行，命中实心瓦片则清零目标纵速并修正 velY
+   * 使其恰好贴靠瓦片，返回 true。命名沿用现行 TS 别名，实际按 velY 方向（参见守卫条件）判定。
+   */
   // public boolean l() → l_
   collideDown(): boolean {
     if (this.velY > 0) {
@@ -336,30 +419,56 @@ export class ActorBase {
     return false;
   }
 
+  /**
+   * 碰撞分组测试（对应 CFR `protected final boolean b(int)`）：按位与本实体的碰撞类型掩码
+   * collisionTypeMask（玩家/敌人/子弹等分组），判断是否属于给定分组。
+   * @param n 待测分组位掩码
+   */
   // protected final boolean b(int) → b_I
   public hasCollisionFlag(n: number): boolean {
     return (this.collisionTypeMask & n) !== 0;
   }
 
+  /**
+   * 本实体造成的伤害值虚方法（对应 CFR `protected int m()`）。基类返回 0，由攻击型子类覆写。
+   */
   // protected int m() → m_
   public getDamage(): number {
     return 0;
   }
 
+  /**
+   * 被另一 Actor 命中时的响应虚方法（对应 CFR `protected boolean a(tjge.h)`）。
+   * 返回 true 表示本次命中有效（将触发命中方的 onCollide）。基类返回 false，由可受击子类覆写。
+   * @param h2 命中本实体的来源 Actor
+   */
   // protected boolean a(tjge.h) → a_Th
   public onHitBy(h2: ActorBase): boolean {
     return false;
   }
 
+  /**
+   * 成功命中另一 Actor 后本实体的回调虚方法（对应 CFR `protected void c(tjge.h)`）。
+   * 在 checkCollisions 中当对方 onHitBy 返回 true 后调用。基类为空，由子类覆写（如子弹消失、记分等）。
+   * @param h2 被本实体命中的目标 Actor
+   */
   // protected void c(tjge.h) → c_Th
   public onCollide(h2: ActorBase): void {
   }
 
+  /**
+   * 存活/可参与判定的虚方法（对应 CFR `protected boolean d()`）。基类恒返回 true，子类可覆写。
+   */
   // protected boolean d() → d_
   public isAlive(): boolean {
     return true;
   }
 
+  /**
+   * 碰撞遍历（对应 CFR `protected final void n()`）：若本实体无碰撞掩码则跳过；否则遍历全局渲染队列
+   * drawList 中所有存活的其他 Actor，对每个执行 collidesWith 判定，命中且对方 onHitBy 返回 true 时
+   * 触发本实体的 onCollide 回调。子弹/玩家等主动碰撞方在 update 中调用。
+   */
   // protected final void n() → n_
   public checkCollisions(): void {
     if (this.collisionTypeMask === 0) {
@@ -375,6 +484,12 @@ export class ActorBase {
     }
   }
 
+  /**
+   * 同帧防重复碰撞判定（对应 CFR `protected final boolean d(tjge.h)`）：比较对方 uniqueId 与
+   * 上次记录的 lastContactId，若不同则更新记录并返回 true（视为新接触），相同则返回 false，
+   * 避免同一对实体在一次接触中被反复结算。
+   * @param h2 当前接触的 Actor
+   */
   // protected final boolean d(tjge.h) → d_Th
   public isNewContact(h2: ActorBase): boolean {
     if (h2.uniqueId !== this.lastContactId) {
@@ -384,6 +499,12 @@ export class ActorBase {
     return false;
   }
 
+  /**
+   * 地图瓦片属性查询（对应 CFR `protected final int a(int,int)`）：以 8px 网格坐标 (n,n2) 采样
+   * 当前摄像机视野下的碰撞层，返回瓦片属性值（1 表示实心，供地形碰撞方法判定阻挡）。
+   * @param n 网格列（×8 转像素）
+   * @param n2 网格行（×8 转像素）
+   */
   // protected final int a(int, int) → a_II
   public tileAt(n: number, n2: number): number {
     return jref().camera.sampleCollision(n << 3, n2 << 3);

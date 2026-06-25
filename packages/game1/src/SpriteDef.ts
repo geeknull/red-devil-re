@@ -23,6 +23,31 @@ import { GameScreen } from "./GameScreen.ts";
 import { SpriteAtlas } from "./SpriteAtlas.ts";
 import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
 
+/**
+ * 精灵帧/动画定义（原 CFR `tjge.d`，基准文件 reverse/game1/2-decompiled-cfr/tjge/d.java）。
+ *
+ * 角色：游戏1《红魔特种兵》的两级动画资源描述符。解析归档 a.bin 的单条目，得到一套
+ * 「pose（拼帧姿态）+ sequence（动画序列）+ 碰撞箱」数据，是所有演员（Player/Enemy/Boss/
+ * Projectile/Effect/Pickup）绘制与碰撞的底层数据来源。每个精灵类型对应一个 SpriteDef 实例，
+ * 由 LevelLoader 引用计数管理、由 GameScreen.createActor 传给演员；演员只持有 pose/sequence
+ * 索引，真正的逐块拼帧绘制委托给本类的 {@link paintSequenceFrame}。
+ *
+ * 数据模型（两级动画）：
+ *   - pose：一个静态拼帧姿态，由若干「模块」组成，每个模块 = 图集小图帧索引 + (x,y) 偏移；
+ *   - sequence：一段动画，由一串 pose 索引构成（逐帧切换 pose），并附带该动画的碰撞箱。
+ *
+ * 关键字段（混淆名→语义，详见 reverse/game1/3-readable/SYMBOLS.md「SpriteDef」节）：
+ *   - 静态 atlasTable=图集(SpriteAtlas)缓存表[32]，atlasLoadedFlags=各图集已加载标志[32]，
+ *     resourceToAtlasId=资源条目索引→图集 id 映射[32]；
+ *   - poseCount/poseModuleCounts/poseModuleFrames=pose 数量/每 pose 模块数/每模块图集帧索引；
+ *   - poseModuleOffsetX/poseModuleOffsetY=每模块的有符号 x/y 偏移（绘制时按翻转标志取负）；
+ *   - sequenceCount/sequenceFrameCounts/sequencePoseIndices=动画数量/每动画帧数/每帧的 pose 索引；
+ *   - collisionBoxX/Y/Width/Height=每个 sequence 的碰撞箱（有符号 byte）；
+ *   - boundsX/Y/Width/Height=精灵整体边界；atlasId=临时图集 id；atlas=本精灵关联的图集对象。
+ *
+ * 协作者：SpriteAtlas（提供 drawSprite 贴图与 heights 表）、GameMIDlet（提供 .bin 流定位与小端读取）、
+ * GameScreen（提供 isScrollLevel 判定，供 refreshLoadedAtlasFlags 使用）。
+ */
 export class SpriteDef {
   static atlasTable: (SpriteAtlas | null)[] = new Array<SpriteAtlas | null>(32).fill(null);
   static atlasLoadedFlags: boolean[] = new Array<boolean>(32).fill(false);
@@ -47,6 +72,7 @@ export class SpriteDef {
   atlasId: number = 0; // short
   private atlas!: SpriteAtlas;
 
+  /** d.<init>()：私有构造函数，仅供静态工厂 {@link loadFromBin} 内部创建实例（外部应走工厂方法）。 */
   private constructor() {
   }
 

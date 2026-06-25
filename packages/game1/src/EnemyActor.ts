@@ -57,11 +57,28 @@ export class EnemyActor extends ActorBase {
   screen: GameScreen;
   trailEffect: EffectActor | null = null;
 
+  /**
+   * 构造敌人实例（CFR h.java:46 `h(int,d,a)`）。
+   * 由关卡加载器 LevelLoader（CFR tjge.j）从 s.bin 布置数据创建并填入实例池。
+   * @param n      类型 ID（透传给基类 ActorBase；1/2=地面敌、18=Boss）
+   * @param d2     精灵帧定义（SpriteDef，对应 tjge.d）
+   * @param a2     所属关卡屏 GameScreen，存入 {@link screen}
+   */
   constructor(n: number, d2: SpriteDef, a2: GameScreen) {
     super(n, d2);
     this.screen = a2;
   }
 
+  /**
+   * 投放/初始化敌人到关卡（CFR h.java:51 `a(int,int,int,byte[],boolean)`）。
+   * 重置全部计时/标志，绑定目标玩家，按 `byArray[3]` 配置纵向攻击区间
+   * {@link attackRangeUpper}/{@link attackRangeLower}，按 {@link typeId} 配置血量/节奏，
+   * 并据 `byArray[0]`(朝向) 与 `byArray[1]`(巡逻范围) 计算左右边界与初始朝向位。
+   * @param n        初始动画 ID（与朝向位 OR 后设给首帧）
+   * @param byArray  s.bin 布置参数：[0]=朝向(0右/1左) [1]=巡逻范围 [2]=血量 [3]=攻击区间模式(0~3)
+   * @param bl       为 true 时直接拒绝投放并返回 false
+   * @returns        成功投放返回 true，否则 false
+   */
   // a(int,int,int,byte[],boolean) → a_IIIAYZ
   spawnAt(n: number, n2: number, n3: number, byArray: Int8Array, bl: boolean): boolean {
     if (bl) {
@@ -130,6 +147,13 @@ export class EnemyActor extends ActorBase {
     return true;
   }
 
+  /**
+   * 每帧主更新入口（CFR h.java:118 `a()`）。
+   * 关卡卷动态（LevelScroll）直接跳过。先从动画状态恢复朝向位 {@link facingFlag}
+   * 与动画低 24 位 {@link actionLow24}；再处理被玩家踩中(actionId 19)/被打飞(actionId 21)
+   * 的反应（{@link knockedBack}）；最后按 {@link typeId} 分派 AI：
+   * 1/2 且 {@link isPatroller} 走 {@link patrolUpdate}，否则走 {@link airUpdate}；18 走 {@link bossUpdate}。
+   */
   // a() → a_
   update(): void {
     if (this.screen.state === GameState.LevelScroll) {
@@ -179,6 +203,14 @@ export class EnemyActor extends ActorBase {
     }
   }
 
+  /**
+   * 1/2 型地面敌「初始态」完整警戒/攻击 AI 状态机（CFR h.java:166 `f()`）。
+   * 当 {@link isPatroller}（即 T==true）时由 {@link update} 调用。按 {@link aiState} 推进：
+   * 0=待机扫描(着地后按巡逻范围进 3)、1=转身、3=巡逻行走(撞边界折返进 1)、
+   * 5/8=攻击(按 {@link attackMode} 子态；type2 近战 {@link spawnMeleeHitbox}，type1 远程 {@link fireProjectile})、
+   * 9=受击硬直(命数 {@link lives} 归零转死亡 4)、4=死亡动画(计 killCount、通知刷怪槽)、
+   * 7=冲撞、11=攻击后摇。同时含发现玩家进攻击态、起手警戒({@link aiming}/{@link comboToggle})的逻辑。
+   */
   // f() → f_
   patrolUpdate(): void {
     if (this.screen.scriptFlagL && this.timerA-- > 0) {
@@ -395,6 +427,13 @@ export class EnemyActor extends ActorBase {
     }
   }
 
+  /**
+   * 1/2 型敌「非初始态」简化飞行 AI（CFR h.java:381 `g()`）。
+   * {@link isPatroller} 为 false 时由 {@link update} 调用，用于空中追踪/俯冲型行为：
+   * 同步伴随特效 {@link trailEffect} 坐标、按相机边界与玩家位置调整横向速度并择机进攻击态、
+   * 出相机即销毁并计数、落到玩家上方区间则停下、撞到玩家关联 Boss 进受击态 9。
+   * 末尾按 {@link aiState} 处理 0=待机 / 5=攻击(type2 近战、type1 发弹) / 9=坠落 / 4=死亡。
+   */
   // g() → g_
   airUpdate(): void {
     if (this.trailEffect !== null && this.trailEffect.active) {
@@ -525,6 +564,13 @@ export class EnemyActor extends ActorBase {
     }
   }
 
+  /**
+   * 18 型 Boss AI 状态机（CFR h.java:507 `h()`，关卡4专用）。
+   * 当 {@link typeId}===18 时由 {@link update} 调用。距玩家足够近时按纵向位置选择
+   * 冲撞(进 6)或召唤增援(进 5)；状态分支：0=待机踱步、1/3=巡逻折返、5=放完动画后
+   * 经 {@link GameScreen.spawnEnemyWave} 刷一波小怪、6=冲出屏幕、10=等待玩家靠近、
+   * 4/9=受击后判定玩家攻击命中→切过场 GoalCutscene 或销毁。
+   */
   // h() → h_
   bossUpdate(): void {
     if ((this.aiState === 0 || this.aiState === 1 || this.aiState === 3) && Math.abs(this.posX - this.target.posX) < 131072) {
@@ -604,6 +650,13 @@ export class EnemyActor extends ActorBase {
     }
   }
 
+  /**
+   * 被子弹/攻击命中的回调（CFR h.java:585 `a(tjge.l)`）。
+   * 已处于死亡/硬直/特殊态(aiState 4/9/10)或对方为 mode===1 的弹时忽略。按弹型 {@link ProjectileActor.typeId}
+   * 结算：type21 扣 1 命中计数 {@link lives}、type10/16 即死、type15/20 生成 type16 爆炸并播音效。
+   * 触发受击则转硬直态 9 并切动作(type18→3、其余→7)；{@link lives}<=0 时播死亡音效。
+   * @param l2 命中本敌人的弹体 ProjectileActor（对应 tjge.l）
+   */
   // a(tjge.l) → a_Tl
   onProjectileHit(l2: ProjectileActor): void {
     if (l2.mode === 1 || this.aiState === 4 || this.aiState === 9 || this.aiState === 10) {
@@ -648,6 +701,14 @@ export class EnemyActor extends ActorBase {
     }
   }
 
+  /**
+   * 绘制（CFR h.java:628 `a(Graphics,int,int)`），含受击闪烁。
+   * {@link hurtBlinkTimer}===0（无闪烁）时正常绘；否则倒计该计时并仅在奇数帧绘制，
+   * 形成受击一闪一闪的效果。
+   * @param graphics 画布 Graphics
+   * @param n        绘制基准 X（相机偏移后）
+   * @param n2       绘制基准 Y（相机偏移后）
+   */
   // a(Graphics,int,int) → a_GII
   paint(graphics: Graphics, n: number, n2: number): void {
     if (this.hurtBlinkTimer === 0 || --this.hurtBlinkTimer > 0 && (this.hurtBlinkTimer & 1) !== 0) {

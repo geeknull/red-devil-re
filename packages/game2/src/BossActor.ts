@@ -27,6 +27,31 @@ import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
 import { MIRROR_FLAG, FLIP_VERTICAL_BIT, LevelSubState } from "./constants.ts";
 
+/**
+ * 游戏2《红魔特种兵2-深海战舰》中的 **Boss / 机关 / 触发器 Actor**（继承自基类 {@link ActorBase}）。
+ *
+ * 一个类同时承载 5 种关卡实体（由工厂 `tjge.a.a(int,d)` 按 typeId 分派实例化，见
+ * docs/game2-深海战舰/类清单与职责.md §12 与 §2）：
+ *  - **type11**：会瞄准玩家发射弹幕、可被击退归位的炮台型 Boss（血量 10）；
+ *  - **type13**：固定机关/可破坏触发物（血量 3，破坏后置触发标志、切静止层）；
+ *  - **type17**：沿 x 或 y 轴巡逻的移动机关，按节奏开火（血量 3，轴向由 `axisOrPhase` 决定）；
+ *  - **type19**：本作**最终 Boss**（血量 200），多阶段子状态机（入场→召唤编队→俯冲→空袭），
+ *    维护全局单例 {@link BossActor.instance}，被击退时进入坠落死亡剧情；
+ *  - **type21**：关底通关触发器/被抱实体（血量 10，玩家贴靠并按动作 16 即清关）。
+ *
+ * 角色定位：玩法上覆盖了「中途机关」「炮台」「关底 Boss」「通关开关」等所有非普通敌人的特殊单位，
+ * 与玩家 {@link PlayerActor}、子弹 {@link ProjectileActor}、场景 {@link LevelScene} 协作，
+ * 受击与碰撞逻辑由基类的碰撞框/分组驱动。
+ *
+ * 关键字段：`health` 血量；`knockedBack` 被击退中（沿 x 推回 `cN` 锚点）；`pendingFire`/`fireable`
+ * 待开火/可开火节奏位；`dormant` 休眠（最终 Boss 未激活时直接跳过 update）；`rangeMin/rangeMax`
+ * 巡逻/横移边界；`axisOrPhase` 轴向或阶段；`phaseIndex` 最终 Boss 阶段索引；`attachedEntity`
+ * 关联从属实体（type21 抱住玩家时生成的特效）。
+ *
+ * CFR 基准：逐行移植自 reverse/game2/2-decompiled-cfr/tjge/c.java（512 行，权威源）；
+ * 字段/方法名映射见同文件顶部说明、reverse/game2/3-readable/SYMBOLS.md 与
+ * reverse/game2/porting-naming/porting-contract.json。
+ */
 export class BossActor extends ActorBase {
   static BULLET_PARAMS_T11: number[][] = [
     [-12, -50, 9, 1, -10, -10],
@@ -53,10 +78,26 @@ export class BossActor extends ActorBase {
   private attachedEntity: ActorBase | null = null;
   static instance: BossActor | null = null;
 
+  /**
+   * 构造 Boss/机关 Actor：以类型 ID 与精灵定义初始化，直接转交基类 {@link ActorBase} 构造。
+   * 具体类型的血量/范围/节奏在 {@link spawnFromBytes} 中按 typeId 设定，构造阶段不分派。
+   * @param n typeId（11/13/17/19/21 之一，由工厂 `tjge.a.a(int,d)` 传入）
+   * @param d2 动作/动画定义（{@link SpriteDef}）
+   * 对应 CFR c.java:33-35。
+   */
   constructor(n: number, d2: SpriteDef) {
     super(n, d2);
   }
 
+  /**
+   * 从关卡实例字节数据初始化各类型 Boss/机关：先调基类 `super.spawnFromBytes`，
+   * 再按 `typeId` 设置血量 `health`、巡逻/横移范围 `rangeMin/rangeMax`、轴向 `axisOrPhase`、
+   * 复位锚点 `cN` 与攻击节奏 `cO/cP` 等；type19（最终 Boss）额外置 `dormant=true` 并登记单例
+   * {@link BossActor.instance}。末尾统一复位 `knockedBack/pendingFire/attachedEntity` 并置 `fireable=true`。
+   * @param byArray 关卡注入的实例参数字节（如 `[7]` 攻击节奏、`[8]` 轴向、`[9]` 移动跨度）
+   * @returns 基类解析失败时返回 false，成功初始化返回 true
+   * 对应 CFR c.java:37-92。
+   */
   // a(byte[]) → a_AY
   spawnFromBytes(byArray: Int8Array): boolean {
     if (!super.spawnFromBytes(byArray)) {
@@ -115,6 +156,13 @@ export class BossActor extends ActorBase {
     return true;
   }
 
+  /**
+   * 最终 Boss（type19）登场就位/重置：把自身定位到相机中上方
+   * （`posX=相机中线, posY=相机上方 20480`），设血量 16、攻击节奏、横移范围、`dormant=true`、
+   * 阶段索引 `phaseIndex=3`、动作 0，并复位各开火/击退/关联标志。
+   * 供剧情脚本在 Boss 出场时驱动（区别于 {@link spawnFromBytes} 的 200 血常规初始化）。
+   * 对应 CFR c.java:94-111。
+   */
   // a() → a_
   resetBoss(): void {
     this.posX = this.canvas.cameraX + ((this.canvas.viewportWidth / 2) | 0);
@@ -135,6 +183,19 @@ export class BossActor extends ActorBase {
     this.phaseIndex = 3;
   }
 
+  /**
+   * 每帧 AI 行为（覆写基类 `update`），按 `typeId` 分派到 5 套独立逻辑：
+   *  - **type11**：消费 `pendingFire` 按动作选弹道参数 `BULLET_PARAMS_T11` 发射 type10 子弹
+   *    （首发调 {@link aimProjectile} 瞄准玩家）；动画播完恢复 `fireable`；`knockedBack` 时沿 x 推回
+   *    锚点 `cN`；血量 `<=0` 回收；碰到玩家则触发 `onCollide`。
+   *  - **type13**：固定机关，按帧组判定破坏，破坏后抖屏、切动作并置 `triggerHitFlags`，最终切层 10。
+   *  - **type17**：在 `rangeMin/rangeMax` 之间沿 `axisOrPhase` 轴往返巡逻，按 `cP` 节奏发射 type10。
+   *  - **type19**：最终 Boss 多阶段子状态机（`phaseIndex` 0=入场/召唤编队、1=等待清场、2=俯冲蓄势、
+   *    3=空袭投弹）；被击退时进入坠落死亡剧情（设置 {@link LevelScene.cutsceneState} 并切
+   *    `BossScript` 子状态），平时随机横移并按 `phaseIndex` 选发射点发射 type9。`dormant` 时直接返回。
+   *  - **type21**：通关触发器，玩家贴靠时锁定其动作并生成关联实体 `attachedEntity`；按下动作 16 即清关。
+   * 对应 CFR c.java:113-407。
+   */
   // b() → b_
   update(): void {
     switch (this.typeId) {
@@ -431,6 +492,12 @@ export class BossActor extends ActorBase {
     }
   }
 
+  /**
+   * 请求开火（由外部驱动机关，如普通敌人 {@link EnemyActor} 的 type2 联动炮台）：
+   * 若已请求（`pendingFire`）或当前不可开火（`!fireable`）则拒绝返回 false；
+   * 否则置 `pendingFire=true`，待下一次 {@link update} 消费并真正发射子弹，返回 true。
+   * 对应 CFR c.java:408-414。
+   */
   // c() → c_
   requestFire(): boolean {
     if (this.pendingFire || !this.fireable) {
@@ -440,6 +507,16 @@ export class BossActor extends ActorBase {
     return true;
   }
 
+  /**
+   * 被击中判定：仅接受带碰撞分组位 8（玩家子弹）且通过新接触判定 {@link ActorBase.isNewContact} 的来源，
+   * 且来源为 type10/type12 子弹。命中后按 `typeId` 扣血 `health -= h2.getDamage()`：
+   * 血量归零则生成多簇 type12 爆炸碎片并抖屏（type11/21），未归零则置 `knockedBack=true` 触发击退归位。
+   * type11 在玩家高度过高或离相机过远时仅消弹不扣血；type21 在通关锁定态（`cP===0`）仅消弹；
+   * type13 仅在帧组 1-3 且子弹带分组位 2 时扣血；type19 仅在特定区域内允许进入击退死亡。
+   * @param h2 命中来源 Actor（玩家子弹）
+   * @returns 是否消耗/响应了此次命中（true 表示子弹应被吸收）
+   * 对应 CFR c.java:416-473。
+   */
   // a(tjge.h) → a_Th
   onHitBy(h2: ActorBase): boolean {
     if (!h2.hasCollisionFlag(8) || !this.isNewContact(h2)) {
@@ -499,6 +576,11 @@ export class BossActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 存活查询：type21（通关触发器）返回 `health > 0`，其余类型恒返回 true。
+   * 供剧情/触发逻辑判断该机关是否仍然有效。
+   * 对应 CFR c.java:474-479。
+   */
   // d() → d_
   isAlive(): boolean {
     if (this.typeId === 21) {
@@ -507,6 +589,14 @@ export class BossActor extends ActorBase {
     return true;
   }
 
+  /**
+   * 为投射物解算抛物线初速：据自身朝向 `actionHighByte` 与到玩家的水平距离，
+   * 计算子弹的水平/垂直初速 `targetVelX/targetVelY`、垂直加速度 `accelY` 与最大下落速度 `maxVelY`，
+   * 使弹道落向玩家。近距离（`<40960`）走固定弱抛参数，远距离按距离迭代求解抛物初速（上限 15360）。
+   * 由 type11 Boss 发射首发子弹时调用（见 {@link update}）。
+   * @param k2 待赋初速的子弹，为 null 时直接返回
+   * 对应 CFR c.java:481-510。
+   */
   // a(tjge.k) → a_Tk
   aimProjectile(k2: ProjectileActor | null): void {
     if (k2 == null) {

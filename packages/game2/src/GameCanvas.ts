@@ -101,6 +101,13 @@ export class GameCanvas extends Canvas {
     GameCanvas.briefingLineState = new Int32Array(4);
   }
 
+  /**
+   * 构造主 Canvas（CFR a.java:76-86）。
+   * 设全屏（shim 省略）→存自身单例 GameCanvas.instance→记宿主 MIDlet→
+   * 初始 UI 状态置 Splash(3)→新建并启动主循环线程 mainThread→置 running=true、painting=false。
+   * 二开入口：由 GameMIDlet 在 startApp 时 `new GameCanvas(this)`，一旦构造即开始跑 run() 主循环。
+   * @param gameMIDlet 宿主 MIDlet（提供资源加载/存档/音频等静态服务）
+   */
   constructor(gameMIDlet: GameMIDlet) {
     super();
     // this.setFullScreenMode(true); // shim Canvas 即全屏画布（整体省略）
@@ -113,6 +120,16 @@ export class GameCanvas extends Canvas {
     this.painting = false;
   }
 
+  /**
+   * Actor 工厂（CFR a.java:87-125；原 `a(int,tjge.d)` → 契约名 a_ITd）。
+   * 按 actor 类型 ID 分派构造对应运行时子类，供 LevelScene 加载/生成 actor 时调用：
+   *   0→PlayerActor（玩家，并缓存到 this.player）；1-5→EnemyActor（普通敌人）；
+   *   11/13/17/19/21→BossActor（Boss）；6/7/14/15/18/20/22→ItemActor（道具/机关）；
+   *   9/10/12/16→ProjectileActor（弹丸）；其余 ID→ActorBase（基类）。
+   * @param n actor 类型 ID
+   * @param d2 该类型的动作定义（SpriteDef，提供帧/动作数据）
+   * @returns 新建的 actor 实例
+   */
   // a(int,tjge.d) → a_ITd（精灵/场景对象工厂）
   createActor(n: number, d2: SpriteDef): ActorBase {
     switch (n) {
@@ -153,6 +170,17 @@ export class GameCanvas extends Canvas {
     return new ActorBase(n, d2);
   }
 
+  /**
+   * UI 状态机总渲染（CFR a.java:126-551）—— 整个游戏每帧唯一的绘制+逻辑推进入口。
+   * 由 run() 主循环通过 repaint() 触发。先自增全局帧计数 globalFrame、置 painting=true、
+   * 推进音频超时，然后按 uiState 的值 switch 到对应分支：开机 logo 序列(Splash)、载入进度条
+   * (LoadingProgress)、主菜单(MainMenu)、无存档提示(NoSave)、关卡载入(LevelIntroLoading)、
+   * 剧情过场(CutsceneIntro→paintLevelIntro)、任务简报(MissionBrief)、游戏中(InGame→scene.tick+render)、
+   * 任务失败/完成结算(LevelFailed/LevelClear)、全通(GameComplete)、帮助(Help)、关于(About)。
+   * 各分支内既绘制画面也读取/清空输入动作 inputAction 并切换 uiState。整体 try/catch 吞异常（保持原空 catch），
+   * 末尾置 painting=false。二开调整任意界面或状态跳转都从这里入手。
+   * @param graphics 目标图形上下文
+   */
   paint(graphics: Graphics): void {
     ++this.globalFrame;
     this.painting = true;
@@ -580,6 +608,14 @@ export class GameCanvas extends Canvas {
     this.painting = false;
   }
 
+  /**
+   * 本关结束结算入口（CFR a.java:552-566；原 `a(boolean)` → 契约名 a_Z）。
+   * 由场景在关卡判定胜/负时调用。复位 transitionProgress/subState，按
+   * elapsedSeconds = (now - levelStartTime)/1000 截断算出本关用时（秒），然后：
+   *   bl=true（任务完成）→复位结算动画帧/计数，切 LevelClear(16)；
+   *   bl=false（任务失败）→启动下划线动画，切 LevelFailed(18)。
+   * @param bl true=胜利结算，false=失败结算
+   */
   // a(boolean) → a_Z（结算入口：bl=true 任务完成→状态16；false 任务失败→状态18）
   showResult(bl: boolean): void {
     this.transitionProgress = 0;
@@ -596,6 +632,10 @@ export class GameCanvas extends Canvas {
     this.uiState = UiState.LevelFailed;
   }
 
+  /**
+   * 失焦回调（CFR a.java:567-575）—— 框架在画布失去焦点（来电/锁屏等）时调用。
+   * 若当前在游戏中或任务简报页，则复位菜单与输入并切回主菜单（相当于自动暂停回到菜单）。
+   */
   hideNotify(): void {
     if (this.uiState === UiState.InGame || this.uiState === UiState.MissionBrief) {
       this.menuSelection = 0;
@@ -605,6 +645,10 @@ export class GameCanvas extends Canvas {
     }
   }
 
+  /**
+   * 进入任务简报页（CFR a.java:576-582；原 `a()` → 契约名 a_）。
+   * 复位 transitionProgress/subState，切 uiState 到 MissionBrief(20)，并把当前场景的子状态归零。
+   */
   // a() → a_（进入任务简报）
   enterBriefing(): void {
     this.transitionProgress = 0;
@@ -701,6 +745,13 @@ export class GameCanvas extends Canvas {
     }
   }
 
+  /**
+   * 镜头初始化/对焦玩家出生点（CFR a.java:670-697；原 `b()` → 契约名 b_）。
+   * 设视口尺寸（定点）viewportWidth=180224(176<<10)、viewportHeight=176128、场景定点尺寸
+   * sceneWidth/sceneHeight（由地图格宽高<<10），从场景 actor 实例表读出玩家出生坐标并定位
+   * player.posX/posY，再把相机置于玩家偏左偏上处并按场景边界钳制，最后让场景按相机格加载当前屏块。
+   * 由 loadLevel 在关卡加载末段调用。
+   */
   // b() → b_（镜头初始定位到玩家出生点）
   initCamera(): void {
     this.viewportWidth = 180224;
@@ -730,6 +781,14 @@ export class GameCanvas extends Canvas {
     this.scene.loadCell(n3, n4);
   }
 
+  /**
+   * 镜头平滑跟随（CFR a.java:698-748；原 `a(int,int)` → 契约名 a_II）。
+   * 每帧由场景调用，把相机朝目标 (n,n2) 做差值步进（X/Y 各自计算 cameraVelX/cameraVelY，
+   * 超过阈值用玩家速度叠加偏移、否则直接吸附），叠加震屏抖动（shaking 时按帧奇偶 ±2048 并递减
+   * shakeCounter），最后按场景边界钳制相机坐标。
+   * @param n 目标相机 X（定点）
+   * @param n2 目标相机 Y（定点）
+   */
   // a(int,int) → a_II（镜头跟随玩家平滑滚动到 (n,n2)）
   followCamera(n: number, n2: number): void {
     this.cameraVelX = 0;
@@ -782,6 +841,14 @@ export class GameCanvas extends Canvas {
     }
   }
 
+  /**
+   * 关卡加载步进机（CFR a.java:749-773；原 `a(int)` → 契约名 a_I）。
+   * 分帧推进（用 subState 0→1→2 三步，每帧只走一步，避免长卡顿）：
+   *   step0=若有旧场景且关卡号变了则 dispose 卸载；step1=按需 LevelScene.loadLevel 建新场景；
+   *   step2=initCamera 对焦并置 loadComplete=true。
+   * 由 paint 的 LevelIntroLoading 分支反复调用直到 loadComplete。
+   * @param n 目标关卡号（0~6）
+   */
   // a(int) → a_I（关卡载入状态机：卸载旧场景→创建新场景→定位镜头）
   loadLevel(n: number): void {
     this.loadComplete = false;
@@ -808,6 +875,12 @@ export class GameCanvas extends Canvas {
     }
   }
 
+  /**
+   * 主循环（CFR a.java:774-792）—— Runnable.run()，由构造时启动的 mainThread 驱动。
+   * 约 80ms/帧（不足则 Thread.sleep 补齐）：若未运行或正在 painting 则让出执行权空转，
+   * 否则节流到 80ms 后 repaint() 触发一次 paint()。原 Java `while(w!=null)` 阻塞循环移植为
+   * async + await（控制流逐帧一致）；整体 try/catch 静默退出。
+   */
   // run()：原 while(w!=null){...; Thread.sleep(...)} → async + await（控制流逐帧一致）
   async run(): Promise<void> {
     try {
@@ -904,6 +977,13 @@ export class GameCanvas extends Canvas {
     return n2;
   }
 
+  /**
+   * 按键按下回调（CFR a.java:866-882）—— 框架输入入口。
+   * 先处理软键直切状态：左软键(21/-21) 在游戏中/简报页时回主菜单；右软键(22/-22) 在游戏中且场景常规态时进任务简报。
+   * 其余按键经 keyToAction 译成动作位掩码写入 inputAction，供 paint 各分支读取。
+   * 各键的实际效果以 keyToAction 为准（另见 memory「按键动作映射」）。
+   * @param n J2ME 键码（含方向键/小键盘/软键负码）
+   */
   keyPressed(n: number): void {
     let n2: number;
     if (n === 21 || n === -21) {
@@ -921,11 +1001,20 @@ export class GameCanvas extends Canvas {
     this.inputAction = n2 = this.keyToAction(n);
   }
 
+  /**
+   * 按键松开回调（CFR a.java:883-887）—— 清空当前输入动作 inputAction=0，并置 heldAction=-1（解除持续按住标志）。
+   * @param n J2ME 键码（此实现不区分具体键，统一清状态）
+   */
   keyReleased(n: number): void {
     this.inputAction = 0;
     this.heldAction = -1;
   }
 
+  /**
+   * 触发震屏（CFR a.java:888-894；原 `b(int)` → 契约名 b_I）。
+   * 若当前未在震屏，则置 shaking=true、shakeCounter=n，后续由 followCamera 每帧抖动相机直到计数耗尽。
+   * @param n 震屏持续帧数
+   */
   // b(int) → b_I（触发震屏，持续 n 帧）
   startShake(n: number): void {
     if (!this.shaking) {
@@ -934,6 +1023,21 @@ export class GameCanvas extends Canvas {
     }
   }
 
+  /**
+   * 展开/收缩描边框绘制原语（CFR a.java:895-922；原 9 参 `a(Graphics,...)` → 契约名 a_GIIIIIIIIZ）。
+   * 过场/任务简报/结算页对话框边框的动画基元：把矩形从 (n,n2) 朝 (n3,n4) 按进度 n6/n5 比例收缩，
+   * 用颜色 n7 描边、n8≥0 时填充内部；bl=true 再叠加内层黑+绿双描边。进度 n6≤0 时不绘制。
+   * @param graphics 目标图形上下文
+   * @param n 起点 X
+   * @param n2 起点 Y
+   * @param n3 终点 X
+   * @param n4 终点 Y
+   * @param n5 进度分母（满进度）
+   * @param n6 当前进度（0..n5）
+   * @param n7 描边颜色
+   * @param n8 填充颜色（<0 表示不填充）
+   * @param bl 是否叠加双层内描边
+   */
   // a(Graphics,int,int,int,int,int,int,int,int,boolean) → a_GIIIIIIIIZ
   // 由 (n,n2)→(n3,n4) 按进度 n6/n5 收缩绘制的双层描边框（过场展开动画原语）
   static drawExpandingFrame(
@@ -975,6 +1079,17 @@ export class GameCanvas extends Canvas {
     }
   }
 
+  /**
+   * 按 \r(回车,char 13) 分行绘制多行文本（CFR a.java:923-942；原 `a(Graphics,String,...)` → 契约名 a_GSIIIII）。
+   * 帮助/关于页用：跳过前 n4 行，从第 n4 行起、以 (n,n2) 为左上、行高 n3 连续绘制至多 n5 行。
+   * @param graphics 目标图形上下文
+   * @param string 含 \r 分隔的多行原文
+   * @param n 起始 X
+   * @param n2 起始 Y
+   * @param n3 行高
+   * @param n4 起始行号（跳过的行数）
+   * @param n5 最多绘制的行数
+   */
   // a(Graphics,String,int,int,int,int,int) → a_GSIIIII（按 \r 分行绘制字符串，从第 n4 行起绘 n5 行）
   drawWrappedLines(graphics: Graphics, string: string, n: number, n2: number, n3: number, n4: number, n5: number): void {
     let n6 = 0;
@@ -996,6 +1111,13 @@ export class GameCanvas extends Canvas {
     } while (n7 >= 0 && n5 > 0);
   }
 
+  /**
+   * 选取任务简报正文的第 n 段（CFR a.java:943-958；原 `c(int)` → 契约名 c_I）。
+   * 在 GameMIDlet.tempText1 中按 \r(char 13) 跳过前 n 段，把第 n 段子串存入 GameMIDlet.tempText2，
+   * 供 drawTypesetText 逐字折行绘制。任务简报逐段推进时由 paintLevelIntro 调用。
+   * @param n 目标段落游标（从 0 起）
+   * @returns 是否已到最后一段（无更多 \r）
+   */
   // c(int) → c_I（取 GameMIDlet.l 的第 n 段（\r 分隔）存入 GameMIDlet.m，返回是否为最后一段）
   selectParagraph(n: number): boolean {
     let n2 = 0;
@@ -1014,6 +1136,20 @@ export class GameCanvas extends Canvas {
     return n3 < 0;
   }
 
+  /**
+   * 按字宽自动折行绘制任务简报正文（CFR a.java:959-979；原 6 参 `a(Graphics,...)` → 契约名 a_GIIIIII）。
+   * 对 GameMIDlet.tempText2 逐字测宽断行：跳过前 n 行，从第 n 行起、左上 (n3,n4)、行宽 n5、行高 n6
+   * 连续绘制至多 n2 行。shim 无 Font，故用底层 ctx.measureText 近似测宽、drawString 近似绘子串
+   * （控制流逐行与 CFR 一致，见类级 JSDoc 偏差说明）。
+   * @param graphics 目标图形上下文
+   * @param n 起始行号（跳过的行数）
+   * @param n2 最多绘制的行数
+   * @param n3 起始 X（左边界）
+   * @param n4 起始 Y
+   * @param n5 折行宽度
+   * @param n6 行高
+   * @returns 文本是否已全部绘完
+   */
   // a(Graphics,int,int,int,int,int,int) → a_GIIIIII（对 GameMIDlet.m 按宽度逐字换行绘制，从第 n 行起绘 n2 行）
   drawTypesetText(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): boolean {
     let n7 = 0;

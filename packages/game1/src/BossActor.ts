@@ -27,6 +27,30 @@ import { EnemyActor } from "./EnemyActor.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
 import { GameState, MIRROR_FLAG } from "./constants.ts";
 
+/**
+ * Boss / 触发器演员（游戏1《红魔特种兵》，原 CFR 类 `tjge.c`，继承 ActorBase）。
+ *
+ * 一个类承载了三种由 `typeId`（基类字段 q）区分的角色：
+ *  - **q=14 触发器/点火物**：与玩家相交后切到第 1 帧并标记已触发，倒计时归零时
+ *    生成一发 type16 弹幕、自我停用并播音效——本质是关卡脚本里的一次性触发器；
+ *  - **q=8 Boss 本体**：关卡 3/6 的多阶段攻防 Boss（phase 0..3 的追踪→准备→冲刺
+ *    子状态机），按 attackMode 选择 type20/type21 弹幕；关卡 4 则作为载具/坐骑，
+ *    据关联小兵 minion 的存活与 AI 状态联动驱动自身位移；
+ *  - **q=17 俯冲/突进物**：从基准位 (homeX,homeY) 向下俯冲撞击玩家或地面，命中后
+ *    归位并按 flashCounter 存的子计时静止一段再循环。
+ *
+ * 血量模型（与 docs 玩法与数值.md「Boss AI」一致）：`health`(原 f) 为每阶段耐久，
+ * 构造关卡进入时置 5；`waveCount`(原 g) 为剩余波次（普通 9 / 关卡6=11），每轮血量
+ * 耗尽后 `--waveCount` 推进，归零判定死亡；HUD 进度条按
+ * `waveCount<6 ? health : health+(waveCount-6)*5` 计算（update case 8）。
+ *
+ * 关键协作者：`screen`(GameScreen) 用于访问玩家、关卡状态、生成实体与播音效；
+ * `minion`(EnemyActor) 仅关卡4 用；受击由 onProjectileHit 结算并触发 hitFlashing 抖动。
+ *
+ * 逐行移植自 CFR 基准 reverse/game1/2-decompiled-cfr/tjge/c.java（357 行）；
+ * 字段/方法语义见 docs/game1-红魔特种兵/类清单与职责.md §4 与 reverse/game1/3-readable/SYMBOLS.md。
+ * 仅新增注释，逻辑/数值与原版逐字节一致。
+ */
 export class BossActor extends ActorBase {
   screen: GameScreen;
   delayTimer: number = 0;
@@ -44,6 +68,13 @@ export class BossActor extends ActorBase {
   visible: boolean = false;
   minion: EnemyActor | null;
 
+  /**
+   * 构造 Boss/触发器演员（CFR c.java:36）。
+   * @param n 类型 ID（基类 typeId/q，14=触发器 / 8=Boss / 17=俯冲物）
+   * @param d2 精灵帧/动画定义（SpriteDef）
+   * @param a2 所属主控游戏屏（GameScreen），存入 `screen`
+   * 默认可见（visible=true）、无关联小兵（minion=null）；具体状态机初值由 spawnAt 装配。
+   */
   constructor(n: number, d2: SpriteDef, a2: GameScreen) {
     super(n, d2);
     this.screen = a2;
@@ -51,6 +82,18 @@ export class BossActor extends ActorBase {
     this.visible = true;
   }
 
+  /**
+   * 重置/初始化（覆写基类，CFR c.java:43）。按 `typeId` 装配各角色的状态机初值，
+   * 从字节参数 `byArray` 读关卡级配置，并把自己注册到 GameScreen 的相应槽位。
+   *  - q=14：phase=0、delayTimer=15（触发器初始倒计时）。
+   *  - q=8：disabled=byArray[0]===0；若禁用则只把自己挂到玩家 linkedBoss 上即返回；
+   *    否则置 health=5、记录 homeX，按关卡（6=特殊：登记为 screen.boss、waveCount=11、
+   *    attackMode=1；否则 waveCount=9、attackMode=0）并切到镜像起始帧。
+   *  - q=17：从 byArray 读 delayTimer/flashCounter，记录 homeX/homeY，关闭循环动画并切第 3 帧。
+   * @param byArray 关卡传入的字节参数（含义随 typeId 而异，见上）
+   * @param bl 抑制标志；为 true 时直接返回 false 不初始化
+   * @returns 是否完成初始化（bl 为 true 时为 false）
+   */
   // a(int,int,int,byte[],boolean) → a_IIIAYZ
   spawnAt(n: number, n2: number, n3: number, byArray: Int8Array, bl: boolean): boolean {
     if (bl) {
@@ -100,6 +143,20 @@ export class BossActor extends ActorBase {
     return true;
   }
 
+  /**
+   * 每帧 AI 主循环（CFR c.java:95）。按 `typeId` 分派：
+   *  - q=14：与玩家相交即触发（切第 1 帧并置 phase=1、登记 actorSpawned）；触发后
+   *    delayTimer 倒计时归零时生成一发 type16 弹幕、deactivate 并播音效。
+   *  - q=8：再按关卡 levelIndex 分支——
+   *      · 关卡 3/6：需 scriptFlagL 开启；驱动 HUD 进度指示，处理接触伤害、
+   *        血量耗尽后的波次递减/死亡（waveCount<=0→隐藏并进入通关），并跑 phase 0..3
+   *        的追踪(0)→开火(1，按 attackMode 发 type21/type20)→准备冲刺(2)→撞墙回身(3) 子状态机；
+   *        受击闪烁 hitFlashing 期间做坐标抖动。
+   *      · 关卡 4（载具）：据关联 minion 的存活/aiState/落地状态联动调整自身与 minion 速度，
+   *        出相机范围则 deactivate。
+   *  - q=17：delayTimer 倒计时后，按当前帧 n 推进 俯冲(0)→下落(1，命中玩家或地面切第 2 帧)
+   *    →归位(2，回 homeX/homeY 并按 flashCounter 设静止计时)→等待(3，倒计时后回第 0 帧) 循环。
+   */
   /*
    * Enabled force condition propagation
    * Lifted jumps to return sites
@@ -313,6 +370,13 @@ export class BossActor extends ActorBase {
     }
   }
 
+  /**
+   * 被弹丸命中时的伤害结算（CFR c.java:303），仅对 q=8 Boss 本体且非延迟期生效。
+   * 按弹丸类型分别处理：type21 落地子态切换并在 Boss 静止时 -1 血；type10 静止时 -1 血；
+   * type15/20 生成 type16 爆炸并销毁该弹丸、静止时 -3 血。任意命中都会触发受击闪烁
+   * （hitFlashing 置真并记录当前 X 为 homeX）。
+   * @param l2 命中本 Boss 的弹丸（ProjectileActor）
+   */
   // a(tjge.l) → a_Tl
   onProjectileHit(l2: ProjectileActor): void {
     if (this.delayTimer > 0 || this.typeId !== 8) {
@@ -363,6 +427,12 @@ export class BossActor extends ActorBase {
     GameScreen.playSound(5, 1, 220);
   }
 
+  /**
+   * 绘制（覆写基类，CFR c.java:351）。仅当可见标志 `visible` 为真时调用父类绘制，
+   * 死亡淡出/隐藏期（visible=false）跳过，从而让 Boss 不再出现在画面上。
+   * @param n 相机 X 偏移（屏幕坐标换算用）
+   * @param n2 相机 Y 偏移
+   */
   // a(Graphics,int,int) → a_GII
   paint(graphics: Graphics, n: number, n2: number): void {
     if (this.visible) {

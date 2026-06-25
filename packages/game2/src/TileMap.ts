@@ -64,33 +64,65 @@ export class TileMap {
   private static offscreenBuffer: Image | null = null;
   private static offscreenGraphics: Graphics | null = null;
 
+  /**
+   * 构造瓦片地图层。仅记录相机视口尺寸（关卡内固定为 176×172），
+   * 其余字段（网格/调色/碰撞/缓冲）一律延迟到 {@link load} 时填充。
+   * 对应 CFR b.java 构造（b(int,int)）。
+   * @param n  视口宽 viewportWidth（相机一次可见的像素宽）
+   * @param n2 视口高 viewportHeight
+   */
   constructor(n: number, n2: number) {
     this.viewportWidth = n;
     this.viewportHeight = n2;
   }
 
+  /**
+   * 设置相机左上角像素坐标（绘制偏移）。{@link render} 据此从离屏缓冲取景。
+   * 对应 CFR b.java a(int,int)。
+   * @param n  相机 X（cameraX）
+   * @param n2 相机 Y（cameraY）
+   */
   // a(int,int) → a_II
   public setCameraPosition(n: number, n2: number): void {
     this.cameraX = n;
     this.cameraY = n2;
   }
 
+  /**
+   * 把离屏缓冲「已绘制区域」边界标记为失效（drawnLeft/drawnTop = -1），
+   * 强制下一次 {@link renderViewport} 整屏重绘而非增量滚动。
+   * 切换关卡/重置相机后调用。对应 CFR b.java a()。
+   */
   // a() → a_
   public resetDrawnBounds(): void {
     this.drawnLeft = -1;
     this.drawnTop = -1;
   }
 
+  /**
+   * 地图像素总宽 = 瓦片宽 × 单元横向瓦片数 × 网格列数（tileWidth*cellTilesX*gridCols）。
+   * 供相机夹取与坐标回卷使用。对应 CFR b.java b()。
+   */
   // b() → b_
   public getMapWidth(): number {
     return this.tileWidth * this.cellTilesX * this.gridCols;
   }
 
+  /**
+   * 地图像素总高 = 瓦片高 × 单元纵向瓦片数 × 网格行数（tileHeight*cellTilesY*gridRows）。
+   * 对应 CFR b.java c()。
+   */
   // c() → c_
   public getMapHeight(): number {
     return this.tileHeight * this.cellTilesY * this.gridRows;
   }
 
+  /**
+   * 主绘制入口：按当前相机位置({@link cameraX}/{@link cameraY})与视口尺寸
+   * 调用 {@link renderViewport} 把地图贴到目标 Graphics。每帧由场景主循环调用。
+   * 对应 CFR b.java a(Graphics)。
+   * @param graphics 目标画布
+   */
   // a(Graphics) → a_G
   public render(graphics: Graphics): void {
     this.renderViewport(graphics, this.cameraX, this.cameraY, this.viewportWidth, this.viewportHeight);
@@ -105,6 +137,17 @@ export class TileMap {
     return n3;
   }
 
+  /**
+   * 核心碰撞/属性查询：给定像素坐标，返回该点的瓦片碰撞属性值（0=空）。
+   * 越界（含负坐标、超出地图宽高）直接返回 0；先经 {@link sampleGridIndex} 定位
+   * 网格单元，再换算到「碰撞属性条带」表 {@link collisionRows} 的行(n2)/列(n)，
+   * 按 RLE 段长累加定位命中段并返回其属性字节。
+   * 属性语义（参见 g.java 碰撞）：`&3 != 0` 视为实心，`==4` 视为可站立平台面。
+   * 对应 CFR b.java b(int,int)（核心碰撞）。
+   * @param n  查询点像素 X
+   * @param n2 查询点像素 Y
+   * @returns 碰撞属性值（0 表示无碰撞/越界）
+   */
   // b(int,int) → b_II
   public sampleCollision(n: number, n2: number): number {
     if (n2 < 0) {
@@ -136,6 +179,14 @@ export class TileMap {
     return this.collisionRows[n2]![(n5 -= 2)];
   }
 
+  /**
+   * 像素坐标 → 前景图集(fpng)的 cell 索引（即应贴哪一格瓦片）。
+   * 经 {@link sampleGridIndex} 取网格块，再换算到前景调色表 {@link foregroundTileIndices}
+   * 的偏移并读出 cell（负值 +256 还原为无符号）；网格块为 -1（空）时返回 -1。
+   * 索引非法时抛 "error index"（供 {@link drawTileRegion} try/catch 跳过该格）。
+   * 对应 CFR b.java c(int,int)。
+   * @returns 前景 cell 索引；-1 表示该格无前景瓦片
+   */
   // c(int,int) → c_II（throws Exception）
   public sampleForegroundTile(n: number, n2: number): number {
     let n3 = -1;
@@ -155,6 +206,13 @@ export class TileMap {
     return n3;
   }
 
+  /**
+   * 像素坐标 → 背景图集(bpng)的 cell 索引。坐标先对背景层总尺寸取模（背景平铺循环），
+   * 再换算到背景块索引表 {@link backgroundIndices} 取 cell（负值 +256 还原）。
+   * 仅在含背景层（{@link layerMode}===2）时有效；索引非法时抛 "error index"。
+   * 对应 CFR b.java d(int,int)。
+   * @returns 背景 cell 索引
+   */
   // d(int,int) → d_II（throws Exception）
   public sampleBackgroundTile(n: number, n2: number): number {
     let n3 = 0;
@@ -180,6 +238,21 @@ export class TileMap {
     }
   }
 
+  /**
+   * 把一块矩形瓦片区域绘制到（离屏缓冲的）Graphics。入参给出绘制范围与环形回卷模数。
+   * 双重循环按瓦片步进（步长 tileWidth/tileHeight），坐标到达模数 n5/n6 即回卷到 0，
+   * 实现离屏缓冲的环形复用。每格：若含背景层(layerMode===2)先经 {@link sampleBackgroundTile}
+   * 贴背景；再经 {@link sampleForegroundTile}（!=-1 时）setClip+drawImage 贴前景；
+   * 查询越界由 try/catch 跳过该格。供 {@link renderViewport} 增量重绘调用。
+   * 对应 CFR b.java a(Graphics,6参)（CFR b.java:156-198）。
+   * @param graphics 目标（通常为离屏缓冲）Graphics
+   * @param n  绘制范围左边界 x0（瓦片对齐像素）
+   * @param n2 绘制范围上边界 y0
+   * @param n3 绘制范围右边界 x1
+   * @param n4 绘制范围下边界 y1
+   * @param n5 横向回卷模数（缓冲宽）
+   * @param n6 纵向回卷模数（缓冲高）
+   */
   // a(Graphics,int,int,int,int,int,int) → a_GIIIIII
   public drawTileRegion(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): void {
     let n7 = 0;
@@ -223,12 +296,37 @@ export class TileMap {
     }
   }
 
+  /**
+   * 把离屏缓冲的一块矩形区域 blit 到目标 Graphics（按相机偏移做平移），
+   * 用 setClip 限制贴图范围。{@link renderViewport} 据相机跨越缓冲边界的情况
+   * 分 1~4 块调用本方法拼出完整视口（环形缓冲的四象限拼接）。
+   * 对应 CFR b.java b(Graphics,6参)。
+   * @param graphics 目标画布
+   * @param n  缓冲取样起点 X（相机在缓冲内的 X）
+   * @param n2 缓冲取样起点 Y
+   * @param n3 该块宽
+   * @param n4 该块高
+   * @param n5 目标画布落点 X
+   * @param n6 目标画布落点 Y
+   */
   // b(Graphics,int,int,int,int,int,int) → b_GIIIIII
   public blitBufferRegion(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): void {
     graphics.setClip(n5, n6, n3, n4);
     graphics.drawImage(TileMap.offscreenBuffer!, n5 - n, n6 - n2, 20);
   }
 
+  /**
+   * 滚动增量重绘：以相机位置为基准维护离屏缓冲，仅补绘新进入视野的瓦片条带
+   * （比较 {@link drawnLeft}/Top/Right/Bottom 与当前对齐边界，左右/上下方向各补一条），
+   * 然后据相机在环形缓冲内的取样起点把缓冲分块 {@link blitBufferRegion} 贴到目标画布。
+   * 首帧（drawnLeft<0）或 {@link resetDrawnBounds} 后做整屏重绘。{@link render} 的实现体。
+   * 对应 CFR b.java a(Graphics,int,int,int,int)。
+   * @param graphics 目标画布
+   * @param n  相机像素 X
+   * @param n2 相机像素 Y
+   * @param n3 视口宽
+   * @param n4 视口高
+   */
   // a(Graphics,int,int,int,int) → a_GIIII
   public renderViewport(graphics: Graphics, n: number, n2: number, n3: number, n4: number): void {
     let n5: number;
@@ -294,6 +392,11 @@ export class TileMap {
     graphics.setClip(0, 0, n3, n4);
   }
 
+  /**
+   * 释放本层占用的大数组与图像引用（碰撞条带、网格、前/背景索引与图集），
+   * 便于 GC。卸载关卡时调用。原 CFR 末尾的 System.gc() 按移植规约 §6 删除并注释。
+   * 对应 CFR b.java d()。
+   */
   // d() → d_
   public dispose(): void {
     let n = 0;
@@ -310,6 +413,19 @@ export class TileMap {
     // System.gc();
   }
 
+  /**
+   * 加载地图：依次解析 m.bin[n]（网格索引头 + 网格数组）、p.bin（前景调色表 +
+   * 碰撞属性条带 RLE，模式 0 全空/1 连续填充/≥2 RLE）、fpng.bin（前景图集），
+   * 写入各字段并预计算每行瓦片数；当 {@link layerMode}(=n3)===2 时再加载
+   * b.bin[n2]（背景块索引）与 bpng.bin（背景图集）。最后 {@link ensureOffscreenBuffer}
+   * 分配滚动用离屏缓冲。整段以 try/catch 兜底（失败静默返回）。
+   * 偏差：shim 的 InputStream.read 仅单参，故 RLE 条带用临时缓冲读后再 .set 到偏移处
+   * （字节一致，见行内注释）；Image.createImage→createMutable。
+   * 对应 CFR b.java a(int,int,int)。
+   * @param n  m.bin 条目索引（网格）
+   * @param n2 b.bin 条目索引（背景层，仅 layerMode===2 用）
+   * @param n3 图层模式 layerMode（2=含背景层）
+   */
   // a(int,int,int) → a_III
   public load(n: number, n2: number, n3: number): void {
     try {

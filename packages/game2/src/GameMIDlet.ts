@@ -9,6 +9,19 @@
  *
  * 别名：c=全局Random, d/e/f=读缓冲, g=音超时, h=音轨数, i=MIDI播放器[], j=当前音轨,
  *   k=5字节存档, l/m/n=临时字符串, o/p/q/r=菜单/过场/任务/数字 文案表。
+ *
+ * 角色：整个游戏2 的程序入口与"基础设施层"。三大职责——
+ *   ① MIDlet 生命周期（startApp/pauseApp/destroyApp）并持有唯一的主 Canvas（{@link GameCanvas}）与 Display；
+ *   ② .bin 归档的字节 IO 原语（小端读取、定位流、整条切片、PNG/字符串/MIDI 加载），是全游戏唯一的资源读取入口；
+ *   ③ 音频（MIDI）与存档（RMS→localStorage）的全局静态服务。
+ * 协作者：构造时创建 {@link GameCanvas}（主循环/渲染/状态机均在其中）；c 是**全游戏唯一随机源**，
+ *   被各处的 {@link GameMIDlet.randomBelow} 复用。
+ *
+ * 存档 k=saveRecord[5] 各字节语义（据 docs「类清单与职责」）：
+ *   [0]=当前关、[1]=继续次数、[2]=声音开关(1=开)、[3]=最高已通关、[4]=存档时玩家生命。
+ *
+ * CFR 基准：reverse/game2/2-decompiled-cfr/tjge/GameMIDlet.java；语义参见
+ *   docs/game2-深海战舰/{类清单与职责.md,资源映射.md}。
  */
 import {
   MIDlet,
@@ -52,6 +65,12 @@ export class GameMIDlet extends MIDlet {
   // 关卡序号（一~十）
   static numeralTexts: string[] = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
 
+  /**
+   * 构造 MIDlet：创建主 Canvas、取 Display、初始化全局随机源。
+   * 严格复刻 Java 求值顺序（字段初始化器先于构造体）：先 `new GameCanvas(this)`、
+   * 再 `Display.getDisplay(this)`，最后才是构造体里的 `c = new Random(); c.setSeed(currentTimeMillis())`。
+   * c 随后成为全游戏唯一随机源。CFR：GameMIDlet.java 字段 + 构造 54-57。
+   */
   constructor() {
     super();
     // Java 字段初始化器先于构造体执行：`a a = new a(this)`、`b = Display.getDisplay(this)`
@@ -62,6 +81,10 @@ export class GameMIDlet extends MIDlet {
     GameMIDlet.random.setSeed(Date.now());
   }
 
+  /**
+   * MIDlet 暂停回调：若正处于游戏中（InGame），清输入动作并复位菜单状态、强制切回主菜单。
+   * 复刻原 pauseApp（来电/切后台时让游戏挂起到菜单）。CFR：GameMIDlet.java pauseApp。
+   */
   pauseApp(): void {
     if (this.canvas.uiState === UiState.InGame) {
       this.canvas.inputAction = 0;
@@ -71,10 +94,17 @@ export class GameMIDlet extends MIDlet {
     }
   }
 
+  /**
+   * MIDlet 启动回调：把主 Canvas 设为当前显示，进入游戏。CFR：GameMIDlet.java startApp。
+   */
   startApp(): void {
     this.display.setCurrent(this.canvas);
   }
 
+  /**
+   * MIDlet 销毁回调：写存档（{@link GameMIDlet.accessSaveRecord} 传 1=写）、解绑显示、
+   * 停主循环线程，最后 notifyDestroyed()。CFR：GameMIDlet.java destroyApp。
+   */
   destroyApp(_unconditional: boolean): void {
     GameMIDlet.accessSaveRecord(1);
     this.display.setCurrent(null);

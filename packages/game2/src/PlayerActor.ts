@@ -34,6 +34,24 @@ import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
 import { LevelSubState, MIRROR_FLAG } from "./constants.ts";
 
+/**
+ * 玩家 Actor（游戏2《深海战舰》主角，对应 CFR 基准 reverse/game2/2-decompiled-cfr/tjge/g.java，继承自 Actor 基类 h=ActorBase）。
+ *
+ * 角色：全游戏体量最大的 Actor，集中实现主角的全部行为——移动/跳跃/重力、墙壁与地面碰撞、
+ * 攀爬翻越判定、三种武器与弹药管理、玩家输入解析以及 35+ 动作的状态机迁移。
+ * 由 GameCanvas.createActor(0,…) 工厂创建，并被 GameCanvas 持有为玩家单例（原 a.y）。
+ *
+ * 主循环协作：GameCanvas 每帧依次调用本类的 {@link update}（逻辑帧，跑状态机+处理输入）与
+ * {@link step}（物理帧，重力/碰撞/位移），由 LevelScene 调度。
+ *
+ * 关键字段（详见文件顶部别名表 / reverse/game2/3-readable/SYMBOLS.md）：
+ *   静态：弹药表 ammoInitTable/reserveInitTable、当前/备用弹药 ammoCurrent/ammoReserve、
+ *     投掷冷却队列 throwCooldownQueue、发射偏移与动作表 bulletSpawnOffsets/grenadeSpawnOffsets/fireActionTable。
+ *   实例：health 血量、currentWeaponIndex 当前武器、vaultType/vaultTargetX/vaultTargetY/vaultLocked 翻越状态、
+ *     canJump/airborneJumping 跳跃标志、publicFlagA/B/C 对外状态位、companionEffect 入场伴随特效。
+ *
+ * 协作者：ProjectileActor（发射子弹/手雷）、ItemActor（伴随特效与拾取物）、LevelScene（场景/相位/相机/开关）。
+ */
 export class PlayerActor extends ActorBase {
   public static readonly jumpVelocityX: Int32Array = Int32Array.from([8192, 4096, 8192, 8192, 8192, 8192]);
   public static readonly jumpVelocityY: Int32Array = Int32Array.from([-10240, -10240, -15360, -17408, -15360, -10240]);
@@ -66,11 +84,21 @@ export class PlayerActor extends ActorBase {
   public publicFlagC: boolean = false;
   companionEffect: ItemActor | null = null;
 
+  /**
+   * 构造玩家 Actor：调用父类构造（类型 id n + 精灵定义 d2），并将阵营/碰撞掩码位设为 2。
+   * @param n 类型 id（玩家为 0）
+   * @param d2 动作/动画定义（SpriteDef，来自 a.bin）
+   */
   public constructor(n: number, d2: SpriteDef) {
     super(n, d2);
     this.collisionTypeMask = 2;
   }
 
+  /**
+   * 从场景字节定义初始化玩家（生命周期入口）：重置翻越状态与各对外标志、武器索引归零、
+   * 三种武器弹匣恢复初值、投掷冷却队列清空、血量置 10；再按 byteArray[7] 是否>0 决定
+   * 附加入场伴随特效（{@link spawnEntryEffect}）还是直接进入站立态（reserved=1）。
+   */
   // a(byte[]) → a_AY
   public spawnFromBytes(byArray: Int8Array): boolean {
     super.spawnFromBytes(byArray);
@@ -103,6 +131,10 @@ export class PlayerActor extends ActorBase {
     return true;
   }
 
+  /**
+   * 请求场景生成 18 号伴随特效实体（ItemActor）作为入场特效，令其播放入场动画，
+   * 同时把玩家切到入场动作（0x19），并将 reserved 标志置 4（入场相位）。
+   */
   // a() → a_
   public spawnEntryEffect(): void {
     this.companionEffect = this.canvas.scene.spawnActor(18, -1) as ItemActor;
@@ -113,6 +145,12 @@ export class PlayerActor extends ActorBase {
     this.reserved = 4;
   }
 
+  /**
+   * 物理帧（覆写基类 step，主循环每帧调用）：推进动画帧，应用速度/加速度并按上限夹取；
+   * 再依 reserved 相位分支处理——攀爬态(bit2)做天花板/地面探测、入场或竖版态(bit4)做相机夹取、
+   * 普通态做左右撞墙、落地复位与重力下落 + 翻越驱动({@link updateVaultMotion})；最后在
+   * 普通/战斗波相位把玩家水平位置夹在相机视口内，写回 posX/posY，并同步伴随特效。
+   */
   // i() → i_
   public step(): void {
     let n: number;
@@ -219,16 +257,28 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 推进伴随特效到其下一帧（对 companionEffect 调用 applyCommand(1)）。
+   */
   // c() → c_
   public advanceEffectFrame(): void {
     this.companionEffect!.applyCommand(1);
   }
 
+  /**
+   * 返回私有死亡标志 dead（供场景/外部查询玩家是否处于 Boss 脚本相位的死亡态）。
+   */
   // o() → o_
   public isDead(): boolean {
     return this.dead;
   }
 
+  /**
+   * 逻辑帧（覆写基类 update，主循环每帧调用）：先跑动作状态机({@link runActionStateMachine})；
+   * 再按关卡子相位分支——BossScript 处理胜利/死亡定身、Normal/BattleWave 在可输入时调
+   * {@link handleInput} 解析当前输入并消费 switchPending；非 Boss 相位清除死亡标志；
+   * 血量≤0 且非受击/死亡/竖版关时切入死亡动作。
+   */
   // b() → b_
   public update(): void {
     this.runActionStateMachine();
@@ -268,6 +318,11 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 动作状态机核心：按当前动作组 frameGroupIndex 分支，在该动作播放完毕（或到达关键帧）时
+   * 迁移到下一动作并维持移动速度——涵盖射击收尾、投雷生成手雷(case 12/13)、跳跃/翻越各阶段、
+   * 攀爬上沿、翻滚、受击恢复、死亡及通关结算(case 4 → showResult) 等 35+ 动作。
+   */
   // r() → r_
   private runActionStateMachine(): void {
     const n: number = this.actionHighByte == 0 ? 1 : -1;
@@ -432,6 +487,11 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 推进投掷物冷却队列 throwCooldownQueue（每槽 {指令码, 倒计时, 重复次数}）：找到激活槽位，
+   * 倒计时未到则重发该指令、到期则递减重复次数并发空指令，重复用尽时清空该槽并返回其索引；
+   * 无槽完成返回 -1。
+   */
   // p() → p_
   public stepThrowQueue(): number {
     let n: number = 0;
@@ -458,6 +518,13 @@ export class PlayerActor extends ActorBase {
     return -1;
   }
 
+  /**
+   * 输入指令分发：按指令位 n（1=左/2=右/64|128=跳跃翻越/8=下/32=上或开关/16=开火/
+   * 1024=手雷/2048=换弹/4096=切武器/其他=松开）结合当前 reserved 相位与动作组，驱动
+   * 朝向翻转、移动速度、跳跃翻越({@link probeVault})、攀爬吸附({@link snapToLedge})、
+   * 发射子弹/手雷({@link computeSpawnCoord}+ProjectileActor.spawnProjectile)、换弹与切武器等。
+   * @param n 输入动作位标志（GameCanvas.inputAction）
+   */
   // c(int) → c_I
   private handleInput(n: number): void {
     ++this.inputCounter;
@@ -788,6 +855,11 @@ export class PlayerActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 被另一 Actor 命中的碰撞回调：校验对方带攻击位、自身非翻滚态且为新接触后，按对方类型 id
+   * 判定伤害——敌人子弹/手雷直接 {@link takeDamage}；近战敌人(7号动作)先把玩家顶开再扣血；
+   * 4 号造成固定 3 点伤害。返回是否消耗本次命中。
+   */
   // a(tjge.h) → a_Th
   public onHitBy(h2: ActorBase): boolean {
     if (!h2.hasCollisionFlag(1) || this.frameGroupIndex == 23 || !this.isNewContact(h2)) {
@@ -821,6 +893,10 @@ export class PlayerActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 与另一 Actor 接触的碰撞回调：对 1-5 号实体在翻滚落地态触发格挡反击动作；对 11/13 号
+   * （同朝向的实体障碍）把玩家位置贴靠对齐到对方包围盒边缘。
+   */
   // c(tjge.h) → c_Th
   public onCollide(h2: ActorBase): void {
     switch (h2.typeId) {
@@ -847,6 +923,12 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 扣血并触发受击反应：仅在 Normal/BattleWave 相位生效，按当前态（站立/攀爬/空中/入场）
+   * 切换受击、格挡或死亡动作并施加击退；Boss 战相位坠落致死则置 publicFlagC 并切过场相位。
+   * @param n 伤害值
+   * @param n2 攻击来源朝向（与自身朝向比较以决定正/背面受击动作）
+   */
   // c(int,int) → c_II
   private takeDamage(n: number, n2: number): void {
     if (this.health <= 0 || n <= 0) {
@@ -891,6 +973,12 @@ export class PlayerActor extends ActorBase {
     this.vaultTargetY = -1;
   }
 
+  /**
+   * 前方可攀爬/翻越面探测（CFR 已恢复，对应 g.java:857-920）：据朝向 actionHighByte 取身前一列
+   * 网格，自碰撞箱顶端向下扫一段行，按首个实心瓦片的相对高度分类返回翻越类别码
+   * （0=无 / 1=贴墙攀爬 / 2,3,4=不同翻越动作 / 5=过高挡住）；可翻越时写入落点 vaultTargetX/Y。
+   * 返回值由 {@link runActionStateMachine} 与 {@link updateVaultMotion} 消费、并索引跳跃速度表。
+   */
   // t() → t_
   private probeVault(): number {
     let n: number;
@@ -957,6 +1045,11 @@ export class PlayerActor extends ActorBase {
     return 0;
   }
 
+  /**
+   * 自动翻越/攀爬执行（CFR g.java:922-951）：需处于已贴面且按住（canJump && airborneJumping）；
+   * 先 {@link snapToLedge} 检测正上方可站立面则直接转爬态，否则在无目标点时调 {@link probeVault} 求点，
+   * 一旦目标点有效即把本帧位移朝 vaultTargetX/Y 插值靠拢并置 vaultLocked 锁定。
+   */
   // u() → u_
   private updateVaultMotion(): void {
     if (!this.canJump || !this.airborneJumping) {
@@ -1005,6 +1098,10 @@ export class PlayerActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 向下（上行）碰撞检测（覆写基类）：仅当垂直速度 ≤0 时沿碰撞箱顶向上扫瓦片，命中实心则
+   * 清零垂直速度、夹取位置并返回 true；否则置重力加速度并返回 false。
+   */
   // l() → l_
   public collideDown(): boolean {
     if (this.velY > 0) {
@@ -1027,6 +1124,10 @@ export class PlayerActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 地面探测（PlayerActor 自有方法，区别于基类 collideDown）：仅当垂直速度 ≥0 时沿碰撞箱底
+   * 向下扫瓦片，命中实心地面则清零垂直速度、夹取落地位置返回 true；否则置重力返回 false。
+   */
   // q() → q_
   public checkFloorCollision(): boolean {
     if (this.velY < 0) {
@@ -1055,6 +1156,10 @@ export class PlayerActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 向左碰撞检测（覆写基类）：仅当水平速度 ≤0 时沿碰撞箱左缘扫瓦片，撞实心墙则清零水平速度、
+   * 夹取位置返回 true，否则返回 false。
+   */
   // j() → j_
   public collideLeft(): boolean {
     if (this.velX > 0) {
@@ -1082,6 +1187,10 @@ export class PlayerActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 向右碰撞检测（覆写基类）：仅当水平速度 ≥0 时沿碰撞箱右缘扫瓦片，撞实心墙则清零水平速度、
+   * 夹取位置返回 true，否则返回 false。
+   */
   // k() → k_
   public collideRight(): boolean {
     if (this.velX < 0) {
@@ -1131,6 +1240,9 @@ export class PlayerActor extends ActorBase {
     return n4;
   }
 
+  /**
+   * 返回当前动作造成的近战伤害值（动作组 24 的翻滚撞击为 10，其余为 0）。
+   */
   // m() → m_
   public getDamage(): number {
     switch (this.frameGroupIndex) {
@@ -1167,6 +1279,10 @@ export class PlayerActor extends ActorBase {
     return n3 < 2;
   }
 
+  /**
+   * 关卡终点开关交互：传 true 仅标记 switchPending 待触发；传 false 时若已待触发且玩家站立，
+   * 则切入通关动作并通知场景进入过场出场相位（TransitionOut），返回是否完成触发。
+   */
   // a(boolean) → a_Z
   public triggerSwitch(bl: boolean): boolean {
     if (bl) {
@@ -1180,6 +1296,9 @@ export class PlayerActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 按瓦片坐标 (n,n2) 设置玩家定点世界位置（<<14），切回站立动作并重置相机已绘边界。
+   */
   // b(int,int) → b_II
   public setTilePosition(n: number, n2: number): void {
     this.posX = n << 14;
@@ -1198,6 +1317,10 @@ export class PlayerActor extends ActorBase {
     this.vaultType = 0;
   }
 
+  /**
+   * 应用拾取物效果：按道具 ItemActor 的动作组（0=备用子弹 / 1=手雷 / 2=回血）增加对应资源
+   * 并夹取上限（备用弹药≤99、手雷≤3、血量≤10）。
+   */
   // a(tjge.e) → a_Te
   public applyPickup(e2: ItemActor): void {
     switch (e2.frameGroupIndex) {

@@ -25,6 +25,31 @@ import { SpriteDef } from "./SpriteDef.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
 import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
 
+/**
+ * 演员基类（原 `tjge.g`，CFR 基准 reverse/game1/2-decompiled-cfr/tjge/g.java，278 行）。
+ *
+ * 游戏中的角色：所有可见可动实体的共同父类，被
+ * {@link PlayerActor}(f)/{@link EnemyActor}(h)/BossActor(c)/EffectActor(e)/
+ * PickupActor(k)/{@link ProjectileActor}(l) 继承（见 docs/game1-红魔特种兵/类清单与职责.md §8）。
+ * 它本身只提供一套通用骨架：**定点坐标/速度/加速度/上限的物理积分**、**帧动画推进**、
+ * **AABB 精灵碰撞**与**四向地图瓦片碰撞**；而具体行为/受击/绘制由子类覆写。
+ *
+ * 协作者：
+ * - {@link SpriteDef}（原 d，字段 {@link spriteDef}）——帧/碰撞箱/绘制数据源。
+ * - {@link TileMap}（原 b）——四个 collide* 方法据其 {@link TileMap.queryColumnTileAt} 判定实心瓦片。
+ * - {@link GameScreen}（原 a）——提供静态屏幕宽高 {@link GameScreen.screenWidth}/{@link GameScreen.playHeight} 供绘制视锥剔除。
+ *
+ * 坐标系：{@link posX}/{@link posY} 为 **<<10 定点**（1024 = 1 像素），速度/加速度同单位；
+ * 屏幕坐标 = `(posX>>10) - 相机`。{@link frameIndex} 高位 bit31(0x80000000)/bit30(0x40000000)
+ * 分别为水平/垂直翻转标志，低 24 位才是动画 ID。
+ *
+ * 主循环约定（见 docs/.../主循环与渲染.md §3）：每帧对绘制队列先**全员** {@link stepPhysics}（物理位移）、
+ * 再**全员** {@link update}（行为/AI），两遍分离保证同帧确定性，复刻须保持。
+ *
+ * 子类覆写约定：覆写须用相同契约名（同 (名,描述符) 映射）。基类中可被覆写的有
+ * {@link update}(a())、{@link onProjectileHit}(a(l))、{@link paint}(a(Graphics,int,int))、
+ * {@link stepPhysics}(e())、{@link collideGround}(c(b))。
+ */
 export class ActorBase {
   public active: boolean;
   // 字段对应 Java 包内可见(package-private)，移植为 public 以允许同胞 Actor 跨实例访问
@@ -53,6 +78,12 @@ export class ActorBase {
   public orientation: number = 0;
   public drawParam: number = 0;
 
+  /**
+   * 构造演员：记下类型 id 与精灵定义，初始标记为未激活（active=false）、动画循环（loopAnimation=true）。
+   * 对应 CFR g(int, d)。子类构造函数会以 `super(n, d2)` 调用本方法。
+   * @param n  类型 id（{@link typeId}，决定子类行为，工厂据此选池）
+   * @param d2 精灵帧定义（{@link spriteDef}）
+   */
   public constructor(n: number, d2: SpriteDef) {
     this.typeId = n;
     this.spriteDef = d2;
@@ -60,6 +91,17 @@ export class ActorBase {
     this.loopAnimation = true;
   }
 
+  /**
+   * 生成/初始化演员到关卡（对应 CFR a(int,int,int,byte[],boolean)）。
+   * 设置初始动画帧，按瓦片坐标 (n2,n3) 落到定点世界坐标（<<10），清零速度/加速度，
+   * 并设默认速度上限 12288、朝向 0。基类恒返回 true；子类覆写常据 byArray 读初始参数、
+   * 或在 bl 为真时拒绝生成。
+   * @param n      初始动画帧索引（含翻转标志位）
+   * @param n2     瓦片 X（像素，内部 <<10）
+   * @param n3     瓦片 Y（像素，内部 <<10）
+   * @param byArray 该演员的额外参数字节载荷（基类未用，供子类）
+   * @param bl     已生成标志（基类未用，供子类判重）
+   */
   public spawnAt(n: number, n2: number, n3: number, byArray: Int8Array, bl: boolean): boolean {
     this.setFrame(n);
     this.posX = n2 << 10;
@@ -77,10 +119,17 @@ export class ActorBase {
     return true;
   }
 
+  /** 使演员失活：清 {@link active} 标志（=false），此后不更新不绘制。对应 CFR b()。 */
   public deactivate(): void {
     this.active = false;
   }
 
+  /**
+   * 设置当前动画动作（对应 CFR a(int)）。从 {@link spriteDef} 读该帧碰撞箱到
+   * boundsLeft/Right/Top/Bottom，并按 {@link frameIndex} 的水平/垂直翻转标志位取负、
+   * 据 {@link orientation}===270 做轴交换；最后重置帧计数器并清动画完成标志。
+   * @param n 动画动作索引（高位保留翻转标志，内部用 `n & 0xffffff` 去标志后查表）
+   */
   public setFrame(n: number): void {
     this.frameIndex = n;
     if ((n &= 0xffffff) < 0 || n > this.spriteDef.getSequenceCount()) {
@@ -114,6 +163,10 @@ export class ActorBase {
     this.animationDone = false;
   }
 
+  /**
+   * 推进动画一帧（对应 CFR c()）。到达末帧时：循环动画回到 0，否则停在末帧，并置
+   * {@link animationDone}=true。由 {@link stepPhysics} 每帧调用。
+   */
   public advanceAnimation(): void {
     ++this.currentFrame;
     if (this.currentFrame >= this.frameCount) {
@@ -122,10 +175,16 @@ export class ActorBase {
     }
   }
 
+  /** 返回当前动画是否已播完（{@link animationDone} 标志）。对应 CFR d()。 */
   public isAnimationDone(): boolean {
     return this.animationDone;
   }
 
+  /**
+   * 每帧物理步进（对应 CFR e()，主循环第一遍对全员调用）。流程：
+   * 推进动画 → 将上帧 targetVel 快照为当前 {@link velX}/{@link velY} → 对 targetVel 施加
+   * 加速度并钳到速度上限 → 用当前速度积分位置。可被子类覆写（如玩家/敌人自定义物理）。
+   */
   public stepPhysics(): void {
     this.advanceAnimation();
     this.velX = this.targetVelX;
@@ -148,12 +207,29 @@ export class ActorBase {
     this.posY += this.velY;
   }
 
+  /**
+   * 每帧行为/AI 更新钩子（对应 CFR a()，主循环第二遍对全员调用）。
+   * 基类为空，由子类覆写实现各自逻辑（玩家输入、敌人 AI、子弹弹道等）。
+   */
   public update(): void {
   }
 
+  /**
+   * 被子弹/投射物命中时的交互钩子（对应 CFR a(l)）。
+   * 基类为空，子类（敌人/Boss/可破坏物等）覆写以扣血/触发受击。
+   * @param l2 命中本演员的投射物
+   */
   public onProjectileHit(l2: ProjectileActor): void {
   }
 
+  /**
+   * 绘制演员（对应 CFR a(Graphics,int,int)）。先把世界坐标减相机得屏幕坐标，
+   * 据帧绘制范围 + 翻转位做视锥剔除（出屏直接 return），命中则委托
+   * {@link SpriteDef.paintSequenceFrame} 实际绘制。可被子类覆写（如闪烁/不可见帧）。
+   * @param graphics 绘制上下文
+   * @param n  相机 X（像素）
+   * @param n2 相机 Y（像素）
+   */
   public paint(graphics: Graphics, n: number, n2: number): void {
     let s: number; // short
     let s2: number; // short
@@ -186,6 +262,13 @@ export class ActorBase {
     this.spriteDef.paintSequenceFrame(graphics, n3, n4, this.frameIndex, this.currentFrame, this.drawParam, this.orientation);
   }
 
+  /**
+   * 与另一演员做 AABB（轴对齐包围盒）碰撞检测（对应 CFR a(g)）。
+   * 各自用「世界坐标(>>10) + 当前帧碰撞箱偏移」构成矩形求重叠；自身比较或任一退化
+   * 包围盒（左右/上下相等）直接返回 false。
+   * @param g2 另一演员
+   * @returns 两包围盒是否重叠
+   */
   public intersectsActor(g2: ActorBase): boolean {
     if (this === g2 || this.boundsLeft === this.boundsRight || this.boundsTop === this.boundsBottom || g2.boundsLeft === g2.boundsRight || g2.boundsTop === g2.boundsBottom) {
       return false;
@@ -201,6 +284,11 @@ export class ActorBase {
     return n2 >= n5 && n <= n6 && n4 >= n7 && n3 <= n8;
   }
 
+  /**
+   * 向左（负 X）撞墙检测与解算（对应 CFR a(b)）。velX>=0 时直接返回 false。
+   * 扫描左缘所在瓦片列，命中实心瓦片（值 1）则清零横向 targetVelX、把 X 吸附到墙面，返回 true。
+   * @param b2 地图瓦片层
+   */
   public collideLeftWall(b2: TileMap): boolean {
     if (this.velX >= 0) {
       return false;
@@ -228,6 +316,11 @@ export class ActorBase {
     return false;
   }
 
+  /**
+   * 向右（正 X）撞墙检测与解算（对应 CFR b(b)）。velX<=0 时直接返回 false。
+   * 扫描右缘所在瓦片列，命中实心瓦片（值 1）则清零横向 targetVelX、把 X 吸附到墙面，返回 true。
+   * @param b2 地图瓦片层
+   */
   public collideRightWall(b2: TileMap): boolean {
     if (this.velX <= 0) {
       return false;
@@ -255,6 +348,12 @@ export class ActorBase {
     return false;
   }
 
+  /**
+   * 向下/落地碰撞检测与解算（对应 CFR c(b)）。velY<0（上升中）时直接返回 false。
+   * 扫描脚下瓦片行，命中实心瓦片（值 1）则清零纵向加速度与速度、把演员吸附到瓦片顶面，返回 true。
+   * 可被子类覆写。
+   * @param b2 地图瓦片层
+   */
   public collideGround(b2: TileMap): boolean {
     if (this.velY < 0) {
       return false;
@@ -278,6 +377,12 @@ export class ActorBase {
     return false;
   }
 
+  /**
+   * 向上/触顶碰撞检测与解算（对应 CFR d(b)）。velY>0（下落中）时直接返回 false。
+   * 检测头顶瓦片，命中实心瓦片（值 1）则清零上升 targetVelY、吸附到瓦片下方，
+   * 并把纵向加速度重置为重力 4096（恢复下落），返回 true。
+   * @param b2 地图瓦片层
+   */
   public collideCeiling(b2: TileMap): boolean {
     if (this.velY > 0) {
       return false;

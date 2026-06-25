@@ -135,6 +135,14 @@ export class GameScreen extends Canvas {
     GameScreen.taskNumberChars = "一二三四五六七八";
   }
 
+  /**
+   * 构造主 Canvas（对应 CFR a.java:110 `a(GameMIDlet)`）。
+   * 登记自身为单例 `instance`、保存宿主 MIDlet，按当前画布尺寸初始化
+   * 屏宽 `screenWidth` 与可玩高 `playHeight`（屏高减 32px HUD 条），
+   * 置初始状态为 Logo，创建并启动主循环线程 `loopThread`（驱动 `run()`），
+   * 分配像素行缓冲 `pixelBuffer`（short[3600]，供 DirectGraphics 像素管线用）。
+   * @param gameMIDlet 宿主 MIDlet，退出时经其 `notifyDestroyed()` 关闭应用
+   */
   constructor(gameMIDlet: GameMIDlet) {
     super();
     GameScreen.instance = this;
@@ -150,6 +158,15 @@ export class GameScreen extends Canvas {
     this.pixelBuffer = new Int16Array(3600);
   }
 
+  /**
+   * 精灵工厂：按类型 ID 实例化对应 Actor 子类（对应 CFR a.java:124 `g a(int,d)`）。
+   * 映射：0→玩家 PlayerActor（并存入 `this.player`），10→子弹 ProjectileActor，
+   * 1/2/18→敌兵 EnemyActor，4/5/6/7/9/12/19/22→特效 EffectActor，
+   * 3/11/13→道具/关门 PickupActor，8/14/17→Boss/触发 BossActor，
+   * 其余→精灵基类 ActorBase。被 LevelLoader 布置关卡单位时调用。
+   * @param n 类型 ID（资源/布置表里的精灵种类）
+   * @param d2 该类型对应的精灵帧定义
+   */
   // a(int,tjge.d) → a_ITd（精灵工厂）
   createActor(n: number, d2: SpriteDef): ActorBase {
     switch (n) {
@@ -189,6 +206,16 @@ export class GameScreen extends Canvas {
     return new ActorBase(n, d2);
   }
 
+  /**
+   * 总渲染分发器 / 帧入口（对应 CFR a.java:165-858 `paint(Graphics)`）。
+   * 由主循环 `run()` 经 `repaint()` 每帧触发，按状态字 `state` 大 switch 分流：
+   * 开机 Logo→主菜单→分步载入→任务简报→进场/卷动过场→游戏中→任务失败/完成→片尾，
+   * 以及暂停菜单、帮助/关于、抓捕过场等（各状态值见类级 JSDoc 与《游戏状态机.md》）。
+   * 游戏内分支统一「先 `updateWorld()` 更新逻辑、再 `renderWorld()` 绘制」；其余分支直接绘制菜单/过场全屏。
+   * 进入置 `painting=true`、`++frameCounter`，退出置 `painting=false`，与 `run()` 的挂起标志互锁；
+   * 整个 switch 包在 try/catch 中，绘制期异常被静默吞掉（与原版一致）。
+   * @param var1_1 当前帧的图形上下文
+   */
   /*
    * Unable to fully structure code（CFR 注：含不可完全结构化的跳转，已逐分支忠实还原）
    */
@@ -915,6 +942,14 @@ export class GameScreen extends Canvas {
     this.painting = false;
   }
 
+  /**
+   * 每帧逻辑更新（对应 CFR a.java:860-949 `a()`），由 `paint()` 的游戏内分支在绘制前调用。
+   * 流程：① 清空并按层序重建渲染队列 `drawQueue`（容量 40，后压入者绘制在上层）——
+   * 当前屏块内激活精灵、玩家、敌兵矩阵 `enemyGrid`（及拖尾特效）、关卡4 的 Boss 及随从、
+   * 道具类(后置绘制)、各投射物池 `projectilePools`；② 对队列逐个 `stepPhysics()` 走物理位移；
+   * ③ 再逐个 `update()` 走行为/AI；④ `updateCamera()` 相机+脚本；⑤ 流式加载地图块并定位视口。
+   * 两遍循环（先全物理再全行为）保证同帧确定性，复刻须保持。
+   */
   // a() → a_
   updateWorld(): void {
     let n: number;
@@ -1010,6 +1045,13 @@ export class GameScreen extends Canvas {
     this.tileMap.setViewportOrigin(n, n5);
   }
 
+  /**
+   * 关卡内世界绘制（对应 CFR a.java:951 `a(Graphics)`），在 `updateWorld()` 之后调用。
+   * 依序：地图瓦片层 → 渲染队列 `drawQueue` 中各 Actor → 下方 32px HUD 条
+   * （血条按血量变色、手雷数、武器框、弹匣/备弹/计分数字、关卡进度指示数）→
+   * 关卡 0~2 叠加随机雨雪粒子线。坐标用相机 `cameraX/cameraY`（>>10 转像素）换算屏幕位置。
+   * @param graphics 当前帧的图形上下文
+   */
   // a(Graphics) → a_G
   renderWorld(graphics: Graphics): void {
     let n: number;
@@ -1103,6 +1145,11 @@ export class GameScreen extends Canvas {
     }
   }
 
+  /**
+   * 关卡开始时初始化相机（对应 CFR b.java 对应的 `b()`）。
+   * 把玩家放到布置表的出生点 `actorSpawnX/Y[0]`，相机定位到玩家左侧 1/5 屏、上方 3/4 可玩高处，
+   * 再用地图像素尺寸钳制相机不越界，最后激活初始屏并刷新瓦片缓冲、设视口原点。
+   */
   // b() → b_
   initCamera(): void {
     const n = GameScreen.screenWidth << 10;
@@ -1134,6 +1181,13 @@ export class GameScreen extends Canvas {
     this.tileMap.setViewportOrigin(n5, n6);
   }
 
+  /**
+   * 相机控制 + 关卡专属脚本（对应 CFR a.java:1073 `c()`），由 `updateWorld()` 末尾调用。
+   * 按当前关卡 `levelIndex` 大 switch：触发各关一次性过场（到达特定坐标即锁相机、置脚本标志 `scriptFlagL`、
+   * 跳坐标）、关卡1/4 的增援/空投刷敌与进度数 `indicatorValue`、关卡2/7 的卷动脚本、关卡6/7 的相机上下摆动、
+   * 关卡7 的 Boss 追逼与爆炸散布；脚本未进行时则常规跟随玩家并按地图尺寸钳制相机边界。
+   * 相机坐标定点存在 <<10/<<14 混用，复刻须逐处对齐。
+   */
   // c() → c_
   updateCamera(): void {
     const n = GameScreen.playHeight << 10;
@@ -1335,6 +1389,10 @@ export class GameScreen extends Canvas {
     }
   }
 
+  /**
+   * 全局资源/数据结构一次性初始化（对应 CFR a.java:1272 `d()`），开机 Logo 阶段调用一次。
+   * 分配渲染队列(40)与投射物池槽位(5)，加载开机/菜单精灵，载入音效，并从存档读入进度（`accessSaveData(1)`）。
+   */
   // d() → d_
   initGameResources(): void {
     this.drawQueue = new Array<ActorBase | null>(40).fill(null);
@@ -1344,6 +1402,13 @@ export class GameScreen extends Canvas {
     this.accessSaveData(1);
   }
 
+  /**
+   * 关卡分步加载状态机（对应 CFR a.java:1280 `a(int)`），由 LevelLoading 状态每帧推进一步。
+   * 用 `stateTimer`（原 `w`）作步号 0→9 逐帧加载：地图与布置表、初始化相机、按需保留并预建各子弹池
+   * （21/10/20/15/16，子池大小 10/3/6/2/10）、敌兵矩阵 enemyGrid[2][3]、关卡4 的 Boss 与随从，
+   * 最后复位玩家与对象池、设各计数初值并置 `levelLoaded=true`（paint 据此转任务简报）。
+   * @param n 要加载的关卡 ID
+   */
   // a(int) → a_I（关卡分步加载，按 w 推进）
   loadLevelStep(n: number): void {
     this.levelLoaded = false;
@@ -1491,6 +1556,12 @@ export class GameScreen extends Canvas {
     }
   }
 
+  /**
+   * 主循环（对应 CFR a.java:1426 `run()`），由构造时启动的线程驱动。
+   * 固定 100ms/帧（约 10 FPS）：本帧不足 `frameStepMs` 则补睡，超时不追帧；
+   * `running=false` 或 `painting=true`（正在绘制/挂起）时让出执行权空转；每帧调 `repaint()` 触发 `paint()`。
+   * 原 Java 阻塞 while+Thread.sleep 改为 async/await，控制流逐帧一致；异常全部吞掉。
+   */
   // run()：原 while(aa!=null){...; Thread.sleep(...)} → async + await（控制流逐帧一致）
   async run(): Promise<void> {
     try {
@@ -1583,6 +1654,12 @@ export class GameScreen extends Canvas {
     return n2;
   }
 
+  /**
+   * 框架按键回调（对应 CFR `keyPressed(int)`）。
+   * 先处理两个上下文相关的特例：软键(-6/-5) 在游戏中切暂停、在主菜单作确认；右软键(-7) 在游戏中切任务简报、在暂停时返回游戏。
+   * 其余按键经 `keyCodeToAction()` 转成动作位存入 `heldKeyAction` 并压入输入环形队列。
+   * @param n 平台键码（含 Nokia 软键负值）
+   */
   keyPressed(n: number): void {
     let n2: number;
     if (n === -6 || n === -5) {
@@ -1612,10 +1689,18 @@ export class GameScreen extends Canvas {
     this.enqueueInputAction(n2, false);
   }
 
+  /** 框架按键释放回调（对应 CFR `keyReleased(int)`）：清空当前持有动作 `heldKeyAction`（忽略具体键码）。 */
   keyReleased(_n: number): void {
     this.heldKeyAction = 0;
   }
 
+  /**
+   * 从投射物对象池取一个空闲 ProjectileActor 并发射（对应 CFR a.java `a(int,int,int,int,int,int)`）。
+   * 按弹种 `n`(21/10/20/15/16) 选对应子池，找到首个非激活者就位置/帧/模式初始化并激活返回；池满返回 null。
+   * 玩家武器、爆炸散布等都经此取弹。
+   * @param n 弹种类型 ID；@param n2 起始帧；@param n3 绘制参数；@param n4/n5 起点 X/Y（定点）；@param n6 模式
+   * @returns 取到并初始化的投射物，池满则 null
+   */
   // a(int,int,int,int,int,int) → a_IIIIII（从对象池取一个 tjge.l 并初始化）
   spawnProjectile(n: number, n2: number, n3: number, n4: number, n5: number, n6: number): ProjectileActor | null {
     let n7 = 0;
@@ -1670,6 +1755,11 @@ export class GameScreen extends Canvas {
     return null;
   }
 
+  /**
+   * 卸载当前关卡资源（对应 CFR a.java `e()`）。
+   * 清空渲染队列、释放敌兵矩阵 `enemyGrid` 与拖尾特效、Boss 及随从、玩家与 Boss 的关联，
+   * 调 LevelLoader 释放关卡并置 `levelResourcesReady=false`。切关/重选任务/通关进下一关前调用。
+   */
   // e() → e_（卸载当前关卡资源）
   releaseLevel(): void {
     let n = 0;
@@ -1717,6 +1807,12 @@ export class GameScreen extends Canvas {
     return false;
   }
 
+  /**
+   * 生成一批敌兵（对应 CFR a.java `b(int,int,int,int,int,int)`），从敌兵矩阵 `enemyGrid` 取空闲槽初始化。
+   * 按行类型 `n` 选矩阵行，按生成模式 `n6`(0=空降冲锋兵带拖尾/1=巡逻兵) 配置位置、速度、AI 状态、巡逻边界与血量，
+   * 每成功一只 `++enemyAliveCount`，达到请求数量 `n2` 即返回 true；`n2` 越界返回 false。被增援/空投脚本调用。
+   * @returns 是否已凑满请求的敌兵数量
+   */
   // b(int,int,int,int,int,int) → b_IIIIII（生成一批敌兵 tjge.h）
   spawnEnemyWave(n: number, n2: number, n3: number, n4: number, n5: number, n6: number): boolean {
     if (n2 > 3 || n2 === 0) {
@@ -1805,6 +1901,12 @@ export class GameScreen extends Canvas {
     return false;
   }
 
+  /**
+   * 关卡4 专用：激活 Boss 及其随从发动一次攻击（对应 CFR a.java `a(int,int)`）。
+   * 在指定 X(`n`) 与速度(`n2`) 上启用 Boss，并据 Boss 与玩家相对位置在左/右侧布置随从（设朝向/血量/AI/巡逻），
+   * 更新 `enemyAliveCount`。被关卡4 空投波 `spawnAirdropWave()` 调用。
+   * @returns Boss 或随从缺失时 false，否则 true
+   */
   // a(int,int) → a_II（生成 Boss 的同伴 tjge.h）
   spawnBossAttack(n: number, n2: number): boolean {
     if (this.boss == null || this.boss.minion == null) {
@@ -1916,6 +2018,12 @@ export class GameScreen extends Canvas {
     }
   }
 
+  /**
+   * 存档读写（对应 CFR a.java `c(int)`）。3 字节存档 `saveData`=[最高关, 当前关, 音效开关]。
+   * `n===0` 写盘（保存进度/设置），`n===1` 读盘到 `saveData`（无记录时清零进度）。
+   * 偏差：shim 无 RMS，用 localStorage 键 "TGS_CT" 复刻，控制流与原版一致。
+   * @param n 0=保存，1=读取
+   */
   // c(int) → c_I（存档 RecordStore 读写；shim 无 RMS，用 localStorage 复刻 3 字节）
   accessSaveData(n: number): void {
     try {
@@ -2215,6 +2323,13 @@ export class GameScreen extends Canvas {
     this.cursorExpanding = true;
   }
 
+  /**
+   * 从 image.bin 取第 `n` 张图（对应 CFR a.java `f(int)`）。
+   * 读偏移表定位条目（共 9 张：Logo/HUD 图集/菜单底图等，索引见《资源映射.md》）。
+   * 偏差：原 `Image.createImage(byte[],0,len)` → `getCachedImage("/res/image.bin", n)` 按索引取预解码图。
+   * @param n 图片索引
+   * @returns 解码后的图片，失败为 null
+   */
   // f(int) → f_I（静态：从 image.bin 取第 n 张图）
   // 偏差：原 Image.createImage(byte[],0,len) → getCachedImage("/res/image.bin", n)（按索引取预解码图）。
   static loadImageFromBin(n: number): Image | null {
@@ -2242,6 +2357,7 @@ export class GameScreen extends Canvas {
     return image;
   }
 
+  /** 框架失焦回调（对应 CFR `hideNotify()`）：若正在游戏中则清输入、复位菜单选项并切到暂停状态。 */
   hideNotify(): void {
     if (this.state === GameState.Playing) {
       this.menuSelection = 0;
@@ -2250,6 +2366,11 @@ export class GameScreen extends Canvas {
     }
   }
 
+  /**
+   * 从 sound.bin 加载全部音效到 `sounds[]`（对应 CFR a.java `g()`），开机初始化时调用。
+   * 读偏移表逐条读 6 条音效字节并构造 Sound。
+   * 偏差：第二参原为音频格式/增益档，音频暂静音、Sound 仅构造保留调用。
+   */
   // g() → g_（静态：从 sound.bin 加载音效；音频暂静音，Sound 仅构造）
   static loadSounds(): void {
     let n = 0;
@@ -2283,6 +2404,11 @@ export class GameScreen extends Canvas {
     }
   }
 
+  /**
+   * 播放音效（对应 CFR a.java `a(int,int,int)`）。仅当存档音效开关 `saveData[2]===1` 才放；
+   * 若有正在播放的音效则本次跳过（不打断）。第二参 `_n2` 忽略，`n3` 为增益。
+   * @param n 音效索引；@param n3 增益
+   */
   // a(int,int,int) → a_III（静态：播放音效 n，增益 n3；仅当音效开关 Q[2]==1）
   static playSound(n: number, _n2: number, n3: number): void {
     if (GameScreen.sounds == null || GameScreen.sounds[n] == null) {

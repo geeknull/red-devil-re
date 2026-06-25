@@ -56,29 +56,58 @@ export class TileMap {
   private bufferDrawnRight: number = 0;
   private bufferDrawnBottom: number = 0;
 
+  /**
+   * 私有构造器（CFR b.java:49 `private b(int,int)`）。仅供工厂 {@link loadFromBin}
+   * 内部调用：记录视口像素宽高 a/b，并把缩放分母 i 固定为 1。
+   * 实际地图数据由 {@link loadFromBin} 解析 f.bin 后逐字段填入。
+   * @param n  视口宽（像素，对应 a）
+   * @param n2 视口高（像素，对应 b）
+   */
   private constructor(n: number, n2: number) {
     this.viewportWidth = n;
     this.viewportHeight = n2;
     this.scaleDivisor = 1;
   }
 
+  /**
+   * 设置当前视口左上角（相机位置）。传入像素坐标除以缩放分母 i（固定 1）后
+   * 存入 j/k，供 {@link draw} 滚动重绘使用。CFR b.java:56 `a(int,int)`。
+   * @param n  视口左上角 X（像素）
+   * @param n2 视口左上角 Y（像素）
+   */
   public setViewportOrigin(n: number, n2: number): void {
     this.viewportOriginX = (n / this.scaleDivisor) | 0;
     this.viewportOriginY = (n2 / this.scaleDivisor) | 0;
   }
 
+  /** 地图总像素宽 = 瓦片像素宽 g × 地图列数 e。CFR b.java:62 `a()`。 */
   public getPixelWidth(): number {
     return this.tileWidthPx * this.mapColumns;
   }
 
+  /** 地图总像素高 = 瓦片像素高 h × 地图行数 f。CFR b.java:67 `b()`。 */
   public getPixelHeight(): number {
     return this.tileHeightPx * this.mapRows;
   }
 
+  /**
+   * 按当前视口原点 j/k 绘制整张地图。委托 {@link drawViewport} 用离屏缓冲做
+   * 增量滚动重绘。每帧渲染时由 GameScreen 调用。CFR b.java:72 `a(Graphics)`。
+   */
   public draw(graphics: Graphics): void {
     this.drawViewport(graphics, this.viewportOriginX, this.viewportOriginY, this.viewportWidth, this.viewportHeight);
   }
 
+  /**
+   * 核心碰撞查询：返回某列 RLE 数据在指定单元格处的瓦片/碰撞类型。
+   * 返回 0=空 / 1=实心 / 2=可爬 / 3=越出地图行数（边界）。CFR b.java:77 `a(int,int,boolean)`。
+   *
+   * 通过 RLE 段 `[type,count]...` 逐段累加 count，定位到包含 n+1 的段后取其 type。
+   * 行类型为 0（全空）直接返回 0；解析异常时返回 1（按实心处理，防穿）。
+   * @param n  列内单元格索引（横向；越界且 bl=true 时返回 1，否则 0）
+   * @param n2 列索引（纵向；<0 返回 0，超出数据行数返回 3）
+   * @param bl 越界是否按实心处理（玩家碰撞传 true，使地图外为实心墙）
+   */
   public queryColumnTileAt(n: number, n2: number, bl: boolean): number {
     if (n2 < 0) {
       return 0;
@@ -125,6 +154,10 @@ export class TileMap {
     return n3;
   }
 
+  /**
+   * 作废离屏缓冲已绘区域记录（置 y/z = -1），强制下一次 {@link draw} 全量重绘整块缓冲。
+   * 切换关卡或地图块、相机大幅跳变后调用。CFR b.java:125 `c()`。
+   */
   public invalidateBuffer(): void {
     this.bufferDrawnLeft = -1;
     this.bufferDrawnTop = -1;
@@ -197,6 +230,15 @@ export class TileMap {
     graphics.drawImage(TileMap.offscreenBuffer!, n5 - n, n6 - n2, 20);
   }
 
+  /**
+   * 滚动地图增量渲染核心（CFR b.java:185 `a(Graphics,int,int,int,int)`）。
+   * 思路：用环绕（toroidal）离屏缓冲 u 缓存当前视口附近的瓦片；当视口移动越过
+   * 瓦片边界时，仅用 {@link renderTileRegion} 重绘进入缓冲的新行/列（y/z/A/B 跟踪
+   * 已绘窗口），再用 {@link blitBufferRegion} 把缓冲按取模坐标分块拷到屏幕。
+   * 缓冲首次或失效（y<0）时全量重绘。二开若改地图滚动/相机务必理解此处。
+   * @param n  视口左上角 X（像素）  @param n2 视口左上角 Y（像素）
+   * @param n3 视口宽（像素）        @param n4 视口高（像素）
+   */
   protected drawViewport(graphics: Graphics, n: number, n2: number, n3: number, n4: number): void {
     let n5: number;
     let n6: number;
@@ -258,6 +300,10 @@ export class TileMap {
     graphics.setClip(0, 0, n3, n4);
   }
 
+  /**
+   * 释放本地图实例的堆数据：逐项清空列 RLE 数据 d，再把 d 与块索引表 s 置 null。
+   * 不释放静态共享资源（图集 t、离屏缓冲 u）。CFR b.java:247 `d()`。
+   */
   public dispose(): void {
     let n = 0;
     while (n < this.columnRleData.length) {
@@ -268,6 +314,17 @@ export class TileMap {
     (this.blockIndexTable as unknown) = null;
   }
 
+  /**
+   * 工厂方法 / 关卡地图加载入口（CFR b.java:258 `a(int,int,int)`）。
+   * 打开 f.bin 第 n 条目，解析头部（图集 id、地图瓦片宽高 l/m、瓦片像素宽高 n/o、
+   * 块列/行数 p/q）→ 读块索引表 s → 按 id 懒加载共享瓦片图集 t（image.bin[id+4]）→
+   * 逐行读列 RLE 数据 d（0=空 / 1=连续 n4 字节 / 2=RLE 段）→ 分配离屏缓冲 u。
+   * 任一步抛异常则整体返回 null。视口尺寸取 GameScreen.screenWidth × playHeight。
+   * @param n  f.bin 条目索引（关卡/地图编号）
+   * @param n2 与原版一致的占位参数（在本方法体内未使用）
+   * @param n3 与原版一致的占位参数（在本方法体内未使用）
+   * @returns 加载好的 TileMap，失败时 null
+   */
   public static loadFromBin(n: number, n2: number, n3: number): TileMap | null {
     let b2: TileMap;
     try {
@@ -327,6 +384,13 @@ export class TileMap {
     return b2;
   }
 
+  /**
+   * 关卡内仅重载列 RLE 数据 d（不重建整张地图），用于「重载地图块」分支
+   * （GameScreen.a(int) 的 case1/2，对应 ag 标志）。CFR b.java:316 `a(int)`。
+   * 跳过 f.bin 第 n 条目的头部与块索引表（skip 9 + l*m 字节），就地覆写各列 d。
+   * 异常时静默返回，保持原 d 不变。
+   * @param n f.bin 条目索引
+   */
   public reloadColumnData(n: number): void {
     try {
       const inputStream: InputStream = GameMIDlet.openArchiveEntryStream("/res/f.bin", n)!;
@@ -359,6 +423,14 @@ export class TileMap {
     }
   }
 
+  /**
+   * 破坏/清除指定坐标的瓦片：定位 {@link queryColumnTileAt} 所用的同一 RLE 段后
+   * 把其 type 置 0（变为空，可穿过）。用于可破坏地形等玩法。CFR b.java:349 `c(int,int)`。
+   * 越界、该列全空或解析异常均返回 false（未改动）；成功置 0 返回 true。
+   * @param n  列内单元格索引（横向）
+   * @param n2 列索引（纵向）
+   * @returns 是否成功清除
+   */
   public clearTileAt(n: number, n2: number): boolean {
     if (n2 < 0) {
       return false;

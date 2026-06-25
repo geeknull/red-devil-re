@@ -32,10 +32,29 @@ export class ItemActor extends ActorBase {
   patrolMaxY: number = 0;
   counter: number = 0;
 
+  /**
+   * 构造道具/特殊单位 Actor。
+   * @param n 类型ID（写入基类 h；工厂分派类型 6/7/14/15/18/20/22）。
+   * @param d2 精灵定义（动作/帧数据，由 d 注入；本类自身无 .bin 加载）。
+   * 仅转调父类 ActorBase(=h)(int,d)，巡逻边界/计数等字段保持默认 0。
+   * 对应 CFR：reverse/game2/2-decompiled-cfr/tjge/e.java 构造函数（e.java:13-15）。
+   */
   constructor(n: number, d2: SpriteDef) {
     super(n, d2);
   }
 
+  /**
+   * 从关卡字节流生成本单位（覆写基类）。
+   * 先调 super.spawnFromBytes 读取通用头（坐标/朝向/动作等），失败即返回 false；
+   * 再按类型ID 做附加初始化：
+   *   - case 15（巡逻飞行小怪）：读 byArray[7] 作巡逻距离 n，按朝向 actionHighByte 算出
+   *     水平巡逻边界 patrolMinX/patrolMaxX（向右巡逻则 +(n<<10)，向左则 -(n<<10)），
+   *     垂直边界固定为 posY±10240，转向倒计时 counter 置 10。
+   *   - case 7（可拾取道具）：读 byArray[7] 作道具/弹药数量存入 counter。
+   * 对应 CFR e.java:17-43（友好名 spawnFromBytes）。
+   * @param byArray 关卡 actor 实例字节段（字节 7+ 为子类附加参数）。
+   * @returns 是否成功生成（沿用 super 结果）。
+   */
   // a(byte[]) → a_AY
   spawnFromBytes(byArray: Int8Array): boolean {
     if (!super.spawnFromBytes(byArray)) {
@@ -62,6 +81,18 @@ export class ItemActor extends ActorBase {
     return true;
   }
 
+  /**
+   * 每帧 AI/行为更新，按类型ID 分派（覆写基类生命周期）。
+   *   - case 15：巡逻飞行小怪——水平来回摆动（撞到 patrolMin/MaxX 即清速、翻转朝向 MIRROR_FLAG
+   *     并重设动作），垂直方向被钳在 patrolMin/MaxY 内，counter 倒计时到点后随机翻转纵向速度。
+   *   - case 18：玩家挥刀/动作特效——frameGroupIndex==1 且动画播完即 kill 自移除。
+   *   - case 7：可拾取道具——hitFlashTimer 走完即 killAndMarkSpawned；否则玩家存活且与之相交时
+   *     置 hitFlashTimer=10 并调 player.applyPickup(this) 加资源。
+   *   - case 20：爆炸碎片——动画播完即 kill。
+   *   - case 14：随激流飘动的杂物（Boss 竖版关）——持续左漂，越过相机左侧后回卷到屏右循环。
+   *   - case 6：转向触发牌——按玩家相对位置追面朝向（设动作 0 或 MIRROR_FLAG）。
+   * 对应 CFR e.java:45-110（友好名 update）。
+   */
   // b() → b_
   update(): void {
     switch (this.typeId) {
@@ -123,6 +154,13 @@ export class ItemActor extends ActorBase {
     }
   }
 
+  /**
+   * 外部命令钩子（主要供类型 18 的玩家随动特效使用）。
+   *   - n==0：吸附到玩家坐标正上方（posX=玩家 X，posY=玩家 Y-12288）。
+   *   - n==1：按当前朝向 actionHighByte 触发动作 1。
+   * 对应 CFR e.java:112-119（友好名 applyCommand）。
+   * @param n 命令码（0=吸附定位 / 1=触发动作）。
+   */
   // c(int) → c_I
   applyCommand(n: number): void {
     if (n === 0) {
@@ -135,6 +173,15 @@ export class ItemActor extends ActorBase {
     }
   }
 
+  /**
+   * 绘制本单位（覆写基类绘制）。
+   * 先调 super.paint 绘出精灵本体；当类型为 7（可拾取道具）且处于拾取计时 hitFlashTimer>0 时，
+   * 在道具头顶用 LevelScene.drawNumber 弹出拾取数量 counter（高度随 hitFlashTimer 上浮）。
+   * 对应 CFR e.java:121-128（友好名 paint）。
+   * @param graphics 目标画布。
+   * @param n  绘制基准 X（屏幕坐标，由场景传入）。
+   * @param n2 绘制基准 Y（屏幕坐标，由场景传入）。
+   */
   // a(Graphics,int,int) → a_GII
   paint(graphics: Graphics, n: number, n2: number): void {
     super.paint(graphics, n, n2);

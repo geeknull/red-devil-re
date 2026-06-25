@@ -68,11 +68,31 @@ export class EnemyActor extends ActorBase {
   player!: PlayerActor;
   linkedVehicle: BossActor | null = null;
 
+  /**
+   * 构造普通敌人 Actor。
+   * 对应 CFR f.java 构造：先 super(typeId, def) 走基类 h 的初始化，
+   * 再把碰撞分组掩码 K 固定为 1（敌方分组），供 b_I 碰撞判定使用。
+   * @param n 类型 ID（工厂分派值，取 1/2/3/4/5）
+   * @param d2 该类型的动作帧定义（a.bin → tjge.d）
+   */
   constructor(n: number, d2: SpriteDef) {
     super(n, d2);
     this.collisionTypeMask = 1;
   }
 
+  /**
+   * 从场景实例字节流初始化本敌人（对应 CFR f.java a(byte[]) → 契约名 a_AY）。
+   * 先调用基类 spawnFromBytes 解出公共字段（坐标/朝向/动作等），失败则返回 false。
+   * 随后按 typeId 分派读取专属出生参数：
+   *  - type1/3（步兵/投手）：随机反应系数 aa=1+rand(3)，读巡逻距离 d、武器变体 e、连射数 f、巡逻剩余 W，血量=f+1；
+   *    按初始朝向算出巡逻左右边界 Y/Z；变体 22 时进入横扫子状态 G=8；
+   *  - type4：血量=2，变体 22 时巡逻边界锚定到相机可视区两侧；
+   *  - type5（固定炮台）：读发射间隔 S，血量=1，计时 timer=5；
+   *  - type2（随载具机关）：从 LevelScene.activeActors[by] 取关联 BossActor（Java 向下转型 h→c）。
+   * 末尾记录初始朝向 T、缓存玩家引用 ad、清 isAiming/hasFired，返回 true。
+   * @param byArray s.bin 解出的本 actor 实例参数字节
+   * @returns 初始化是否成功（基类失败则透传 false）
+   */
   // a(byte[]) → a_AY
   spawnFromBytes(byArray: Int8Array): boolean {
     if (!super.spawnFromBytes(byArray)) {
@@ -142,6 +162,14 @@ export class EnemyActor extends ActorBase {
     return true;
   }
 
+  /**
+   * 每帧主更新（对应 CFR f.java b() → 契约名 b_，由 LevelScene 主循环逐 actor 调用）。
+   * 先据当前朝向高字节算出朝向系数 facingSign(±1)，再按 typeId 分派 AI：
+   *  - type1/3/4 → updateWalkerAi（陆战/步兵 AI）；
+   *  - type2/5 → updateTurretAi（炮台/机关 AI）。
+   * 末尾做对玩家的近身判定：当本敌人未处于受击/死亡子状态(reserved≠6/7)、存活，
+   * 且玩家正处于动作组 23（受擒/被控）并在水平 25600/垂直 10240 定点范围内时，调 player.onCollide。
+   */
   // b() → b_
   update(): void {
     this.facingSign = this.actionHighByte === 0 ? 1 : -1;
@@ -162,6 +190,20 @@ export class EnemyActor extends ActorBase {
     }
   }
 
+  /**
+   * 陆战/步兵敌人的 AI 状态机（对应 CFR f.java a() → 契约名 a_，服务 type1/3/4）。
+   * 先用 evaluateThreat 求本帧威胁码 threatCode（0 无/1 视野内/2 上方/3 下方/4 近身），
+   * 与上帧不同则复位瞄准；威胁>0 时判断是否需要转向 needTurn 并进入瞄准。
+   * 主体按 AI 子状态 reserved(G) 分支：
+   *  0=待命/瞄准开火（转向后调 aimAndFire；否则按巡逻倒计时切到追击 4，或回放待机动画）；
+   *  1=攻击动画播放中（动画结束回 0，type3 在第 2 帧抛出手雷 type10）；
+   *  2=转身停顿（计时到切追击 4 并翻面）；
+   *  4/8=巡逻/横扫行走（设水平速度，越界后切转身 2 或重锚横扫边界）；
+   *  5=开火出枪（type1 生成 type10 子弹并赋初速、type3 切投掷动作）；
+   *  6=受击（动画结束后存活回 0、否则切死亡 7 并起爆闪）；
+   *  7=死亡（动画结束后扣场景计数并 killAndMarkSpawned 回收）。
+   * 末尾 type4 额外做对玩家的接触伤害（applyDamage(10) + player.onHitBy）。
+   */
   // a() → a_
   private updateWalkerAi(): void {
     this.threatCode = this.evaluateThreat();
@@ -310,6 +352,16 @@ export class EnemyActor extends ActorBase {
     }
   }
 
+  /**
+   * 炮台/机关敌人的 AI 状态机（对应 CFR f.java c() → 契约名 c_，服务 type2/5）。
+   * 开头：type2 的关联载具 linkedVehicle 已被摧毁时，本机关自毁（applyDamage(10) 后解除引用并返回）。
+   * 主体按 AI 子状态 reserved(G) 分支：
+   *  0=待命（回待机帧；evaluateThreat>0 后 type5 先转向对准玩家再倒计时切开火 5，type2 直接切 5）；
+   *  1=冷却（计时到回 0；动画结束回待机帧）；
+   *  5=开火（type5 生成直线子弹 type16 并赋水平初速、切冷却 1；type2 调 linkedVehicle.requestFire 按节奏发射）；
+   *  6=受击（动画结束后存活回 0、否则切死亡 7 并起爆闪）；
+   *  7=死亡（动画结束后扣场景计数并 killAndMarkSpawned 回收）。
+   */
   // c() → c_
   private updateTurretAi(): void {
     if (this.typeId === 2 && this.linkedVehicle != null && this.linkedVehicle.health <= 0) {
@@ -395,6 +447,13 @@ export class EnemyActor extends ActorBase {
     }
   }
 
+  /**
+   * 计算本帧对玩家的威胁/感知码（对应 CFR f.java o() → 契约名 o_）。
+   * 处于受击/死亡/开火/冷却子状态或玩家已死亡时直接返回 0（不感知）。
+   * 否则按朝向构造前/后向感知矩形（视宽的 9/10 加权），并据 typeId 细分：
+   * type1/3 命中近身框且玩家非受控动作组(23/24)返回 4（近身）、按反应系数 aa 与玩家相对位置返回 2（上方）/3（下方）。
+   * @returns 0=无威胁 / 1=视野内 / 2=玩家在上方 / 3=玩家在下方 / 4=近身
+   */
   // o() → o_
   private evaluateThreat(): number {
     if (this.reserved === 6 || this.reserved === 7 || this.reserved === 5 || this.reserved === 1 || this.player.health <= 0) {
@@ -454,6 +513,14 @@ export class EnemyActor extends ActorBase {
     return 1;
   }
 
+  /**
+   * 被其他 Actor 命中的回调（对应 CFR f.java a(tjge.h) → 契约名 a_Th，由碰撞系统调用）。
+   * 命中方需带碰撞标志位 2、本帧为新接触、且本敌人未死亡(reserved≠7)，否则返回 false。
+   * 按命中方 typeId 受理：type0（玩家）仅在其挥刀动作组 24 时受近战伤害；
+   * type10/12（玩家子弹/爆炸）受伤并返回 true（吃掉该投射物）。
+   * @param h2 命中本敌人的 Actor
+   * @returns 是否消费此次命中（true=投射物应销毁）
+   */
   // a(tjge.h) → a_Th
   public onHitBy(h2: ActorBase): boolean {
     if (!h2.hasCollisionFlag(2) || !this.isNewContact(h2) || this.reserved === 7) {
@@ -474,6 +541,14 @@ export class EnemyActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 结算一次伤害并切换受击/死亡动作（对应 CFR f.java b(int,int) → 契约名 b_II）。
+   * 扣血 hp、停水平速度、备份当前子状态到 preHitSubState(U) 以便受击后恢复，
+   * 再按 typeId 切受击子状态 reserved=6：type1/3 据来袭方向选正/背面受击帧；
+   * type2/5 切对应受击帧；type4 在血量耗尽时先生成两处爆炸(type12)再进受击。
+   * @param n 伤害值（≤0 直接返回，不结算）
+   * @param n2 来袭方向高字节（与本敌人朝向比较以选受击帧）
+   */
   // b(int,int) → b_II
   private applyDamage(n: number, n2: number): void {
     if (n <= 0) {
@@ -513,6 +588,12 @@ export class EnemyActor extends ActorBase {
     }
   }
 
+  /**
+   * 为已生成的投掷物（手雷）设置抛物线初速（对应 CFR f.java a(tjge.k) → 契约名 a_Tk）。
+   * 据本敌人与玩家的水平距离反算竖直初速/重力，使手雷大致落在玩家处：
+   * 水平速度固定 facingSign*5120，竖直初速 -n、加速度 accelY=n2、限速 maxVelY、飞行计时 timer。
+   * @param k2 已由 ProjectileActor.spawnProjectile 生成的手雷（null 直接返回）
+   */
   // a(tjge.k) → a_Tk
   launchProjectile(k2: ProjectileActor | null): void {
     if (k2 == null) {
@@ -540,6 +621,13 @@ export class EnemyActor extends ActorBase {
     k2.timer = n4;
   }
 
+  /**
+   * 瞄准并选择攻击动作（对应 CFR f.java p() → 契约名 p_，由 updateWalkerAi 子状态 0 调用）。
+   * 威胁码 4（近身）时停步，巡逻次数与计时耗尽后切到开火子状态 5 并播放近战动作。
+   * 否则按 typeId 选射击/出拳动作序列：type1 据威胁方向(1/2/3)从 [9,10,8,11] 选帧、
+   * 节奏点随机出招；type3 在 [0,4] 间随机；type4 切到追击行走。
+   * 计时与连射数耗尽后切开火 5 或结束本轮瞄准。
+   */
   // p() → p_
   private aimAndFire(): void {
     if (this.threatCode === 4) {
@@ -598,6 +686,11 @@ export class EnemyActor extends ActorBase {
     }
   }
 
+  /**
+   * 返回本敌人当前的近战接触伤害（对应 CFR f.java m() → 契约名 m_）。
+   * 仅当处于挥击/攻击动作组 7 时造成 1 点伤害，其余动作为 0（无伤害）。
+   * @returns 近战伤害值（动作组 7 时为 1，否则 0）
+   */
   // m() → m_
   public getDamage(): number {
     if (this.frameGroupIndex === 7) {

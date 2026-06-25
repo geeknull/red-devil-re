@@ -67,6 +67,13 @@ export class PlayerActor extends ActorBase {
   linkedBoss: BossActor | null;
   screen: GameScreen;
 
+  /**
+   * 构造玩家对象。对应 CFR tjge/f.java `f(int,d,a)`（SYMBOLS: constructor）。
+   * @param n     图块/精灵索引（透传给基类 ActorBase 作精灵帧来源）
+   * @param d2    精灵定义 SpriteDef（帧/动画数据）
+   * @param a2    所属主控 GameScreen（保存为 this.screen，用于访问关卡/地图/敌人/生成实体）
+   * 仅保存主控引用并将关联敌人 linkedEnemy / Boss linkedBoss 置空；满血/重力等初始化在 spawnAt() 里完成。
+   */
   constructor(n: number, d2: SpriteDef, a2: GameScreen) {
     super(n, d2);
     this.screen = a2;
@@ -209,6 +216,11 @@ export class PlayerActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 玩家初始化/落位（覆写基类 spawnAt）。对应 CFR `a(int,int,int,byte[],boolean)` → 契约 a_IIIAYZ。
+   * 先调基类初始化精灵/坐标，再设满血 health=10、复位移动标志、清关联敌人/Boss、
+   * 恢复重力 accelY=4096、置着地态 stateFlags=1（bit0）。二开调它来生成/复位玩家实体。
+   */
   // a(int,int,int,byte[],boolean) → a_IIIAYZ（初始化）
   spawnAt(n: number, n2: number, n3: number, byArray: Int8Array, bl: boolean): boolean {
     super.spawnAt(n, n2, n3, byArray, bl);
@@ -221,6 +233,12 @@ export class PlayerActor extends ActorBase {
     return true;
   }
 
+  /**
+   * 进入关卡/关卡内复位时调用。对应 CFR `f()` → 契约 f_。
+   * 复位状态位（关卡4 仅清着地位，其余关重置为 1=着地态）、满血 10、清子状态/帧计时/移动标志，
+   * 允许攀爬 canClimb=true、清动作标志 actionFlag、攀爬动画状态回到 18、停竖直加速/速度。
+   * 注意：与 spawnAt() 区别在于不重置坐标、不重设备弹（弹药由 fullAmmoInit() 单独管理）。
+   */
   // f() → f_（进入关卡/复位时调用）
   resetForLevel(): void {
     this.stateFlags = this.screen.levelIndex === 4 ? (this.stateFlags &= 0xfffffffe) : 1;
@@ -236,6 +254,15 @@ export class PlayerActor extends ActorBase {
     this.targetVelY = 0;
   }
 
+  /**
+   * 每帧物理步进（覆写基类 stepPhysics）。对应 CFR `e()` → 契约 e_。
+   * 主循环 GameScreen.update 对渲染队列每个 actor 先调本方法（物理）再调 update()（行为）。
+   * 流程：刷新 actionId/facingFlag、递减无敌计时、推进动画、按加速度/上限积分速度，
+   * 再按 screen.state 分支推进位置——LevelEnter/GoalCutscene 直接平移；Playing 态下做
+   * 天花板 collideCeiling / 落地 collideGround / 侧壁检测、登梯转换（actionId 18 + 置 0x2000）、
+   * 8 像素对齐吸附、脚本钳制相机边界，并据玩家位置设相机滚动速度 cameraVelX/Y。
+   * 关卡4 走载具专属推进（reinforceBudget 驱动横移、与 Boss 包围盒互推）。
+   */
   // e() → e_（物理步进，覆写基类 e_）
   stepPhysics(): void {
     this.actionId = this.frameIndex & 0xffffff;
@@ -374,6 +401,11 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 每帧行为更新（覆写基类 update）。对应 CFR `a()` → 契约 a_（SYMBOLS: update）。
+   * 在 stepPhysics() 之后被主循环调用：刷新朝向 facingLeft、跑动作状态机 runActionStateMachine()、
+   * 重读 actionId、处理输入 handleInput()，最后若已死血（health<=0）且未处于死亡/被捕动作则切到死亡帧 0x17。
+   */
   // a() → a_（每帧更新，覆写基类 a_）
   update(): void {
     this.facingLeft = (this.frameIndex & 0xff000000) !== 0;
@@ -385,6 +417,13 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 动作状态机（SYMBOLS: runActionStateMachine）。对应 CFR `g()` → 契约 g_。
+   * 按当前动作 id（actionId=c）与子状态 subState（o）切换动画帧与物理：
+   * 跳跃/坠落（3/4/22）、攀爬翻越（17/18/24/25/26/27）、换弹（1/28）、各类开火回中（6/7/8/9/10/11/29/30）、
+   * 翻滚/突进（19/20/21）、被捕/死亡（13/15/16/23）等。每个动作 id 是一组分支，子状态推进动画阶段。
+   * 与 handleInput() 配合：输入设动作 id，本方法据 id 推进对应动画/状态收尾。
+   */
   // g() → g_（动作状态机）
   runActionStateMachine(): void {
     switch (this.actionId) {
@@ -619,6 +658,14 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 输入处理（SYMBOLS: handleInput）。对应 CFR `h()` → 契约 h_。
+   * 据主控 screen.heldKeyAction 输入位掩码（左1/右2/上4/下8/开火16/切武器32/换弹2048/手雷1024/
+   * 左跳64/右跳128 等）驱动移动、跳跃、攀爬上下、登梯、射击、换弹与切武器。
+   * 仅在 Playing 态且处于可接受输入的动作时生效；关卡4 转交 handleVehicleInput()。
+   * 实现按 CFR 字节码顺序逐行移植，详见下方 “Unable to fully structure code” 说明：多层 blockNN
+   * 标号 break 复刻 Java 无法结构化的跳转，二开调整键位逻辑须保持这些跳转拓扑不变。
+   */
   /*
    * Unable to fully structure code（CFR 原注：无法完全结构化；
    * 以下 block88..block95 跳转逻辑严格按 CFR 字节码顺序逐行移植，
@@ -971,6 +1018,11 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 向左跳跃/翻越起跳（SYMBOLS: startLeapLeft）。对应 CFR `b(int)` → 契约 b_I。
+   * @param n 起跳竖直速度（向上为负，定点；如 -10240 普通跳、-15360 高跳）
+   * 按子状态 subState 选起跳动画帧，置竖直速度 n、恢复重力 accelY=4096、清着地位、标记移动中。
+   */
   // b(int) → b_I（向左跳跃/落地动作分支设定）
   startLeapLeft(n: number): void {
     if (this.subState === 2) {
@@ -987,6 +1039,10 @@ export class PlayerActor extends ActorBase {
     this.movingFlag = 1;
   }
 
+  /**
+   * 向右跳跃/翻越起跳（SYMBOLS: startLeapRight）。对应 CFR `c(int)` → 契约 c_I。
+   * 与 startLeapLeft() 镜像，@param n 同义（向上为负）。
+   */
   // c(int) → c_I（向右跳跃/落地动作分支设定）
   startLeapRight(n: number): void {
     if (this.subState === 2) {
@@ -1003,6 +1059,11 @@ export class PlayerActor extends ActorBase {
     this.movingFlag = 1;
   }
 
+  /**
+   * 着地复位。对应 CFR `i()` → 契约 i_。
+   * 仅当此前未着地（stateFlags bit0==0）时执行：停横移、停竖直加速、清移动标志、
+   * 允许攀爬、置着地位 bit0，并（非死亡动作时）回到站立帧 0。由 stepPhysics() 检测到落地时调用。
+   */
   // i() → i_（着地复位）
   land(): void {
     if ((this.stateFlags & 1) === 0) {
@@ -1017,6 +1078,12 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 离地/进入坠落。对应 CFR `j()` → 契约 j_。
+   * 关卡4 及部分动作（攀爬/跳/翻越/死亡 15/16/3/4/17/22）直接返回不触发。
+   * 否则清着地位；当向下坠落（velY>0）或死亡态时设坠落速度/重力/上限，进入坠落子状态并切坠落帧。
+   * 由 stepPhysics() 在脚下无地面时调用，使玩家自然下坠。
+   */
   // j() → j_（离地起跳/坠落）
   beginFall(): void {
     if (
@@ -1061,6 +1128,13 @@ export class PlayerActor extends ActorBase {
     this.setFrame(2);
   }
 
+  /**
+   * 开火/投掷（SYMBOLS: fireWeapon）。对应 CFR `d(int)` → 契约 d_I。
+   * @param n 武器/投射类型：10|21=步枪/手枪子弹（弹匣空则切空枪帧）、20=手雷、15=火箭（追踪弹）。
+   * 据当前武器 weaponIndex 与朝向计算枪口偏移，调 screen.spawnProjectile() 生成对应 ProjectileActor，
+   * 消耗弹匣 magazineAmmo / 手雷 grenadeCount，设射击动画帧；火箭命中地形则爆开特效。
+   * 蹲姿（actionId==5）时调整弹体高度与射击帧。开火音效 GameScreen.playSound(3,...)。
+   */
   // d(int) → d_I（开火/投掷，按武器类型 n 生成子弹/手雷）
   fireWeapon(n: number): void {
     let l2: ProjectileActor | null;
@@ -1160,6 +1234,13 @@ export class PlayerActor extends ActorBase {
     void l2;
   }
 
+  /**
+   * 受击扣血。对应 CFR `e(int)` → 契约 e_I。
+   * @param n 伤害值（如普通弹 1、火箭 3）。
+   * 仅 Playing 态且未处于翻滚/被捕/死亡动作且无敌计时结束（invulnTimer<=0）时生效：
+   * 扣血、重置帧计时、给 5 帧无敌、清梯子态、切受击帧 0x17（非关卡4 同时刹横移）。
+   * 由 onProjectileHit() 等命中逻辑调用。
+   */
   // e(int) → e_I（受击：扣血并进入受击动作）
   takeDamage(n: number): void {
     if (this.screen.state !== GameState.Playing) {
@@ -1178,6 +1259,12 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 攀爬/翻越检测（SYMBOLS: checkClimbable）。对应 CFR `g(tjge.b)` → 契约 g_Tb。
+   * @param b2 当前关卡瓦片地图。
+   * 扫描朝向前方一列瓦片，按命中高度把攀爬类型写入 climbResult（n：0=无,1/2/3/4=不同高度档），
+   * 并记录落点 climbTargetX/Y（S/T）。返回是否可攀爬。供动作状态机与输入逻辑判定能否翻越/上爬。
+   */
   // g(tjge.b) → g_Tb（爬升/攀爬检测，结果写入 n/S/T）
   checkClimbable(b2: TileMap): boolean {
     const bl = false;
@@ -1380,6 +1467,13 @@ export class PlayerActor extends ActorBase {
     return false;
   }
 
+  /**
+   * 被投射物命中处理（覆写基类 onProjectileHit）。对应 CFR `a(tjge.l)` → 契约 a_Tl。
+   * @param l2 命中玩家的投射物 ProjectileActor。
+   * 非无敌动作时按弹型分派：21=敌方子弹（据弹向修正朝向，命中扣血 1 并回收弹体）、
+   * 20=敌方近战判定（生成爆点特效 16、回收弹体、播音效）、16=爆点（扣血 3）。
+   * 由 GameScreen 碰撞遍历在弹体击中玩家包围盒时调用。
+   */
   // a(tjge.l) → a_Tl（被子弹/拾取物命中处理，覆写基类 a_Tl）
   onProjectileHit(l2: ProjectileActor): void {
     if (this.actionId !== 19 && this.actionId !== 23 && this.actionId !== 15 && this.actionId !== 16) {
@@ -1411,6 +1505,12 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 切换/换弹（SYMBOLS: switchOrReloadWeapon）。对应 CFR `f(int)` → 契约 f_I。
+   * @param n 上下文：32=切换武器（跳过无备弹的武器索引 weaponIndex），其余=换弹判定。
+   * 在三把武器（0/1/2）间轮转选出有弹药的一把，命中条件时切换换弹动画帧（蹲姿用 0x1c，站姿用 1）。
+   * 备弹 ammoReserveB/C 与当前弹匣 magazineAmmo 由调用方在调用前后更新。
+   */
   // f(int) → f_I（换弹/切换武器，n=武器类型；k=当前武器，l=弹匣，h/i=备弹）
   switchOrReloadWeapon(n: number): void {
     let bl = false;
@@ -1459,6 +1559,11 @@ export class PlayerActor extends ActorBase {
     }
   }
 
+  /**
+   * 弹药满装初始化（SYMBOLS: fullAmmoInit）。对应 CFR `m()` → 契约 m_。
+   * 复位当前武器为 0，并装满：武器1备弹 ammoReserveB=6、武器2备弹 ammoReserveC=3、
+   * 手雷 grenadeCount=3、当前弹匣 magazineAmmo=10。新关/补给时调用。
+   */
   // m() → m_（弹药满装初始化）
   fullAmmoInit(): void {
     this.weaponIndex = 0;
@@ -1468,6 +1573,11 @@ export class PlayerActor extends ActorBase {
     this.magazineAmmo = 10;
   }
 
+  /**
+   * 换弹补满（SYMBOLS: reloadFromReserve）。对应 CFR `n()` → 契约 n_。
+   * 按当前武器把弹匣 magazineAmmo 从备弹池补满：武器0 直接满 10；武器1 上限 3、从 ammoReserveB 取；
+   * 武器2 上限 1、从 ammoReserveC 取；备弹不足则取尽并清零。换弹动画结束时由状态机调用。
+   */
   // n() → n_（换弹回收：将当前弹匣余弹归还备弹池）
   reloadFromReserve(): void {
     let n = 0;

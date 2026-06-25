@@ -57,17 +57,49 @@ export class SpriteDef {
     SpriteDef.loadedFlags[0] = true;
   }
 
+  /**
+   * 私有无参构造器（CFR d.java 的 `<init>()V`）。
+   * 仅由静态工厂 {@link SpriteDef.loadFromArchive} 内部 new 出空壳实例，
+   * 随后由工厂逐字段从 a.bin 填充；外部不可直接构造。
+   */
   private constructor() {
   }
 
+  /**
+   * 返回本动作定义包含的动作数（字段 r / actionCount）。
+   * 二开遍历某 actor 的所有动作（如切换待机/移动/攻击动画）时按此取上界。
+   * 对应 CFR d.java 的 getter（无副作用）。
+   */
   public getActionCount(): number {
     return this.actionCount;
   }
 
+  /**
+   * 返回第 n 个动作的帧数（字段 s[n] / framesPerAction[n]）。
+   * 二开推进动画帧索引时按此取该动作的帧上界（如帧循环 frame % getFrameCount(action)）。
+   * @param n 动作号（0 ≤ n < {@link getActionCount}）。
+   */
   public getFrameCount(n: number): number {
     return this.framesPerAction[n];
   }
 
+  /**
+   * 主绘制方法（CFR d.java 的 `a(Graphics,IIIIII)V`）：把动作 n3 的第 n4 帧绘制到 (n, n2)。
+   * 帧 = 一组图块；逐个取出该组图块的子图索引与 x/y 偏移，加偏移、按需镜像后调
+   * {@link TileSheet.drawCell} 绘制到本定义所属图集 tileSheet 上。
+   *
+   * 动作号 n3 的高位即镜像标志：0x80000000(MIRROR_FLAG, 水平镜像) 与 0x40000000(FLIP_VERTICAL_BIT,
+   * 垂直镜像) 被先剥离为 n7/n8，再用低 24 位(0xffffff)索引 actionFrameGroups。镜像时偏移量取
+   * (byte)(-by)（-128 取负仍为 -128，忠实复刻 Java byte 溢出），并把镜像位 OR 进 drawCell 的子图参数。
+   *
+   * @param graphics 目标画布。
+   * @param n  绘制锚点 x（屏幕坐标）。
+   * @param n2 绘制锚点 y（屏幕坐标）。
+   * @param n3 动作号，含高位镜像标志（见上）。
+   * @param n4 帧号（0 ≤ n4 < {@link getFrameCount}(n3 低 24 位)）。
+   * @param n5 透传给 drawCell 的参数（如调色板/分组）。
+   * @param n6 透传给 drawCell 的参数。
+   */
   public drawFrame(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): void {
     const n7 = n3 & MIRROR_FLAG; // Integer.MIN_VALUE = 0x80000000
     const n8 = n3 & FLIP_VERTICAL_BIT;
@@ -89,6 +121,19 @@ export class SpriteDef {
     }
   }
 
+  /**
+   * 静态工厂（CFR d.java 的 `b(I)Ltjge/d;`）：从归档 /res/a.bin 第 n 条读取并解析一份精灵动作定义。
+   * 二开新增/查表 actor 类型的动作集时由此入口加载（上层经 ActorScene.loadActorDef 调用）。
+   *
+   * 解析顺序（小端，全程忠实复刻 d.java）：外部 id `by` → 图集 id sheetId → 图块组数 tileGroupCount，
+   * 逐组读 tilesPerGroup 及每图块的 (子图索引, x 偏移, y 偏移)；跳过 4 字节占位；读动作数 actionCount，
+   * 逐动作读 4 个 byte 参数(A~D)、帧数、各帧引用的图块组索引（负值 +256 还原为无符号）；末尾读 4 个 short(J~M)。
+   * 完成后置 loadedFlags[sheetId]=true、登记 idMap[by]=sheetId，并按需经 {@link TileSheet.loadFromBin}
+   * 加载并绑定图集 tileSheet。
+   *
+   * @param n a.bin 中的条目序号。
+   * @returns 解析成功的 SpriteDef 实例；任何异常（IO/格式）均吞掉并返回 null（与原版一致）。
+   */
   public static loadFromArchive(n: number): SpriteDef | null {
     const d2 = new SpriteDef();
     try {

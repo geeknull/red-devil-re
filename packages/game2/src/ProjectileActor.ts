@@ -37,11 +37,28 @@ export class ProjectileActor extends ActorBase {
   private expired: boolean = false;
   isSpecialGrenade: boolean = false;
 
+  /**
+   * 构造投射物 Actor。仅透传给基类 h 构造 (typeId, 动作定义)。
+   * 实际的速度/坐标/标志初始化由工厂 {@link ProjectileActor.spawnProjectile} 完成，
+   * 不在此构造（对应 CFR k.java public k(int, tjge.d)）。
+   * @param n actor 类型 ID（投射物为 9/10/12/16）
+   * @param d2 该类型的动作定义（精灵/碰撞盒/帧表）
+   */
   // public k(int, tjge.d) → constructor
   constructor(n: number, d2: SpriteDef) {
     super(n, d2);
   }
 
+  /**
+   * 投射物物理主循环（每帧一次），按 typeId 分派四种投射物的行为。
+   * 对应 CFR k.java public final void b()（玩法解码见 docs/game2-深海战舰/玩法与数值.md §4.2）。
+   *  - typeId 10 直射弹/榴弹主体：累计存活帧、方向性地形探针、命中/撞墙/出界后切爆炸特效或溅射；
+   *    含「动作 11 落水生成 type20」「撞机关推回 2 像素切动作 8」等分支。
+   *  - typeId 16 敌方抛物炮弹：撞地形或命中玩家→生成 type12 爆炸并标记下帧销毁。
+   *  - typeId 12 爆炸/碎片特效：播完动画自销毁，否则持续做实体伤害判定。
+   *  - typeId 9 抛投榴弹：第 8 帧瞄准玩家解算弹道；命中→生成两团爆炸；出界销毁。
+   * 改写实例字段（速度/坐标/动作/exploded/hitWall/expired）并可能调用 kill() 回收。
+   */
   // public final void b() → b_
   update(): void {
     switch (this.typeId) {
@@ -222,6 +239,15 @@ export class ProjectileActor extends ActorBase {
     }
   }
 
+  /**
+   * 投射物↔实体碰撞回调，由碰撞系统在命中另一 Actor 时调用。
+   * 对应 CFR k.java protected final void c(tjge.h)（解码见 docs/game2-深海战舰/玩法与数值.md §4.4）。
+   * 仅置标志，实际扣血在被击实体侧（取自 {@link ProjectileActor.getDamage}）：
+   *  - typeId 10：命中机关/Boss 类（11/13/17/19/21）按「撞硬物」置 hitWall=true（触发地形特效）；
+   *    命中其他（玩家/敌兵）置 exploded=true（实体击中特效）。
+   *  - typeId 9：任意命中置 exploded=true。
+   * @param h2 被命中的目标 Actor
+   */
   // protected final void c(tjge.h) → c_Th
   onCollide(h2: ActorBase): void {
     switch (this.typeId) {
@@ -239,6 +265,22 @@ export class ProjectileActor extends ActorBase {
     }
   }
 
+  /**
+   * 投射物工厂：从场景对象池取得（或复用）一个投射物实例并完成初始化。
+   * 二次开发若需发射子弹/手雷/生成爆炸，统一走此入口（玩家武器、敌方炮台、爆炸碎片均调用之）。
+   * 对应 CFR k.java public static final tjge.k a(int,int,int,int,int,int[])（解码见 docs/game2-深海战舰/玩法与数值.md §4.3）。
+   * 复位所有运动与状态字段（清速度/加速度、maxVelY=15360、collisionMask=3 等），按类型再做特化：
+   *  - typeId 10：动作非 9/6 时 collisionMask=1（仅撞纯实体墙）；生成即横向扫描地形带，贴墙则立即置 hitWall 并跑一帧 update()（贴墙生成→立即命中）。
+   *  - typeId 12：animLoop=false（爆炸特效播完即止）。
+   *  - typeId 9：初速 targetVelY=-2048（微上抛）、timer=0、动作 0。
+   * @param n 投射物类型 ID（9/10/12/16）
+   * @param n2 初始动作 ID（传给 setAction）
+   * @param n3 生成 X 坐标（定点 <<10）
+   * @param n4 生成 Y 坐标（定点 <<10）
+   * @param n5 碰撞类型掩码（写入 collisionTypeMask，决定可命中的阵营）
+   * @param nArray 备用参数（沿用原版签名，本类未使用）
+   * @returns 取得的投射物实例（池满时可能为 null）
+   */
   // public static final tjge.k a(int,int,int,int,int,int[]) → a_IIIIIAI
   static spawnProjectile(n: number, n2: number, n3: number, n4: number, n5: number, nArray: Int32Array | null): ProjectileActor {
     const k2: ProjectileActor = GameCanvas.instance.scene.spawnActor(n, -1) as ProjectileActor;
@@ -294,6 +336,13 @@ export class ProjectileActor extends ActorBase {
     return k2;
   }
 
+  /**
+   * 返回该投射物本帧的伤害值，由被击实体侧扣血时读取。
+   * 对应 CFR k.java protected final int m()（数值表见 docs/game2-深海战舰/玩法与数值.md §4.5）。
+   *  - typeId 10 直射弹：查 {@link ProjectileActor.collisionMaskTable}[当前动作]（动作 0-2→1、3-5→3、其余→0）；
+   *  - typeId 12 爆炸/碎片：固定 3；typeId 9 抛投榴弹：固定 2；其余 0。
+   * @returns 伤害点数
+   */
   // protected final int m() → m_
   getDamage(): number {
     switch (this.typeId) {
@@ -310,6 +359,13 @@ export class ProjectileActor extends ActorBase {
     return 0;
   }
 
+  /**
+   * 落地/向下地形碰撞探测：仅在向下运动（velY >= 0）时生效。
+   * 对应 CFR k.java public final void a()（本类覆写基类 h 的 a_）。
+   * 扫描下沿包围盒覆盖的瓦片格，命中 collisionMask 匹配的瓦片时停住垂直速度、
+   * 把 velY 钳到贴地距离并返回 true（命中地面）；否则返回 false。
+   * @returns 是否撞到下方地形
+   */
   // public final boolean a() → a_
   checkFloorCollision(): boolean {
     if (this.velY < 0) {
