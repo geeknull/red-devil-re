@@ -23,6 +23,7 @@ import { GameScreen } from "./GameScreen.ts";
 import { TileMap } from "./TileMap.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
 
 export class ActorBase {
   public active: boolean;
@@ -85,7 +86,7 @@ export class ActorBase {
     if ((n &= 0xffffff) < 0 || n > this.spriteDef.getSequenceCount()) {
       return;
     }
-    if ((this.frameIndex & -2147483648) === 0) {
+    if ((this.frameIndex & MIRROR_FLAG) === 0) {
       // Integer.MIN_VALUE == 0x80000000
       this.boundsLeft = this.spriteDef.collisionBoxX[n];
       this.boundsRight = this.spriteDef.collisionBoxY[n];
@@ -93,7 +94,7 @@ export class ActorBase {
       this.boundsLeft = -this.spriteDef.collisionBoxY[n];
       this.boundsRight = -this.spriteDef.collisionBoxX[n];
     }
-    if ((this.frameIndex & 0x40000000) === 0) {
+    if ((this.frameIndex & FLIP_VERTICAL_BIT) === 0) {
       this.boundsTop = this.spriteDef.collisionBoxWidth[n];
       this.boundsBottom = this.spriteDef.collisionBoxHeight[n];
     } else {
@@ -160,8 +161,8 @@ export class ActorBase {
     let s4: number; // short
     const n3 = (this.posX >> 10) - n;
     const n4 = (this.posY >> 10) - n2;
-    const n5 = this.frameIndex & -2147483648; // Integer.MIN_VALUE
-    const n6 = this.frameIndex & 0x40000000;
+    const n5 = this.frameIndex & MIRROR_FLAG; // Integer.MIN_VALUE
+    const n6 = this.frameIndex & FLIP_VERTICAL_BIT;
     if (n5 !== 0) {
       s4 = ((-this.spriteDef.boundsY) << 16) >> 16; // (short)(-k)：Java short 取负带 i2s 截断
       s3 = ((-this.spriteDef.boundsX) << 16) >> 16;

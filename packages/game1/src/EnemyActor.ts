@@ -21,6 +21,7 @@
  * （音频后续接入，调用保留）。
  */
 import { Graphics } from "@red-devil/j2me-shim";
+import { GameState, MIRROR_FLAG } from "./constants.ts";
 import { GameMIDlet } from "./GameMIDlet.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
@@ -123,15 +124,15 @@ export class EnemyActor extends ActorBase {
     } else {
       this.patrolLeftBound = this.patrolBaseX;
       this.patrolRightBound = this.patrolBaseX + (this.patrolRange << 10);
-      this.facingFlag = -2147483648; // Integer.MIN_VALUE
-      this.setFrame(n | -2147483648); // Integer.MIN_VALUE
+      this.facingFlag = MIRROR_FLAG; // Integer.MIN_VALUE
+      this.setFrame(n | MIRROR_FLAG); // Integer.MIN_VALUE
     }
     return true;
   }
 
   // a() → a_
   update(): void {
-    if (this.screen.state === 21) {
+    if (this.screen.state === GameState.LevelScroll) {
       return;
     }
     this.facingFlag = this.frameIndex & 0xff000000;
@@ -184,7 +185,7 @@ export class EnemyActor extends ActorBase {
       return;
     }
     if (this.intersectsActor(this.target) && this.aiState !== 7 && (this.aiState !== 5 && this.aiState !== 9 && this.aiState !== 4 || this.aiState === 5 && this.timerB < this.rhythmThreshold) && (this.facingFlag !== 0 && this.target.posX < this.posX || this.facingFlag === 0 && this.posX < this.target.posX)) {
-      this.facingFlag ^= -2147483648; // Integer.MIN_VALUE
+      this.facingFlag ^= MIRROR_FLAG; // Integer.MIN_VALUE
       this.setFrame(this.actionLow24 | this.facingFlag);
       this.timerB = 0;
     }
@@ -249,7 +250,7 @@ export class EnemyActor extends ActorBase {
       }
       case 1: {
         if (++this.timerB === 10) {
-          this.facingFlag = this.facingFlag === 0 ? -2147483648 : 0; // Integer.MIN_VALUE
+          this.facingFlag = this.facingFlag === 0 ? MIRROR_FLAG : 0; // Integer.MIN_VALUE
           this.setFrame(this.actionLow24 | this.facingFlag);
           return;
         }
@@ -365,7 +366,7 @@ export class EnemyActor extends ActorBase {
         }
         this.aiState = 0;
         this.aiming = false;
-        this.facingFlag = this.posX < this.target.posX ? -2147483648 : 0; // Integer.MIN_VALUE
+        this.facingFlag = this.posX < this.target.posX ? MIRROR_FLAG : 0; // Integer.MIN_VALUE
         this.setFrame(0 | this.facingFlag);
         return;
       }
@@ -402,8 +403,8 @@ export class EnemyActor extends ActorBase {
     }
     if (this.aiState === 0) {
       if (this.facingFlag === 0 && this.posX < this.target.posX) {
-        this.facingFlag = -2147483648; // Integer.MIN_VALUE
-        this.setFrame(this.actionLow24 | -2147483648); // Integer.MIN_VALUE
+        this.facingFlag = MIRROR_FLAG; // Integer.MIN_VALUE
+        this.setFrame(this.actionLow24 | MIRROR_FLAG); // Integer.MIN_VALUE
       } else if (this.facingFlag !== 0 && this.posX > this.target.posX) {
         this.facingFlag = 0;
         this.setFrame(this.actionLow24 | 0);
@@ -514,7 +515,7 @@ export class EnemyActor extends ActorBase {
     if (this.facingFlag === 0) {
       n2 = -29696;
     }
-    return this.screen.spawnProjectile(21, 0 | (this.facingFlag === 0 ? -2147483648 : 0), 0, this.posX + n2, this.posY - (n << 10), 1); // Integer.MIN_VALUE
+    return this.screen.spawnProjectile(21, 0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0), 0, this.posX + n2, this.posY - (n << 10), 1); // Integer.MIN_VALUE
   }
 
   // j() → j_
@@ -530,8 +531,8 @@ export class EnemyActor extends ActorBase {
       if (this.target.posY < this.posY + 61440 && this.target.posY > this.posY - 10240 && Math.abs(this.posX - this.target.posX) < 81920) {
         this.targetVelX = 4096;
         this.aiState = 6;
-        this.facingFlag = -2147483648; // Integer.MIN_VALUE
-        this.setFrame(1 | -2147483648); // Integer.MIN_VALUE
+        this.facingFlag = MIRROR_FLAG; // Integer.MIN_VALUE
+        this.setFrame(1 | MIRROR_FLAG); // Integer.MIN_VALUE
       } else if (this.screen.scriptFlagL && this.screen.enemyAliveCount <= 0 && this.posX < this.screen.cameraX + GameScreen.viewWidthFx - 40960) {
         this.targetVelX = 0;
         this.aiState = 5;
@@ -555,7 +556,7 @@ export class EnemyActor extends ActorBase {
         if (this.timerB++ <= 20) break;
         this.timerB = 0;
         this.aiState = 3;
-        this.facingFlag = this.facingFlag === 0 ? -2147483648 : 0; // Integer.MIN_VALUE
+        this.facingFlag = this.facingFlag === 0 ? MIRROR_FLAG : 0; // Integer.MIN_VALUE
         this.targetVelX = this.facingFlag === 0 ? -2560 : 2560;
         this.setFrame(1 | this.facingFlag);
         return;
@@ -594,7 +595,7 @@ export class EnemyActor extends ActorBase {
           if ((this.target.stateFlags & 1) === 0) break;
           this.hurtBlinkTimer = 10;
           this.setFrame(4 | this.facingFlag);
-          this.screen.state = 19;
+          this.screen.state = GameState.GoalCutscene;
           return;
         }
         if (this.actionLow24 !== 4 || this.hurtBlinkTimer !== 0) break;

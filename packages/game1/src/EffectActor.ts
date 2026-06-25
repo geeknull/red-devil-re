@@ -23,6 +23,7 @@
  *   l2.b_()/l2.a_I(n)      = g.b()/g.a(int) （l 继承自 g）
  */
 import { Graphics } from "@red-devil/j2me-shim";
+import { GameState } from "./constants.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { PlayerActor } from "./PlayerActor.ts";
@@ -109,7 +110,7 @@ export class EffectActor extends ActorBase {
         }
         if (!this.activated || (var1_1.stateFlags & 1) === 0) break;
         this.deactivate();
-        this.world.state = 19;
+        this.world.state = GameState.GoalCutscene;
         return;
       }
       case 9: {
@@ -135,7 +136,7 @@ export class EffectActor extends ActorBase {
               if ((this.world.player.stateFlags & 1) !== 0) {
                 var2_2 = true;
                 this.world.stateTimer = 11;
-                this.world.state = 19;
+                this.world.state = GameState.GoalCutscene;
               }
             } else {
               var2_2 = true;
@@ -194,19 +195,19 @@ export class EffectActor extends ActorBase {
           this.activated = true;
         }
         if (!this.activated || (var1_1.stateFlags & 1) === 0) break;
-        this.world.state = 19;
+        this.world.state = GameState.GoalCutscene;
         return;
       }
       case 5: {
         if (this.destroyedFlag === 1) {
           this.setFrame(1 | this.tintBits);
           var1_1.health = 0;
-          this.world.state = 20;
+          this.world.state = GameState.CaptureCutscene;
           return;
         }
         if (this.activated) {
           if ((var1_1.stateFlags & 1) === 0 || var1_1.posY <= 490000) break;
-          this.world.state = 19;
+          this.world.state = GameState.GoalCutscene;
           return;
         }
         if (this.world.scriptFlagL && this.world.reinforceBudget <= 0 && this.world.enemyAliveCount <= 0) {

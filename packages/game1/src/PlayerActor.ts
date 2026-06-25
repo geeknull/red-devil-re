@@ -27,6 +27,7 @@
  * 必要偏差：本类无资源/像素管线直接调用；tjge.a.a_III 为静态音效播放
  * （音频后续接入，调用保留，详见规约 new Sound 暂静音）。
  */
+import { GameState, MIRROR_FLAG } from "./constants.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { TileMap } from "./TileMap.ts";
 import { BossActor } from "./BossActor.ts";
@@ -258,13 +259,13 @@ export class PlayerActor extends ActorBase {
       this.targetVelY = this.maxVelY;
     }
     switch (this.screen.state) {
-      case 14:
-      case 19: {
+      case GameState.LevelEnter:
+      case GameState.GoalCutscene: {
         this.posX += this.velX;
         this.posY += this.velY;
         return;
       }
-      case 10: {
+      case GameState.Playing: {
         let n: number;
         const n2 = GameScreen.viewWidthFx;
         if (this.screen.levelIndex === 4) {
@@ -536,7 +537,7 @@ export class PlayerActor extends ActorBase {
         return;
       }
       case 13: {
-        this.screen.state = 20;
+        this.screen.state = GameState.CaptureCutscene;
         return;
       }
       case 19: {
@@ -613,7 +614,7 @@ export class PlayerActor extends ActorBase {
       case 16: {
         if (this.frameTimer++ <= 4) break;
         this.frameTimer = 0;
-        this.screen.state = 20;
+        this.screen.state = GameState.CaptureCutscene;
       }
     }
   }
@@ -633,7 +634,7 @@ export class PlayerActor extends ActorBase {
               block91: {
                 block89: {
                   block90: {
-                    if (this.screen.state !== 10) {
+                    if (this.screen.state !== GameState.Playing) {
                       return;
                     }
                     if (
@@ -678,7 +679,7 @@ export class PlayerActor extends ActorBase {
                               this.walkLeft();
                             }
                           } else {
-                            this.setFrame(this.actionId | -2147483648);
+                            this.setFrame(this.actionId | MIRROR_FLAG);
                           }
                         }
                       } else if ((this.stateFlags & 8192) !== 0 && !this.checkWallLeft(this.screen.tileMap!, 14)) {
@@ -691,7 +692,7 @@ export class PlayerActor extends ActorBase {
                           this.setFrame(-2147483631);
                         } else {
                           this.velY = 4096;
-                          this.setFrame(-2147483648);
+                          this.setFrame(MIRROR_FLAG);
                         }
                         this.stateFlags &= -8193;
                       }
@@ -793,7 +794,7 @@ export class PlayerActor extends ActorBase {
                       return;
                     }
                     if (!this.facingLeft) {
-                      this.setFrame(this.actionId | -2147483648);
+                      this.setFrame(this.actionId | MIRROR_FLAG);
                       return;
                     }
                     this.velY = 0;
@@ -1083,7 +1084,7 @@ export class PlayerActor extends ActorBase {
           n3 = n3 << 10;
           l2 = this.screen.spawnProjectile(
             10,
-            0 | (this.facingFlag === 0 ? -2147483648 : 0),
+            0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0),
             1,
             this.posX + n3,
             this.posY - 23552,
@@ -1161,7 +1162,7 @@ export class PlayerActor extends ActorBase {
 
   // e(int) → e_I（受击：扣血并进入受击动作）
   takeDamage(n: number): void {
-    if (this.screen.state !== 10) {
+    if (this.screen.state !== GameState.Playing) {
       return;
     }
     if (this.actionId === 13 || this.actionId === 19 || this.actionId === 15 || this.actionId === 16 || this.invulnTimer > 0) {
@@ -1219,7 +1220,7 @@ export class PlayerActor extends ActorBase {
   private handleVehicleInput(): void {
     if (this.screen.heldKeyAction === 1) {
       if (!this.facingLeft) {
-        this.setFrame(this.actionId | -2147483648);
+        this.setFrame(this.actionId | MIRROR_FLAG);
         return;
       }
       this.targetVelX = 0;
@@ -1388,7 +1389,7 @@ export class PlayerActor extends ActorBase {
             this.facingFlag = 0;
             this.facingLeft = false;
           } else if (!this.facingLeft && l2.targetVelX > 0) {
-            this.facingFlag = -2147483648; // Integer.MIN_VALUE
+            this.facingFlag = MIRROR_FLAG; // Integer.MIN_VALUE
             this.facingLeft = true;
           }
           if ((l2.frameIndex & 0xffffff) !== 0) break;

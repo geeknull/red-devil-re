@@ -21,6 +21,7 @@ import { Graphics } from "@red-devil/j2me-shim";
 import { GameMIDlet } from "./GameMIDlet.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteAtlas } from "./SpriteAtlas.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
 
 export class SpriteDef {
   static atlasTable: (SpriteAtlas | null)[] = new Array<SpriteAtlas | null>(32).fill(null);
@@ -64,8 +65,8 @@ export class SpriteDef {
    * n=x, n2=y, n3=sequence索引(高2位为水平/垂直翻转标志), n4=帧索引, n5/n6=透传给图集绘制(缩放/旋转)。
    */
   paintSequenceFrame(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): void {
-    const n7 = n3 & -2147483648; // Integer.MIN_VALUE (0x80000000)
-    const n8 = n3 & 0x40000000;
+    const n7 = n3 & MIRROR_FLAG; // Integer.MIN_VALUE (0x80000000)
+    const n8 = n3 & FLIP_VERTICAL_BIT;
     const s = this.sequencePoseIndices[(n3 &= 0xffffff)][n4];
     const n9 = this.poseModuleCounts[s];
     graphics.setClip(0, 0, 176, 208);

@@ -22,6 +22,7 @@ import { Graphics } from "@red-devil/j2me-shim";
 import { ActorBase } from "./ActorBase.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
+import { GameState } from "./constants.ts";
 
 export class PickupActor extends ActorBase {
   screen: GameScreen;
@@ -113,7 +114,7 @@ export class PickupActor extends ActorBase {
         this.screen.levelLoader.actorSpawned[this.extra] = true;
         this.screen.player.targetVelX = 0;
         this.screen.cameraVelX = 0;
-        this.screen.state = 21;
+        this.screen.state = GameState.LevelScroll;
         this.screen.scriptFlagL = false;
         this.screen.player.setFrame(0 | this.screen.player.facingFlag);
         GameScreen.playSound(1, 1, 255);

@@ -14,6 +14,7 @@ import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { EffectActor } from "./EffectActor.ts";
 import { ActorBase } from "./ActorBase.ts";
+import { MIRROR_FLAG } from "./constants.ts";
 
 export class ProjectileActor extends ActorBase {
   world: GameScreen;
@@ -86,7 +87,7 @@ export class ProjectileActor extends ActorBase {
           case 1: {
             if (this.frameCounter-- >= 0) break;
             if (this.subType === 1) {
-              this.setFrame(-2147483648); // Integer.MIN_VALUE
+              this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
               break;
             }
             this.setFrame(0);

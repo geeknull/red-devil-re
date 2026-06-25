@@ -47,6 +47,7 @@ import { EnemyActor } from "./EnemyActor.ts";
 import { LevelLoader } from "./LevelLoader.ts";
 import { PickupActor } from "./PickupActor.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
+import { GameState } from "./constants.ts";
 
 const INT_MIN = -2147483648; // Integer.MIN_VALUE / 0x80000000
 
@@ -140,7 +141,7 @@ export class GameScreen extends Canvas {
     this.midlet = gameMIDlet;
     GameScreen.screenWidth = this.getWidth();
     GameScreen.playHeight = this.getHeight() - 32;
-    this.state = 1;
+    this.state = GameState.Logo;
     this.loopThread = new Thread(this);
     this.loopThread.start();
     this.running = true;
@@ -196,7 +197,7 @@ export class GameScreen extends Canvas {
     ++this.frameCounter;
     try {
       switch (this.state) {
-        case 1: {
+        case GameState.Logo: {
           if (this.stateTimer++ === 0) {
             this.hudImage = GameScreen.loadImageFromBin(8);
             var1_1.drawImage(this.hudImage!, 29, 55, 20);
@@ -241,7 +242,7 @@ export class GameScreen extends Canvas {
           }
           if (this.stateTimer !== 42) break;
           this.stateTimer = 0;
-          this.state = 4;
+          this.state = GameState.MainMenu;
           this.menuVisibleMax = 0;
           this.menuSelection = 0;
           this.hudBlinkCounter = 1;
@@ -250,7 +251,7 @@ export class GameScreen extends Canvas {
           GameScreen.playSound(0, 1, 160);
           break;
         }
-        case 4: {
+        case GameState.MainMenu: {
           GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
           var1_1.drawImage(this.menuImage!, 18, 9, 20);
           LevelLoader.spriteDefPool[8]!.paintSequenceFrame(var1_1, 128, 190, INT_MIN, this.frameCounter % 3, 0, 0);
@@ -287,7 +288,7 @@ export class GameScreen extends Canvas {
                 this.levelIndex = this.taskSelectIndex;
                 GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
                 GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-                this.state = 2;
+                this.state = GameState.LevelLoading;
                 break;
               }
               switch (this.menuSelection) {
@@ -299,13 +300,13 @@ export class GameScreen extends Canvas {
                   if (this.levelResourcesReady) {
                     this.releaseLevel();
                   }
-                  this.state = 2;
+                  this.state = GameState.LevelLoading;
                   break;
                 }
                 case 1: {
                   this.levelIndex = GameScreen.saveData[1];
                   this.player.fullAmmoInit();
-                  this.state = 2;
+                  this.state = GameState.LevelLoading;
                   break;
                 }
                 case 2: {
@@ -320,7 +321,7 @@ export class GameScreen extends Canvas {
                 }
                 case 4:
                 case 5: {
-                  this.state = this.menuSelection === 4 ? 6 : 3;
+                  this.state = this.menuSelection === 4 ? GameState.Help : GameState.About;
                   this.heldKeyAction = 0;
                   break;
                 }
@@ -377,11 +378,11 @@ export class GameScreen extends Canvas {
           }
           break;
         }
-        case 2: {
+        case GameState.LevelLoading: {
           this.loadLevelStep(this.levelIndex);
           if (this.levelLoaded) {
             this.stateTimer = 0;
-            this.state = 22;
+            this.state = GameState.MissionBriefing;
             break;
           }
           GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
@@ -396,7 +397,7 @@ export class GameScreen extends Canvas {
           }
           break;
         }
-        case 22: {
+        case GameState.MissionBriefing: {
           if (this.heldKeyAction !== 0) {
             this.stateTimer = 71;
           }
@@ -414,7 +415,7 @@ export class GameScreen extends Canvas {
           this.stateTimer = 0;
           this.heldKeyAction = 0;
           if (!this.levelLoaded) {
-            this.state = 10;
+            this.state = GameState.Playing;
             break;
           }
           this.levelLoaded = false;
@@ -433,16 +434,16 @@ export class GameScreen extends Canvas {
             }
             this.player.targetVelX = 8192;
             this.player.setFrame(2);
-            this.state = 14;
+            this.state = GameState.LevelEnter;
             break;
           }
           this.cameraVelX = 0;
           this.cameraX = 0;
           this.player.posX = -81920;
-          this.state = 10;
+          this.state = GameState.Playing;
           break;
         }
-        case 21: {
+        case GameState.LevelScroll: {
           switch (this.levelIndex) {
             case 2: {
               if (!this.scriptFlagL) {
@@ -465,7 +466,7 @@ export class GameScreen extends Canvas {
                 if (this.cameraX + this.cameraVelX <= this.scriptStageAc) break;
                 this.cameraX = this.scriptStageAc;
                 this.cameraVelX = 0;
-                this.state = 10;
+                this.state = GameState.Playing;
                 this.heldKeyAction = 0;
                 this.stateTimer = 0;
                 break;
@@ -482,12 +483,12 @@ export class GameScreen extends Canvas {
           this.renderWorld(var1_1);
           break;
         }
-        case 14: {
+        case GameState.LevelEnter: {
           if (this.stateTimer++ !== 5) {
             // lbl248
             if (this.stateTimer > 16) {
               this.player.setFrame(0);
-              this.state = this.levelIndex === 7 ? 21 : 10;
+              this.state = this.levelIndex === 7 ? GameState.LevelScroll : GameState.Playing;
               this.heldKeyAction = 0;
               this.isCutsceneEntry = false;
               this.stateTimer = 0;
@@ -501,12 +502,12 @@ export class GameScreen extends Canvas {
           this.renderWorld(var1_1);
           break;
         }
-        case 10: {
+        case GameState.Playing: {
           this.updateWorld();
           this.renderWorld(var1_1);
           break;
         }
-        case 18: {
+        case GameState.MissionFailed: {
           if (this.stateTimer === 0) {
             this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
             var1_1.setColor(65280);
@@ -538,12 +539,12 @@ export class GameScreen extends Canvas {
               switch (this.menuSelection) {
                 case 0: {
                   this.player.fullAmmoInit();
-                  this.state = 2;
+                  this.state = GameState.LevelLoading;
                   break;
                 }
                 case 1: {
                   this.inTaskSelectMenu = false;
-                  this.state = 4;
+                  this.state = GameState.MainMenu;
                 }
               }
               this.stateTimer = 0;
@@ -580,7 +581,7 @@ export class GameScreen extends Canvas {
           this.animateCursorExpand();
           break;
         }
-        case 15: {
+        case GameState.Ending: {
           GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
           if (this.stateTimer === 0) {
             LevelLoader.retainSpriteDef(18);
@@ -595,7 +596,7 @@ export class GameScreen extends Canvas {
             var1_1.setFont(Font.getFont(0, 1, 16)); // SYSTEM/BOLD/LARGE
             var1_1.drawString("剧终", 88, 100, 17);
             if (this.stateTimer-- >= -60) break;
-            this.state = 4;
+            this.state = GameState.MainMenu;
             this.stateTimer = 0;
             this.clearInputQueue();
             this.menuSelection = 0;
@@ -656,7 +657,7 @@ export class GameScreen extends Canvas {
           }
           break;
         }
-        case 16: {
+        case GameState.MissionComplete: {
           if (this.heldKeyAction !== 0 && this.stateTimer !== 10) {
             this.stateTimer = 10;
             this.animFrameIndex = 0;
@@ -688,14 +689,14 @@ export class GameScreen extends Canvas {
             if (this.levelIndex !== 7) {
               ++this.levelIndex;
               this.releaseLevel();
-              this.state = 2;
+              this.state = GameState.LevelLoading;
               if (((this.levelIndex << 24) >> 24) > GameScreen.saveData[0]) {
                 GameScreen.saveData[0] = (this.levelIndex << 24) >> 24; // (byte)
               }
               GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
               this.accessSaveData(0);
             } else {
-              this.state = 15;
+              this.state = GameState.Ending;
               this.creditScrollX = -176;
               this.creditScrollX2 = -20;
             }
@@ -705,7 +706,7 @@ export class GameScreen extends Canvas {
           this.drawBriefingAnim(var1_1, 0, 0, 84, 175, this.animFrameIndex++);
           break;
         }
-        case 19: {
+        case GameState.GoalCutscene: {
           if (this.stateTimer === 0) {
             this.player.setFrame(1);
             this.player.targetVelX = GameScreen.instance.levelIndex === 4 ? this.cameraVelX : 0;
@@ -741,7 +742,7 @@ export class GameScreen extends Canvas {
           }
           if ((this.levelIndex === 1 || this.levelIndex === 3) && this.stateTimer > 11) {
             if (this.stateTimer++ > 23) {
-              this.state = 16;
+              this.state = GameState.MissionComplete;
               this.heldKeyAction = 0;
               this.stateTimer = 0;
               break;
@@ -752,7 +753,7 @@ export class GameScreen extends Canvas {
           if (this.player.posX > this.cameraX + GameScreen.viewWidthFx + 10240) {
             this.player.targetVelX = 0;
             if (this.stateTimer++ > 32) {
-              this.state = 16;
+              this.state = GameState.MissionComplete;
               this.heldKeyAction = 0;
               this.cameraVelY = 0;
               this.stateTimer = 0;
@@ -770,7 +771,7 @@ export class GameScreen extends Canvas {
           this.stateTimer = 20;
           break;
         }
-        case 13: {
+        case GameState.Paused: {
           let var5_11 = 0;
           if (this.stateTimer === 0) {
             var5_11 = 0;
@@ -792,7 +793,7 @@ export class GameScreen extends Canvas {
             switch (this.menuSelection) {
               case 0: {
                 this.heldKeyAction = 0;
-                this.state = 10;
+                this.state = GameState.Playing;
                 break;
               }
               case 1: {
@@ -806,7 +807,7 @@ export class GameScreen extends Canvas {
                 this.hudBlinkCounter = 0;
                 this.menuSelection = 0;
                 this.inTaskSelectMenu = false;
-                this.state = 4;
+                this.state = GameState.MainMenu;
                 break;
               }
               case 3: {
@@ -852,10 +853,10 @@ export class GameScreen extends Canvas {
           }
           break;
         }
-        case 3:
-        case 6: {
+        case GameState.About:
+        case GameState.Help: {
           if (this.heldKeyAction !== 0) {
-            this.state = 4;
+            this.state = GameState.MainMenu;
             this.inTaskSelectMenu = false;
             this.stateTimer = 0;
             this.clearInputQueue();
@@ -865,7 +866,7 @@ export class GameScreen extends Canvas {
           }
           if (this.stateTimer === 0) {
             let var8_17: number;
-            if (this.state === 6) {
+            if (this.state === GameState.Help) {
               this.loadTextFromBin(0);
               var8_17 = 3;
             } else {
@@ -881,7 +882,7 @@ export class GameScreen extends Canvas {
           this.drawReturnHint(var1_1);
           break;
         }
-        case 20: {
+        case GameState.CaptureCutscene: {
           this.fillScreenColor(var1_1, this.stateTimer++);
           if (this.stateTimer <= 12) break;
           this.stateTimer = 0;
@@ -890,11 +891,11 @@ export class GameScreen extends Canvas {
           this.menuSelection = 0;
           this.heldKeyAction = 0;
           if (this.player.spareO === 16 && this.player.spareP === 16) {
-            this.state = 16;
+            this.state = GameState.MissionComplete;
             break;
           }
           if (this.player.health <= 0) {
-            this.state = 18;
+            this.state = GameState.MissionFailed;
             break;
           }
           this.player.setFrame(0);
@@ -907,7 +908,7 @@ export class GameScreen extends Canvas {
             GameScreen.instance.cameraY = this.player.posY - ((var8_18 * 3 / 4) | 0);
           }
           this.tileMap.invalidateBuffer();
-          this.state = 10;
+          this.state = GameState.Playing;
         }
       }
     } catch (v1) {}
@@ -1040,7 +1041,7 @@ export class GameScreen extends Canvas {
     }
     graphics.setColor(0);
     graphics.fillRect(80, 180, 44, 15);
-    if (this.state === 10 && this.showIndicator && this.hudBlinkCounter % 2 === 0) {
+    if (this.state === GameState.Playing && this.showIndicator && this.hudBlinkCounter % 2 === 0) {
       this.drawNumber(graphics, this.indicatorValue, 150, 162, this.levelIndex === 7, false);
     }
     let n5 = 0;
@@ -1181,7 +1182,7 @@ export class GameScreen extends Canvas {
         break;
       }
       case 2: {
-        if (this.state !== 21) break;
+        if (this.state !== GameState.LevelScroll) break;
         this.cameraX += this.cameraVelX;
         if (this.cameraX > n2 - GameScreen.viewWidthFx) {
           this.cameraX = n2 - GameScreen.viewWidthFx;
@@ -1190,7 +1191,7 @@ export class GameScreen extends Canvas {
           this.scriptFlagL = true;
         } else if (this.cameraX < 0 && this.scriptFlagL) {
           this.cameraX = 0;
-          this.state = 10;
+          this.state = GameState.Playing;
           this.heldKeyAction = 0;
           this.scriptFlagL = false;
           this.stateTimer = 0;
@@ -1235,8 +1236,8 @@ export class GameScreen extends Canvas {
         if (this.enemyAliveCount === 0) {
           if (this.airdropWaveCount < 5) {
             this.spawnAirdropWave();
-          } else if (GameScreen.instance.state === 10) {
-            GameScreen.instance.state = 19;
+          } else if (GameScreen.instance.state === GameState.Playing) {
+            GameScreen.instance.state = GameState.GoalCutscene;
           }
         }
         this.indicatorValue = this.enemyAliveCount + (5 - this.airdropWaveCount) * 4;
@@ -1254,13 +1255,13 @@ export class GameScreen extends Canvas {
           ++this.scriptStageAc;
           break;
         }
-        if (GameScreen.instance.state !== 19) break;
+        if (GameScreen.instance.state !== GameState.GoalCutscene) break;
         this.cameraVelY = this.indicatorToggle ? -1536 : 1536;
         this.indicatorToggle = !this.indicatorToggle;
         break;
       }
       case 7: {
-        if (this.state === 10 || this.state === 19) {
+        if (this.state === GameState.Playing || this.state === GameState.GoalCutscene) {
           const n10 = this.cameraX >> 10;
           const n11 = this.player.posX >> 10;
           const n12 = n11 - this.bossTriggerX;
@@ -1286,7 +1287,7 @@ export class GameScreen extends Canvas {
           this.spawnExplosionScatter(n13);
           break;
         }
-        if (this.state !== 21) break;
+        if (this.state !== GameState.LevelScroll) break;
         if (this.scriptFlagL) {
           this.cameraVelY = this.cameraVelY > 0 ? -2048 : 2048;
           this.cameraY += this.cameraVelY;
@@ -1539,7 +1540,7 @@ export class GameScreen extends Canvas {
       }
       case -6:
       case -5: {
-        if (this.state === 10) break;
+        if (this.state === GameState.Playing) break;
         n2 = 16;
         break;
       }
@@ -1556,7 +1557,7 @@ export class GameScreen extends Canvas {
       }
       case 35:
       case 57: {
-        if (this.state === 10) {
+        if (this.state === GameState.Playing) {
           n2 = 32;
           break;
         }
@@ -1565,7 +1566,7 @@ export class GameScreen extends Canvas {
       }
       case 51:
       case 54: {
-        if (this.state === 10) {
+        if (this.state === GameState.Playing) {
           n2 = 2048;
           break;
         }
@@ -1576,7 +1577,7 @@ export class GameScreen extends Canvas {
       case 50:
       case 52:
       case 53: {
-        n2 = this.state === 10 ? 1024 : 16;
+        n2 = this.state === GameState.Playing ? 1024 : 16;
       }
     }
     return n2;
@@ -1585,25 +1586,25 @@ export class GameScreen extends Canvas {
   keyPressed(n: number): void {
     let n2: number;
     if (n === -6 || n === -5) {
-      if (this.state === 10) {
+      if (this.state === GameState.Playing) {
         this.clearInputQueue();
         this.menuSelection = 0;
-        this.state = 13;
+        this.state = GameState.Paused;
         return;
       }
-      if (this.state === 4) {
+      if (this.state === GameState.MainMenu) {
         this.enqueueInputAction(16, false);
         return;
       }
     } else if (n === -7) {
-      if (this.state === 10) {
+      if (this.state === GameState.Playing) {
         this.clearInputQueue();
-        this.state = 22;
+        this.state = GameState.MissionBriefing;
         this.stateTimer = 0;
         return;
       }
-      if (this.state === 13) {
-        this.state = 10;
+      if (this.state === GameState.Paused) {
+        this.state = GameState.Playing;
         return;
       }
     }
@@ -2242,10 +2243,10 @@ export class GameScreen extends Canvas {
   }
 
   hideNotify(): void {
-    if (this.state === 10) {
+    if (this.state === GameState.Playing) {
       this.menuSelection = 0;
       this.clearInputQueue();
-      this.state = 13;
+      this.state = GameState.Paused;
     }
   }
 

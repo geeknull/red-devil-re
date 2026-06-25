@@ -9,6 +9,7 @@
  */
 import { MIDlet, Display, Random, InputStream, getResourceAsStream } from "@red-devil/j2me-shim";
 import { GameScreen } from "./GameScreen.ts";
+import { GameState } from "./constants.ts";
 
 export class GameMIDlet extends MIDlet {
   screen: GameScreen;
@@ -32,10 +33,10 @@ export class GameMIDlet extends MIDlet {
   }
 
   pauseApp(): void {
-    if (this.screen.state === 10) {
+    if (this.screen.state === GameState.Playing) {
       this.screen.menuSelection = 0;
       this.screen.clearInputQueue();
-      this.screen.state = 13;
+      this.screen.state = GameState.Paused;
     }
   }
 

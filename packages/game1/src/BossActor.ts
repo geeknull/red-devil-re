@@ -25,6 +25,7 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { EnemyActor } from "./EnemyActor.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
+import { GameState, MIRROR_FLAG } from "./constants.ts";
 
 export class BossActor extends ActorBase {
   screen: GameScreen;
@@ -83,7 +84,7 @@ export class BossActor extends ActorBase {
           this.waveCount = 9;
           this.attackMode = 0;
         }
-        this.setFrame(-2147483648); // Integer.MIN_VALUE
+        this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
         break;
       }
       case 17: {
@@ -152,7 +153,7 @@ export class BossActor extends ActorBase {
                     bl = true;
                   } else if ((f2.stateFlags & 1) !== 0 && f2.posY > 500000) {
                     bl = true;
-                    this.screen.state = 19;
+                    this.screen.state = GameState.GoalCutscene;
                   }
                   if (!bl) return;
                   this.deactivate();
@@ -191,7 +192,7 @@ export class BossActor extends ActorBase {
                 if (this.subTimer++ > 15) {
                   const n5: number = 35840;
                   if (this.attackMode === 0) {
-                    const l2: ProjectileActor | null = this.screen.spawnProjectile(21, -2147483648, 0, this.posX - n5, this.posY - n5, 1);
+                    const l2: ProjectileActor | null = this.screen.spawnProjectile(21, MIRROR_FLAG, 0, this.posX - n5, this.posY - n5, 1);
                     if (l2 === null) break;
                     l2.targetVelX = -12288;
                     this.subTimer = 0;
@@ -219,7 +220,7 @@ export class BossActor extends ActorBase {
                 }
                 if (this.targetVelX <= 0) break;
                 if (this.isAnimationDone()) {
-                  this.setFrame(-2147483648); // Integer.MIN_VALUE
+                  this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
                 }
                 if (this.posX <= n2 - 20480) break;
                 this.subTimer = 0;
@@ -235,7 +236,7 @@ export class BossActor extends ActorBase {
                   this.subTimer = 0;
                   this.phase = 3;
                   this.targetVelX = -10240;
-                  this.setFrame(-2147483648); // Integer.MIN_VALUE
+                  this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
                   return;
                 }
                 if (!this.isAnimationDone()) break;
