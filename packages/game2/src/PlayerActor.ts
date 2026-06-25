@@ -32,6 +32,7 @@ import { SpriteDef } from "./SpriteDef.ts";
 import { ItemActor } from "./ItemActor.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
+import { LevelSubState, MIRROR_FLAG } from "./constants.ts";
 
 export class PlayerActor extends ActorBase {
   public static readonly jumpVelocityX: Int32Array = Int32Array.from([8192, 4096, 8192, 8192, 8192, 8192]);
@@ -196,7 +197,7 @@ export class PlayerActor extends ActorBase {
         this.updateVaultMotion();
       }
     }
-    if (this.canvas.scene.subState == 0 || this.canvas.scene.subState == 5) {
+    if (this.canvas.scene.subState == LevelSubState.Normal || this.canvas.scene.subState == LevelSubState.BattleWave) {
       n3 = this.posX + (this.boxLeft << 10) + this.velX;
       n2 = this.posX + (this.boxRight << 10) + this.velX;
       n = this.canvas.cameraX + 4096;
@@ -232,7 +233,7 @@ export class PlayerActor extends ActorBase {
   public update(): void {
     this.runActionStateMachine();
     switch (this.canvas.scene.subState) {
-      case 6: {
+      case LevelSubState.BossScript: {
         if ((this.reserved & 4) != 0) {
           this.targetVelX = 0;
           this.targetVelY = 0;
@@ -250,8 +251,8 @@ export class PlayerActor extends ActorBase {
         this.setAction(0 | this.actionHighByte);
         break;
       }
-      case 0:
-      case 5: {
+      case LevelSubState.Normal:
+      case LevelSubState.BattleWave: {
         if (this.canAcceptInput()) {
           this.handleInput(this.canvas.inputAction);
         }
@@ -259,7 +260,7 @@ export class PlayerActor extends ActorBase {
         this.switchPending = false;
       }
     }
-    if (this.canvas.scene.subState != 6) {
+    if (this.canvas.scene.subState != LevelSubState.BossScript) {
       this.dead = false;
     }
     if (this.health <= 0 && this.frameGroupIndex != 5 && this.frameGroupIndex != 6 && this.frameGroupIndex != 3 && this.frameGroupIndex != 4 && !this.canvas.scene.isVerticalScrollLevel) {
@@ -471,13 +472,13 @@ export class PlayerActor extends ActorBase {
               this.setAction(-2147483647);
               return;
             }
-            this.setAction(this.frameGroupIndex | -2147483648);
+            this.setAction(this.frameGroupIndex | MIRROR_FLAG);
             return;
           }
           if (this.frameGroupIndex != 1) break;
           if (this.actionHighByte == 0) {
             this.targetVelX = 0;
-            this.setAction(-2147483648);
+            this.setAction(MIRROR_FLAG);
             return;
           }
           if (this.targetVelX != 0) break;
@@ -491,7 +492,7 @@ export class PlayerActor extends ActorBase {
         }
         if ((this.reserved & 2) == 0) break;
         if (this.actionHighByte == 0) {
-          this.setAction(this.frameGroupIndex | -2147483648);
+          this.setAction(this.frameGroupIndex | MIRROR_FLAG);
           this.canvas.inputAction = 0;
           return;
         }
@@ -559,7 +560,7 @@ export class PlayerActor extends ActorBase {
             return;
           }
           if (this.actionHighByte == 0 && this.canvas.inputAction == 64) {
-            this.setAction(this.frameGroupIndex | -2147483648);
+            this.setAction(this.frameGroupIndex | MIRROR_FLAG);
             return;
           }
           if (this.actionHighByte != 0 && this.canvas.inputAction == 128) {
@@ -851,7 +852,7 @@ export class PlayerActor extends ActorBase {
     if (this.health <= 0 || n <= 0) {
       return;
     }
-    if (this.canvas.scene.subState != 0 && this.canvas.scene.subState != 5) {
+    if (this.canvas.scene.subState != LevelSubState.Normal && this.canvas.scene.subState != LevelSubState.BattleWave) {
       return;
     }
     this.health -= n;
@@ -875,7 +876,7 @@ export class PlayerActor extends ActorBase {
         if (this.health <= 0) {
           this.publicFlagC = true;
           LevelScene.cutsceneState[1] = 2;
-          this.canvas.scene.setSubState(1);
+          this.canvas.scene.setSubState(LevelSubState.Cutscene);
         }
         return;
       }
@@ -1173,7 +1174,7 @@ export class PlayerActor extends ActorBase {
     } else if (this.switchPending && (this.reserved & 1) != 0) {
       this.targetVelX = 0;
       this.setAction(0x21 | this.actionHighByte);
-      this.canvas.scene.setSubState(2);
+      this.canvas.scene.setSubState(LevelSubState.TransitionOut);
       return true;
     }
     return false;

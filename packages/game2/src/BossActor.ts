@@ -25,6 +25,7 @@ import { SpriteDef } from "./SpriteDef.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, LevelSubState } from "./constants.ts";
 
 export class BossActor extends ActorBase {
   static BULLET_PARAMS_T11: number[][] = [
@@ -33,7 +34,7 @@ export class BossActor extends ActorBase {
   ];
   static BULLET_PARAMS_T17: number[][] = [
     [-8, -8, 1, 1, -10, 0, 2],
-    [0, 4, 0x40000000, 4, 0, 10, 5],
+    [0, 4, FLIP_VERTICAL_BIT, 4, 0, 10, 5],
   ];
   health: number = 0;
   private cN: number = 0;
@@ -203,7 +204,7 @@ export class BossActor extends ActorBase {
             this.targetVelY = -2048;
           }
         }
-        if (this.cP-- < 0 && (k3 = ProjectileActor.spawnProjectile(10, (n9 = BossActor.BULLET_PARAMS_T17[(n8 = (this.frameGroupIndex / 3) | 0)][2] | (this.actionHighByte ^ -2147483648)), (n7 = this.posX + this.targetVelX + (BossActor.BULLET_PARAMS_T17[n8][0] << 10) * (n6 = this.actionHighByte === 0 ? 1 : -1)), (n = this.posY + this.targetVelY + (BossActor.BULLET_PARAMS_T17[n8][1] << 10)), 1, null)) != null) {
+        if (this.cP-- < 0 && (k3 = ProjectileActor.spawnProjectile(10, (n9 = BossActor.BULLET_PARAMS_T17[(n8 = (this.frameGroupIndex / 3) | 0)][2] | (this.actionHighByte ^ MIRROR_FLAG)), (n7 = this.posX + this.targetVelX + (BossActor.BULLET_PARAMS_T17[n8][0] << 10) * (n6 = this.actionHighByte === 0 ? 1 : -1)), (n = this.posY + this.targetVelY + (BossActor.BULLET_PARAMS_T17[n8][1] << 10)), 1, null)) != null) {
           k3.targetVelX = (BossActor.BULLET_PARAMS_T17[n8][4] << 10) * n6;
           k3.targetVelY = BossActor.BULLET_PARAMS_T17[n8][5] << 10;
           this.setAction(BossActor.BULLET_PARAMS_T17[n8][3] | this.actionHighByte);
@@ -303,7 +304,7 @@ export class BossActor extends ActorBase {
             case 0: {
               if (this.patrolCountdown-- >= 0) break;
               this.canvas.scene.spawnWave();
-              this.setAction(this.frameGroupIndex | (this.actionHighByte ^= -2147483648));
+              this.setAction(this.frameGroupIndex | (this.actionHighByte ^= MIRROR_FLAG));
               this.axisOrPhase ^= 1;
               this.phaseIndex = 1;
               break;
@@ -360,7 +361,7 @@ export class BossActor extends ActorBase {
           this.dormant = true;
           LevelScene.cutsceneState[1] = 4;
           LevelScene.cutsceneState[2] = 1;
-          this.canvas.scene.setSubState(6);
+          this.canvas.scene.setSubState(LevelSubState.BossScript);
           return;
         }
         this.pendingFire = false;
@@ -373,7 +374,7 @@ export class BossActor extends ActorBase {
             this.canvas.scene.cameraTargetCacheY = this.canvas.cameraY;
             LevelScene.cutsceneState[1] = 1;
             LevelScene.cutsceneState[2] = 1;
-            this.canvas.scene.setSubState(6);
+            this.canvas.scene.setSubState(LevelSubState.BossScript);
             this.killAndMarkSpawned();
           } else {
             n10 = this.posY - ((2 + GameMIDlet.randomBelow(Math.abs(this.boxTop))) << 10);

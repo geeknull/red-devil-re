@@ -35,10 +35,11 @@
  */
 import { Graphics, Image, InputStream, getCachedImage, getResourceAsStream } from "@red-devil/j2me-shim";
 import { GameMIDlet } from "./GameMIDlet.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
 
 export class TileSheet {
-  static flipHorizontalBit: number = -2147483648; // Integer.MIN_VALUE (0x80000000)
-  static flipVerticalBit: number = 0x40000000;
+  static flipHorizontalBit: number = MIRROR_FLAG; // Integer.MIN_VALUE (0x80000000)
+  static flipVerticalBit: number = FLIP_VERTICAL_BIT;
   private cellCount: number = 0; // short
   private cellSrcX!: Int16Array; // short[]
   private cellSrcY!: Int16Array; // short[]

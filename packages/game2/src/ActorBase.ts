@@ -28,6 +28,7 @@ import { GameMIDlet } from "./GameMIDlet.ts";
 import { GameCanvas } from "./GameCanvas.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { jref } from "./jref.ts"; // 延迟绑定 j，打破 h→j→子类 的 ESM 循环依赖
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
 
 export class ActorBase {
   alive: boolean = false;
@@ -134,14 +135,14 @@ export class ActorBase {
     if (n < 0 || n > this.spriteDef.getActionCount()) {
       return;
     }
-    if ((this.actionCode & -2147483648) === 0) { // Integer.MIN_VALUE
+    if ((this.actionCode & MIRROR_FLAG) === 0) { // Integer.MIN_VALUE
       this.boxLeft = this.spriteDef.actionParamA[n];
       this.boxRight = this.spriteDef.actionParamB[n];
     } else {
       this.boxLeft = -this.spriteDef.actionParamB[n];
       this.boxRight = -this.spriteDef.actionParamA[n];
     }
-    if ((this.actionCode & 0x40000000) === 0) {
+    if ((this.actionCode & FLIP_VERTICAL_BIT) === 0) {
       this.boxTop = this.spriteDef.actionParamC[n];
       this.boxBottom = this.spriteDef.actionParamD[n];
     } else {
@@ -208,8 +209,8 @@ export class ActorBase {
       let s4: number; // short
       const n3 = (this.posX >> 10) - n;
       const n4 = (this.posY >> 10) - n2;
-      const n5 = this.actionCode & -2147483648; // Integer.MIN_VALUE
-      const n6 = this.actionCode & 0x40000000;
+      const n5 = this.actionCode & MIRROR_FLAG; // Integer.MIN_VALUE
+      const n6 = this.actionCode & FLIP_VERTICAL_BIT;
       if (n5 !== 0) {
         s4 = ((-this.spriteDef.paramK) << 16) >> 16; // (short)(-k)：Java short 取负带 i2s 截断
         s3 = ((-this.spriteDef.paramJ) << 16) >> 16;

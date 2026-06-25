@@ -22,6 +22,7 @@ import {
   getAudioContext,
 } from "@red-devil/j2me-shim";
 import { GameCanvas } from "./GameCanvas.ts";
+import { UiState } from "./constants.ts";
 
 export class GameMIDlet extends MIDlet {
   canvas: GameCanvas;
@@ -62,9 +63,9 @@ export class GameMIDlet extends MIDlet {
   }
 
   pauseApp(): void {
-    if (this.canvas.uiState === 10) {
+    if (this.canvas.uiState === UiState.InGame) {
       this.canvas.inputAction = 0;
-      this.canvas.uiState = 4;
+      this.canvas.uiState = UiState.MainMenu;
       this.canvas.menuStartItem = 0;
       this.canvas.menuSelection = 0;
     }

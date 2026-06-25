@@ -43,6 +43,7 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
+import { UiState, LevelSubState } from "./constants.ts";
 
 // 原版：a extends FullCanvas implements Runnable（TS 无 Runnable 接口，run() 直接由 Thread 驱动）。
 export class GameCanvas extends Canvas {
@@ -105,7 +106,7 @@ export class GameCanvas extends Canvas {
     // this.setFullScreenMode(true); // shim Canvas 即全屏画布（整体省略）
     GameCanvas.instance = this;
     this.midlet = gameMIDlet;
-    this.uiState = 3;
+    this.uiState = UiState.Splash;
     this.mainThread = new Thread(this);
     this.mainThread.start();
     this.running = true;
@@ -159,7 +160,7 @@ export class GameCanvas extends Canvas {
     GameMIDlet.tickSoundTimeout();
     try {
       switch (this.uiState) {
-        case 3: {
+        case UiState.Splash: {
           ++this.subState;
           graphics.setClip(0, 0, 176, 204);
           if (this.subState === 1) {
@@ -203,12 +204,12 @@ export class GameCanvas extends Canvas {
           graphics.fillRect(0, 0, 176, 204);
           graphics.drawImage(this.logoImageMain!, 0, 0, 20);
           graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 2, 20);
-          this.uiState = 1;
+          this.uiState = UiState.LoadingProgress;
           this.subState = 0;
           GameMIDlet.playSound(0, 160);
           break;
         }
-        case 1: {
+        case UiState.LoadingProgress: {
           ++this.subState;
           graphics.setClip(0, 0, 176, 204);
           graphics.setColor(0);
@@ -226,7 +227,7 @@ export class GameCanvas extends Canvas {
           graphics.setColor(30464);
           graphics.drawLine(4, 198, (((this.subState * 168) / 23) | 0) + 3, 198);
           if (!LevelScene.loadResourcesUpTo(this, this.subState)) break;
-          this.uiState = 4;
+          this.uiState = UiState.MainMenu;
           this.levelIndex = 0;
           this.subState = 0;
           this.menuStartItem = 1;
@@ -234,7 +235,7 @@ export class GameCanvas extends Canvas {
           this.startUnderline(120);
           break;
         }
-        case 4: {
+        case UiState.MainMenu: {
           graphics.setClip(0, 0, 176, 204);
           graphics.setColor(0);
           graphics.fillRect(0, 0, 176, 204);
@@ -265,7 +266,7 @@ export class GameCanvas extends Canvas {
           } else if (this.inputAction === 16) {
             switch (this.menuSelection) {
               case 0: {
-                this.uiState = 10;
+                this.uiState = UiState.InGame;
                 break;
               }
               case 1: {
@@ -273,14 +274,14 @@ export class GameCanvas extends Canvas {
                 GameMIDlet.accessSaveRecord(2);
                 this.transitionProgress = 0;
                 this.subState = 0;
-                this.uiState = 20;
+                this.uiState = UiState.CutsceneIntro;
                 PlayerActor.ammoReserve[1] = 6;
                 break;
               }
               case 2: {
                 if (GameMIDlet.saveRecord[3] === 0) {
                   this.subState = 0;
-                  this.uiState = 100;
+                  this.uiState = UiState.NoSave;
                   break;
                 }
                 this.transitionProgress = 0;
@@ -292,7 +293,7 @@ export class GameCanvas extends Canvas {
                   GameMIDlet.saveRecord[1] = 99;
                 }
                 PlayerActor.ammoReserve[1] = GameMIDlet.saveRecord[4];
-                this.uiState = this.levelIndex === 0 ? 20 : 2;
+                this.uiState = this.levelIndex === 0 ? UiState.CutsceneIntro : UiState.LevelIntroLoading;
                 break;
               }
               case 3: {
@@ -305,13 +306,13 @@ export class GameCanvas extends Canvas {
                 this.subState = 0;
                 GameMIDlet.loadTextEntry(7, "/res/string.bin");
                 this.inputAction = 0;
-                this.uiState = 6;
+                this.uiState = UiState.Help;
                 break;
               }
               case 5: {
                 GameMIDlet.loadTextEntry(8, "/res/string.bin");
                 this.inputAction = 0;
-                this.uiState = 19;
+                this.uiState = UiState.About;
                 break;
               }
               case 6: {
@@ -322,7 +323,7 @@ export class GameCanvas extends Canvas {
           this.inputAction = 0;
           break;
         }
-        case 100: {
+        case UiState.NoSave: {
           if (this.subState === 0) {
             graphics.setClip(0, 0, 176, 204);
             graphics.setColor(0);
@@ -337,10 +338,10 @@ export class GameCanvas extends Canvas {
           ++this.subState;
           if (this.subState <= 15) break;
           this.subState = 0;
-          this.uiState = 4;
+          this.uiState = UiState.MainMenu;
           break;
         }
-        case 2: {
+        case UiState.LevelIntroLoading: {
           this.loadLevel(this.levelIndex);
           graphics.setColor(0);
           graphics.setClip(0, 0, 176, 204);
@@ -349,15 +350,15 @@ export class GameCanvas extends Canvas {
           graphics.drawString(GameMIDlet.interludeTexts[11], 88, 184, 17);
           if (!this.loadComplete) break;
           this.subState = 0;
-          this.uiState = 10;
+          this.uiState = UiState.InGame;
           this.levelStartTime = Date.now(); // System.currentTimeMillis()
           break;
         }
-        case 20: {
+        case UiState.CutsceneIntro: {
           this.paintLevelIntro(graphics);
           break;
         }
-        case 22: {
+        case UiState.MissionBrief: {
           this.scene.render(graphics);
           graphics.setClip(0, 0, 176, 204);
           GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 171, 10, this.transitionProgress, 47872, 0, true);
@@ -370,7 +371,7 @@ export class GameCanvas extends Canvas {
               --this.transitionProgress;
               if (this.transitionProgress < 0) {
                 this.subState = 0;
-                this.uiState = 10;
+                this.uiState = UiState.InGame;
               }
             }
             this.inputAction = 0;
@@ -398,12 +399,12 @@ export class GameCanvas extends Canvas {
           }
           break;
         }
-        case 10: {
+        case UiState.InGame: {
           this.scene.tick();
           this.scene.render(graphics);
           break;
         }
-        case 18: {
+        case UiState.LevelFailed: {
           GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, this.transitionProgress, 47872, 0, true);
           if (this.transitionProgress < 10) {
             ++this.transitionProgress;
@@ -450,11 +451,11 @@ export class GameCanvas extends Canvas {
               if (by > 99) {
                 GameMIDlet.saveRecord[1] = 99;
               }
-              this.uiState = 2;
+              this.uiState = UiState.LevelIntroLoading;
             } else {
               this.menuStartItem = 1;
               this.menuSelection = 1;
-              this.uiState = 4;
+              this.uiState = UiState.MainMenu;
             }
             this.inputAction = 0;
           }
@@ -472,7 +473,7 @@ export class GameCanvas extends Canvas {
           this.drawUnderline(graphics, 120, 169 + this.menuSelection * 20);
           break;
         }
-        case 16: {
+        case UiState.LevelClear: {
           GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, this.transitionProgress, 47872, 0, true);
           if (this.transitionProgress < 10) {
             ++this.transitionProgress;
@@ -504,10 +505,10 @@ export class GameCanvas extends Canvas {
           if (this.resultAnimFrame === 34) {
             if (this.resultAnimCounter++ !== 4) break;
             if (this.levelIndex === 6) {
-              this.uiState = 21;
+              this.uiState = UiState.GameComplete;
             } else {
               ++this.levelIndex;
-              this.uiState = 2;
+              this.uiState = UiState.LevelIntroLoading;
             }
             GameMIDlet.saveRecord[0] = this.levelIndex << 24 >> 24; // (byte) 截断
             GameMIDlet.saveRecord[3] = this.levelIndex << 24 >> 24; // (byte) 截断
@@ -524,7 +525,7 @@ export class GameCanvas extends Canvas {
           this.resultAnimCounter %= LevelScene.actorDefs[0]!.getFrameCount(this.resultAnimFrame);
           break;
         }
-        case 21: {
+        case UiState.GameComplete: {
           ++this.subState;
           if (this.subState < 16) {
             LevelScene.fillBlackBand(graphics, this.subState, 0, 204);
@@ -535,12 +536,12 @@ export class GameCanvas extends Canvas {
           if (this.subState <= 30) break;
           this.menuStartItem = 1;
           this.menuSelection = 1;
-          this.uiState = 4;
+          this.uiState = UiState.MainMenu;
           this.subState = 0;
           // System.gc();
           break;
         }
-        case 6: {
+        case UiState.Help: {
           GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, 10, 47872, 0, true);
           graphics.setColor(65280);
           this.drawWrappedLines(graphics, GameMIDlet.tempText3, 5, 6, 19, this.subState, 9);
@@ -555,19 +556,19 @@ export class GameCanvas extends Canvas {
             break;
           }
           if (this.inputAction !== 16384) break;
-          this.uiState = 4;
+          this.uiState = UiState.MainMenu;
           this.inputAction = 0;
           GameMIDlet.tempText3 = null as unknown as string;
           // System.gc();
           break;
         }
-        case 19: {
+        case UiState.About: {
           GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, 10, 47872, 0, true);
           graphics.setColor(65280);
           this.drawWrappedLines(graphics, GameMIDlet.tempText3, 5, 5, 18, 0, 10);
           LevelScene.hudFont.drawCell(graphics, 5, 186, 39, 0, 0);
           if (this.inputAction !== 16384) break;
-          this.uiState = 4;
+          this.uiState = UiState.MainMenu;
           this.inputAction = 0;
           GameMIDlet.tempText3 = null as unknown as string;
           // System.gc();
@@ -588,19 +589,19 @@ export class GameCanvas extends Canvas {
     if (bl) {
       this.resultAnimFrame = 0;
       this.resultAnimCounter = 0;
-      this.uiState = 16;
+      this.uiState = UiState.LevelClear;
       return;
     }
     this.startUnderline(64);
-    this.uiState = 18;
+    this.uiState = UiState.LevelFailed;
   }
 
   hideNotify(): void {
-    if (this.uiState === 10 || this.uiState === 22) {
+    if (this.uiState === UiState.InGame || this.uiState === UiState.MissionBrief) {
       this.menuSelection = 0;
       this.menuStartItem = 0;
       this.inputAction = 0;
-      this.uiState = 4;
+      this.uiState = UiState.MainMenu;
     }
   }
 
@@ -608,7 +609,7 @@ export class GameCanvas extends Canvas {
   enterBriefing(): void {
     this.transitionProgress = 0;
     this.subState = 0;
-    this.uiState = 22;
+    this.uiState = UiState.MissionBrief;
     this.scene.subState = 0;
   }
 
@@ -623,7 +624,7 @@ export class GameCanvas extends Canvas {
           graphics.setClip(0, 0, 176, 204);
           graphics.fillRect(0, 0, 176, 204);
           if (this.inputAction === 32768) {
-            this.uiState = 2;
+            this.uiState = UiState.LevelIntroLoading;
             return;
           }
           graphics.setColor(65280);
@@ -661,7 +662,7 @@ export class GameCanvas extends Canvas {
             }
             case 4: {
               if (--GameCanvas.briefingAnimD > 0) break;
-              this.uiState = 2;
+              this.uiState = UiState.LevelIntroLoading;
             }
           }
           if (GameCanvas.briefingAnimE > 0) {
@@ -837,7 +838,7 @@ export class GameCanvas extends Canvas {
       case -1:
       case 1:
       case 50: {
-        if (this.uiState === 10) {
+        if (this.uiState === UiState.InGame) {
           n2 = 32;
           break;
         }
@@ -897,7 +898,7 @@ export class GameCanvas extends Canvas {
       }
       case -22:
       case 22: {
-        n2 = this.uiState === 4 ? 16 : 32768;
+        n2 = this.uiState === UiState.MainMenu ? 16 : 32768;
       }
     }
     return n2;
@@ -906,16 +907,16 @@ export class GameCanvas extends Canvas {
   keyPressed(n: number): void {
     let n2: number;
     if (n === 21 || n === -21) {
-      if (this.uiState === 10 || this.uiState === 22) {
-        this.uiState = 4;
+      if (this.uiState === UiState.InGame || this.uiState === UiState.MissionBrief) {
+        this.uiState = UiState.MainMenu;
         this.menuStartItem = 0;
         this.menuSelection = 0;
         this.inputAction = 0;
         return;
       }
-    } else if ((n === 22 || n === -22) && this.uiState === 10 && this.scene.subState === 0) {
+    } else if ((n === 22 || n === -22) && this.uiState === UiState.InGame && this.scene.subState === 0) {
       this.transitionProgress = 0;
-      this.uiState = 22;
+      this.uiState = UiState.MissionBrief;
     }
     this.inputAction = n2 = this.keyToAction(n);
   }

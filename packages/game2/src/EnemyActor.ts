@@ -32,13 +32,14 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
 
 export class EnemyActor extends ActorBase {
   private static readonly fireOffsetTable: number[][] = [
     [-6, -56, 0, -10, 0],
     [28, -26, 10, 0, 1],
     [28, -15, 10, 0, 1],
-    [4, 4, 0, 10, 0x40000000],
+    [4, 4, 0, 10, FLIP_VERTICAL_BIT],
   ];
   private static readonly throwOffsetTable: number[][] = [
     [0, -32],
@@ -183,7 +184,7 @@ export class EnemyActor extends ActorBase {
       case 0: {
         if (this.isAiming) {
           if (this.needTurn) {
-            this.actionHighByte ^= -2147483648; // Integer.MIN_VALUE
+            this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
           }
           this.aimAndFire();
           break;
@@ -217,7 +218,7 @@ export class EnemyActor extends ActorBase {
       case 2: {
         if (this.timer-- >= 0) break;
         this.reserved = 4;
-        this.actionHighByte ^= -2147483648; // Integer.MIN_VALUE
+        this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
         this.setAction(0 | this.actionHighByte);
         break;
       }
@@ -324,7 +325,7 @@ export class EnemyActor extends ActorBase {
         if (this.evaluateThreat() <= 0) break;
         if (this.typeId === 5) {
           if ((this.actionHighByte === 0 && this.posX > this.player.posX) || (this.actionHighByte !== 0 && this.posX < this.player.posX)) {
-            this.actionHighByte ^= -2147483648; // Integer.MIN_VALUE
+            this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
             this.setAction(this.frameGroupIndex | this.actionHighByte);
           }
           if (this.timer-- >= 0) break;

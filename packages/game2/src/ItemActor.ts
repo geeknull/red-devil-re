@@ -23,6 +23,7 @@ import { GameMIDlet } from "./GameMIDlet.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { LevelScene } from "./LevelScene.ts";
+import { MIRROR_FLAG } from "./constants.ts";
 
 export class ItemActor extends ActorBase {
   patrolMinX: number = 0;
@@ -69,7 +70,7 @@ export class ItemActor extends ActorBase {
         this.targetVelX = 1024 * n;
         if ((n > 0 && this.posX > this.patrolMaxX) || (n < 0 && this.posX < this.patrolMinX)) {
           this.targetVelX = 0;
-          this.actionHighByte ^= -2147483648; // Integer.MIN_VALUE
+          this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
           this.setAction(0 | this.actionHighByte);
         }
         if (this.posY > this.patrolMaxY) {
@@ -113,7 +114,7 @@ export class ItemActor extends ActorBase {
       }
       case 6: {
         if (this.canvas.player.posX > this.posX && this.actionHighByte === 0) {
-          this.setAction(-2147483648); // Integer.MIN_VALUE
+          this.setAction(MIRROR_FLAG); // Integer.MIN_VALUE
           return;
         }
         if (this.canvas.player.posX >= this.posX || this.actionHighByte === 0) break;
