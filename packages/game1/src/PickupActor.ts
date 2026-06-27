@@ -41,7 +41,7 @@ import { Graphics } from "@red-devil/j2me-shim";
 import { ActorBase } from "./ActorBase.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
-import { GameState } from "./constants.ts";
+import { ActorType, GameState } from "./constants.ts";
 
 export class PickupActor extends ActorBase {
   screen: GameScreen;
@@ -77,13 +77,13 @@ export class PickupActor extends ActorBase {
     this.pickupFlashTimer = 0;
     this.pickedUp = false;
     switch (this.typeId) {
-      case 3: {
+      case ActorType.AmmoSupplyPickup: {
         this.subType = byArray[0];
         this.setFrame(this.subType);
         this.riseEffectTile = this.subType === 0 ? 6 : 3;
         break;
       }
-      case 11: {
+      case ActorType.HealthPickup: {
         this.riseEffectTile = byArray[0];
         this.setFrame(this.subType);
       }
@@ -110,7 +110,7 @@ export class PickupActor extends ActorBase {
       return;
     }
     switch (this.typeId) {
-      case 3: {
+      case ActorType.AmmoSupplyPickup: {
         if (!this.intersectsActor(this.screen.player)) break;
         GameScreen.playSound(1, 1, 255);
         switch (this.subType) {
@@ -134,7 +134,7 @@ export class PickupActor extends ActorBase {
         this.screen.levelLoader.actorSpawned[this.extra] = true;
         return;
       }
-      case 11: {
+      case ActorType.HealthPickup: {
         if (!this.intersectsActor(this.screen.player) || this.screen.player.health <= 0) break;
         GameScreen.playSound(1, 1, 255);
         this.screen.player.health += this.riseEffectTile;
@@ -146,7 +146,7 @@ export class PickupActor extends ActorBase {
         this.screen.levelLoader.actorSpawned[this.extra] = true;
         return;
       }
-      case 13: {
+      case ActorType.LevelExitGate: {
         if (this.intersectsActor(this.screen.player)) {
           this.screen.flagE = true;
         }
@@ -177,7 +177,7 @@ export class PickupActor extends ActorBase {
     if (this.pickupFlashTimer === 0 || (--this.pickupFlashTimer > 0 && (this.pickupFlashTimer & 1) !== 0)) {
       super.paint(graphics, n, n2);
     }
-    if (this.pickupFlashTimer > 0 && (this.typeId === 3 || this.typeId === 11)) {
+    if (this.pickupFlashTimer > 0 && (this.typeId === ActorType.AmmoSupplyPickup || this.typeId === ActorType.HealthPickup)) {
       const n3 = (this.posX - this.screen.cameraX) >> 10;
       const n4 = (this.posY - this.screen.cameraY - 20480) >> 10;
       this.screen.drawNumber(graphics, this.riseEffectTile, n3, n4 - (30 - 3 * this.pickupFlashTimer), false, true);

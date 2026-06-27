@@ -21,7 +21,7 @@
  * （音频后续接入，调用保留）。
  */
 import { Graphics } from "@red-devil/j2me-shim";
-import { GameState, MIRROR_FLAG } from "./constants.ts";
+import { ActorType, GameState, MIRROR_FLAG } from "./constants.ts";
 import { GameMIDlet } from "./GameMIDlet.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
@@ -118,14 +118,14 @@ export class EnemyActor extends ActorBase {
       }
     }
     switch (this.typeId) {
-      case 1:
-      case 2: {
+      case ActorType.ReconScoutEnemy:
+      case ActorType.MeleeBomberEnemy: {
         this.isPatroller = true;
         this.drawParam = this.hitPoints = byArray[2];
         this.rhythmThreshold = 3;
         break;
       }
-      case 18: {
+      case ActorType.ScrollChaserHeavy: {
         this.hitPoints = 0;
       }
     }
@@ -176,7 +176,7 @@ export class EnemyActor extends ActorBase {
         this.lives = 0;
         this.aiState = 9;
         this.knockedBack = false;
-        if (this.typeId === 18) {
+        if (this.typeId === ActorType.ScrollChaserHeavy) {
           this.loopAnimation = false;
           this.setFrame(3 | this.facingFlag);
         } else {
@@ -188,8 +188,8 @@ export class EnemyActor extends ActorBase {
       }
     }
     switch (this.typeId) {
-      case 1:
-      case 2: {
+      case ActorType.ReconScoutEnemy:
+      case ActorType.MeleeBomberEnemy: {
         if (this.isPatroller) {
           this.patrolUpdate();
           return;
@@ -197,7 +197,7 @@ export class EnemyActor extends ActorBase {
         this.airUpdate();
         return;
       }
-      case 18: {
+      case ActorType.ScrollChaserHeavy: {
         this.bossUpdate();
       }
     }
@@ -248,7 +248,7 @@ export class EnemyActor extends ActorBase {
             this.aiming = true;
             if (this.hitPoints > 0 && this.comboToggle) {
               this.setFrame(8 | this.facingFlag);
-            } else if (this.typeId === 2) {
+            } else if (this.typeId === ActorType.MeleeBomberEnemy) {
               this.setFrame(0 | this.facingFlag);
             } else {
               this.setFrame(2 | this.facingFlag);
@@ -311,7 +311,7 @@ export class EnemyActor extends ActorBase {
         this.targetVelX = 0;
         this.timerB = 0;
         this.aiState = 1;
-        if (this.typeId === 2) {
+        if (this.typeId === ActorType.MeleeBomberEnemy) {
           this.setFrame(0 | this.facingFlag);
           return;
         }
@@ -323,7 +323,7 @@ export class EnemyActor extends ActorBase {
         switch (this.attackMode) {
           case 0: {
             switch (this.typeId) {
-              case 2: {
+              case ActorType.MeleeBomberEnemy: {
                 if (this.aiState === 8) {
                   this.setFrame(8 | this.facingFlag);
                   if (this.timerB++ > 10) {
@@ -346,7 +346,7 @@ export class EnemyActor extends ActorBase {
                 this.spawnMeleeHitbox();
                 break;
               }
-              case 1: {
+              case ActorType.ReconScoutEnemy: {
                 if (this.aiState === 8 && this.hitPoints === 1) {
                   if (this.timerB++ > 10) {
                     this.timerB = 0;
@@ -458,7 +458,7 @@ export class EnemyActor extends ActorBase {
           this.targetVelX = 7168;
         }
       }
-      if ((this.typeId === 2 && this.posY > this.screen.cameraY + 40960 || this.typeId === 1 && this.posY >= this.target.posY - 30720) && Math.abs(this.posX - this.target.posX) > 40960 && this.timerB++ > this.rhythmThreshold) {
+      if ((this.typeId === ActorType.MeleeBomberEnemy && this.posY > this.screen.cameraY + 40960 || this.typeId === ActorType.ReconScoutEnemy && this.posY >= this.target.posY - 30720) && Math.abs(this.posX - this.target.posX) > 40960 && this.timerB++ > this.rhythmThreshold) {
         this.timerB = 0;
         this.aiState = 5;
       }
@@ -498,7 +498,7 @@ export class EnemyActor extends ActorBase {
       }
       case 5: {
         switch (this.typeId) {
-          case 2: {
+          case ActorType.MeleeBomberEnemy: {
             if (this.actionLow24 === 2) {
               if (this.isAnimationDone()) {
                 this.setFrame(3 | this.facingFlag);
@@ -513,7 +513,7 @@ export class EnemyActor extends ActorBase {
             this.spawnMeleeHitbox();
             break;
           }
-          case 1: {
+          case ActorType.ReconScoutEnemy: {
             const l2: ProjectileActor | null = this.fireProjectile(28);
             if (l2 === null) break;
             this.aiState = 0;
@@ -539,7 +539,7 @@ export class EnemyActor extends ActorBase {
 
   // i() → i_
   private spawnMeleeHitbox(): void {
-    const l2: ProjectileActor | null = this.screen.spawnProjectile(20, 0, 0, this.posX, this.posY - 30720, 1);
+    const l2: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - 30720, 1);
     if (l2 !== null) {
       this.timerB = 0;
       l2.launchArc(this.facingFlag !== 0 ? 1 : 0);
@@ -554,7 +554,7 @@ export class EnemyActor extends ActorBase {
     if (this.facingFlag === 0) {
       n2 = -29696;
     }
-    return this.screen.spawnProjectile(21, 0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0), 0, this.posX + n2, this.posY - (n << 10), 1); // Integer.MIN_VALUE
+    return this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0), 0, this.posX + n2, this.posY - (n << 10), 1); // Integer.MIN_VALUE
   }
 
   // j() → j_
@@ -664,23 +664,23 @@ export class EnemyActor extends ActorBase {
     }
     let bl: boolean = false;
     switch (l2.typeId) {
-      case 21: {
+      case ActorType.GuidedMissileProjectile: {
         if ((l2.frameIndex & 0xffffff) !== 0) break;
         l2.deactivate();
         --this.lives;
         bl = true;
         break;
       }
-      case 10:
-      case 16: {
+      case ActorType.PlayerBounceShot:
+      case ActorType.ExplosionEffect: {
         this.lives = 0;
         bl = true;
         break;
       }
-      case 15:
-      case 20: {
+      case ActorType.GrenadeProjectile:
+      case ActorType.FallingBombProjectile: {
         const n: number = l2.targetVelX > 0 ? 8192 : -8192;
-        this.screen.spawnProjectile(16, 0, 0, l2.posX + n, l2.posY + 8192, 0);
+        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX + n, l2.posY + 8192, 0);
         l2.deactivate();
         GameScreen.playSound(5, 1, 220);
       }
@@ -689,7 +689,7 @@ export class EnemyActor extends ActorBase {
       this.timerB = 0;
       this.targetVelX = 0;
       this.aiState = 9;
-      if (this.typeId === 18) {
+      if (this.typeId === ActorType.ScrollChaserHeavy) {
         this.loopAnimation = false;
         this.setFrame(3 | this.facingFlag);
       } else {

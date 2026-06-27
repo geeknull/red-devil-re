@@ -32,7 +32,7 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, ActorType } from "./constants.ts";
 
 export class EnemyActor extends ActorBase {
   private static readonly fireOffsetTable: number[][] = [
@@ -105,8 +105,8 @@ export class EnemyActor extends ActorBase {
     this.patrolRightBound = this.posX;
     this.reserved = 0;
     switch (this.typeId) {
-      case 1:
-      case 3: {
+      case ActorType.RiflemanGrunt:
+      case ActorType.GrenadierGrunt: {
         this.reactionFactor = 1 + GameMIDlet.randomBelow(3);
         this.patrolRange = byArray[7] & 0xff;
         this.enemyVariant = byArray[8];
@@ -123,7 +123,7 @@ export class EnemyActor extends ActorBase {
         this.reserved = 8;
         break;
       }
-      case 4: {
+      case ActorType.SentryGrunt: {
         this.patrolRange = byArray[7] & 0xff;
         this.enemyVariant = byArray.length > 8 ? byArray[8] : 0;
         this.hp = 2;
@@ -140,13 +140,13 @@ export class EnemyActor extends ActorBase {
         this.patrolLeftBound = this.posX - (this.patrolRange << 10);
         break;
       }
-      case 5: {
+      case ActorType.TurretEmplacement: {
         this.spawnParam = byArray[7];
         this.hp = 1;
         this.timer = 5;
         break;
       }
-      case 2: {
+      case ActorType.VehicleGunner: {
         const by: number = byArray[7];
         this.spawnParam = byArray[8];
         this.patrolRange = byArray[9];
@@ -174,14 +174,14 @@ export class EnemyActor extends ActorBase {
   update(): void {
     this.facingSign = this.actionHighByte === 0 ? 1 : -1;
     switch (this.typeId) {
-      case 1:
-      case 3:
-      case 4: {
+      case ActorType.RiflemanGrunt:
+      case ActorType.GrenadierGrunt:
+      case ActorType.SentryGrunt: {
         this.updateWalkerAi();
         break;
       }
-      case 2:
-      case 5: {
+      case ActorType.VehicleGunner:
+      case ActorType.TurretEmplacement: {
         this.updateTurretAi();
       }
     }
@@ -242,17 +242,17 @@ export class EnemyActor extends ActorBase {
         if (this.isAnimationDone()) {
           this.reserved = 0;
           this.timer = 8;
-          if (this.typeId === 3) {
+          if (this.typeId === ActorType.GrenadierGrunt) {
             this.timer = 16;
           }
           this.attackRhythm = this.timer;
           this.setAction((this.frameGroupIndex === 8 ? 0 : 4) | this.actionHighByte);
-        } else if (this.typeId === 3 && this.frameIndex === 2) {
+        } else if (this.typeId === ActorType.GrenadierGrunt && this.frameIndex === 2) {
           const n: number = this.frameGroupIndex === 8 ? 0 : 1;
           const n2: number = 6 | this.actionHighByte;
           const n3: number = this.posX + (EnemyActor.throwOffsetTable[n][0] << 10) * this.facingSign;
           const n4: number = this.posY + (EnemyActor.throwOffsetTable[n][1] << 10);
-          this.launchProjectile(ProjectileActor.spawnProjectile(10, n2, n3, n4, 25, null)); // this.a(tjge.k)：传入投射物 → a_Tk
+          this.launchProjectile(ProjectileActor.spawnProjectile(ActorType.DirectBullet, n2, n3, n4, 25, null)); // this.a(tjge.k)：传入投射物 → a_Tk
         }
         this.hasFired = false;
         break;
@@ -298,12 +298,12 @@ export class EnemyActor extends ActorBase {
           this.setAction(0 | this.actionHighByte);
           break;
         }
-        if (this.typeId === 1) {
+        if (this.typeId === ActorType.RiflemanGrunt) {
           const n: number = this.frameGroupIndex - 8;
           const n5: number = EnemyActor.fireOffsetTable[n][4] | this.actionHighByte;
           const n6: number = this.posX + (EnemyActor.fireOffsetTable[n][0] << 10) * this.facingSign;
           const n7: number = this.posY + (EnemyActor.fireOffsetTable[n][1] << 10);
-          const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(10, n5, n6, n7, 25, null);
+          const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, n5, n6, n7, 25, null);
           if (k2 == null) break;
           if (!k2.hitWall) {
             k2.targetVelX = (EnemyActor.fireOffsetTable[n][2] << 10) * this.facingSign;
@@ -313,7 +313,7 @@ export class EnemyActor extends ActorBase {
           this.setAction(this.frameGroupIndex | this.actionHighByte);
           break;
         }
-        if (this.typeId !== 3) break;
+        if (this.typeId !== ActorType.GrenadierGrunt) break;
         this.setAction((this.frameGroupIndex === 0 ? 8 : 9) | this.actionHighByte);
         this.reserved = 1;
         this.attackRhythm = this.timer = 16;
@@ -346,7 +346,7 @@ export class EnemyActor extends ActorBase {
         this.killAndMarkSpawned();
       }
     }
-    if (this.typeId === 4 && this.reserved !== 6 && this.reserved !== 7 && this.player.health > 0 && this.collidesWith(this.player)) {
+    if (this.typeId === ActorType.SentryGrunt && this.reserved !== 6 && this.reserved !== 7 && this.player.health > 0 && this.collidesWith(this.player)) {
       this.applyDamage(10, 0);
       this.player.onHitBy(this);
     }
@@ -364,7 +364,7 @@ export class EnemyActor extends ActorBase {
    */
   // c() → c_
   private updateTurretAi(): void {
-    if (this.typeId === 2 && this.linkedVehicle != null && this.linkedVehicle.health <= 0) {
+    if (this.typeId === ActorType.VehicleGunner && this.linkedVehicle != null && this.linkedVehicle.health <= 0) {
       this.applyDamage(10, 0);
       this.linkedVehicle = null;
       return;
@@ -375,7 +375,7 @@ export class EnemyActor extends ActorBase {
           this.setAction(0 | this.actionHighByte);
         }
         if (this.evaluateThreat() <= 0) break;
-        if (this.typeId === 5) {
+        if (this.typeId === ActorType.TurretEmplacement) {
           if ((this.actionHighByte === 0 && this.posX > this.player.posX) || (this.actionHighByte !== 0 && this.posX < this.player.posX)) {
             this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
             this.setAction(this.frameGroupIndex | this.actionHighByte);
@@ -398,11 +398,11 @@ export class EnemyActor extends ActorBase {
         return;
       }
       case 5: {
-        if (this.typeId === 5) {
+        if (this.typeId === ActorType.TurretEmplacement) {
           const n: number = EnemyActor.turretShotParams[2] | this.actionHighByte;
           const n2: number = this.posX + (EnemyActor.turretShotParams[0] << 10) * this.facingSign;
           const n3: number = this.posY + (EnemyActor.turretShotParams[1] << 10);
-          const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(16, n, n2, n3, 1, null);
+          const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.ArcCannonShell, n, n2, n3, 1, null);
           if (k2 == null) break;
           k2.targetVelX = EnemyActor.turretShotParams[3] * this.facingSign;
           this.reserved = 1;
@@ -410,7 +410,7 @@ export class EnemyActor extends ActorBase {
           this.setAction(3 | this.actionHighByte);
           return;
         }
-        if (this.typeId !== 2) break;
+        if (this.typeId !== ActorType.VehicleGunner) break;
         if (this.linkedVehicle != null && this.linkedVehicle.requestFire()) {
           this.setAction(3 | this.actionHighByte);
           --this.patrolLeftBound;
@@ -477,8 +477,8 @@ export class EnemyActor extends ActorBase {
     n3 = 20480;
     n4 = 20480;
     switch (this.typeId) {
-      case 1:
-      case 3: {
+      case ActorType.RiflemanGrunt:
+      case ActorType.GrenadierGrunt: {
         let n7: number = this.posX - 30720;
         let n8: number = this.posX + 30720;
         let n9: number = this.posY - 20480;
@@ -490,7 +490,7 @@ export class EnemyActor extends ActorBase {
           return 0;
         }
         if (this.enemyVariant <= 0) break;
-        if (this.typeId === 3) {
+        if (this.typeId === ActorType.GrenadierGrunt) {
           n3 = this.canvas.viewportHeight;
           n4 = this.canvas.viewportHeight;
           break;
@@ -527,13 +527,13 @@ export class EnemyActor extends ActorBase {
       return false;
     }
     switch (h2.typeId) {
-      case 0: {
+      case ActorType.Player: {
         if (h2.frameGroupIndex !== 24) break;
         this.applyDamage(h2.getDamage(), h2.actionHighByte);
         break;
       }
-      case 10:
-      case 12: {
+      case ActorType.DirectBullet:
+      case ActorType.ExplosionDebris: {
         this.applyDamage(h2.getDamage(), h2.actionHighByte);
         return true;
       }
@@ -558,8 +558,8 @@ export class EnemyActor extends ActorBase {
     this.targetVelX = 0;
     this.preHitSubState = this.reserved;
     switch (this.typeId) {
-      case 1:
-      case 3: {
+      case ActorType.RiflemanGrunt:
+      case ActorType.GrenadierGrunt: {
         this.reserved = 6;
         if (n2 === this.actionHighByte) {
           this.setAction(6 | this.actionHighByte);
@@ -568,20 +568,20 @@ export class EnemyActor extends ActorBase {
         this.setAction(5 | this.actionHighByte);
         return;
       }
-      case 2: {
+      case ActorType.VehicleGunner: {
         this.reserved = 6;
         this.setAction(4 | this.actionHighByte);
         return;
       }
-      case 4: {
+      case ActorType.SentryGrunt: {
         if (this.hp > 0 || this.reserved === 6 || this.reserved === 7) break;
-        ProjectileActor.spawnProjectile(12, 0, this.posX - 5120, this.posY - 10240, 0, null);
-        ProjectileActor.spawnProjectile(12, 0, this.posX + 5120, this.posY - 20480, 0, null);
+        ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX - 5120, this.posY - 10240, 0, null);
+        ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + 5120, this.posY - 20480, 0, null);
         this.reserved = 6;
         this.setAction(0 | this.actionHighByte);
         return;
       }
-      case 5: {
+      case ActorType.TurretEmplacement: {
         this.reserved = 6;
         this.setAction(1 | this.actionHighByte);
       }
@@ -641,7 +641,7 @@ export class EnemyActor extends ActorBase {
       return;
     }
     switch (this.typeId) {
-      case 1: {
+      case ActorType.RiflemanGrunt: {
         const nArray: number[] = [9, 10, 8, 11];
         if (this.threatCode === 1) {
           if (this.timer === this.attackRhythm) {
@@ -665,7 +665,7 @@ export class EnemyActor extends ActorBase {
         this.reserved = 5;
         return;
       }
-      case 3: {
+      case ActorType.GrenadierGrunt: {
         const nArray: number[] = [0, 4];
         if (this.timer === this.attackRhythm && this.burstCount > 0) {
           this.setAction(nArray[GameMIDlet.randomBelow(2)] | this.actionHighByte);
@@ -679,7 +679,7 @@ export class EnemyActor extends ActorBase {
         this.reserved = 5;
         return;
       }
-      case 4: {
+      case ActorType.SentryGrunt: {
         this.reserved = 4;
         this.setAction(3 | this.actionHighByte);
       }

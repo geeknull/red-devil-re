@@ -14,7 +14,7 @@ import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { EffectActor } from "./EffectActor.ts";
 import { ActorBase } from "./ActorBase.ts";
-import { MIRROR_FLAG } from "./constants.ts";
+import { MIRROR_FLAG, ActorType } from "./constants.ts";
 
 export class ProjectileActor extends ActorBase {
   world: GameScreen;
@@ -60,17 +60,17 @@ export class ProjectileActor extends ActorBase {
     const n2 = this.frameIndex & 0xffffff;
     const f2 = this.world.player;
     switch (this.typeId) {
-      case 15:
-      case 21: {
+      case ActorType.GrenadeProjectile:
+      case ActorType.GuidedMissileProjectile: {
         switch (n2) {
           case 0: {
             if (this.world.levelIndex !== 4) {
               if (this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap)) {
-                if (this.typeId === 21) {
+                if (this.typeId === ActorType.GuidedMissileProjectile) {
                   this.posX += this.velX;
                   this.setFrame(1);
                 } else {
-                  this.world.spawnProjectile(16, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
+                  this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
                   this.deactivate();
                   GameScreen.playSound(5, 1, 220);
                 }
@@ -89,7 +89,7 @@ export class ProjectileActor extends ActorBase {
         }
         return;
       }
-      case 10: {
+      case ActorType.PlayerBounceShot: {
         if (this.mode === 2) {
           if (this.armingDelay-- > 0) {
             return;
@@ -120,7 +120,7 @@ export class ProjectileActor extends ActorBase {
         }
         return;
       }
-      case 20: {
+      case ActorType.FallingBombProjectile: {
         if (this.mode === 1 && --this.lifeTimer < 0) {
           const n3 = (this.targetVelX = this.world.levelIndex === 4 ? this.world.cameraVelX : 0); // n3 为反编译产生的死值，保留赋值链
           void n3;
@@ -129,7 +129,7 @@ export class ProjectileActor extends ActorBase {
           (this.world.levelIndex !== 4 && (this.collideGround(this.world.tileMap) || this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap))) ||
           (this.world.levelIndex === 4 && this.posY >= f2.posY + 30720)
         ) {
-          this.world.spawnProjectile(16, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
+          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
           this.deactivate();
           GameScreen.playSound(5, 1, 220);
           return;
@@ -137,7 +137,7 @@ export class ProjectileActor extends ActorBase {
         ++this.frameCounter;
         return;
       }
-      case 16: {
+      case ActorType.ExplosionEffect: {
         if (!this.isAnimationDone()) break;
         this.deactivate();
       }
@@ -153,7 +153,7 @@ export class ProjectileActor extends ActorBase {
    * @param n2 屏幕绘制 Y
    */
   paint(graphics: Graphics, n: number, n2: number): void {
-    if (this.typeId === 20 && this.frameCounter < 2) {
+    if (this.typeId === ActorType.FallingBombProjectile && this.frameCounter < 2) {
       return;
     }
     super.paint(graphics, n, n2);
@@ -259,11 +259,11 @@ export class ProjectileActor extends ActorBase {
   }
 
   private isEffectType(n: number): boolean {
-    return n === 7 || n === 9;
+    return n === ActorType.ExplosiveBarrel || n === ActorType.RegeneratingBarrier;
   }
 
   private isHomingTarget(n: number): boolean {
-    return n === 2 || n === 1;
+    return n === ActorType.MeleeBomberEnemy || n === ActorType.ReconScoutEnemy;
   }
 
   /**
@@ -283,7 +283,7 @@ export class ProjectileActor extends ActorBase {
       return false;
     }
     super.spawnAt(n, n2, n3, byArray, bl);
-    if (this.typeId === 10) {
+    if (this.typeId === ActorType.PlayerBounceShot) {
       this.armingDelay = byArray[0];
       this.loopFrames = byArray[1];
       this.subType = byArray[2];

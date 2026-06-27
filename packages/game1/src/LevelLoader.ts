@@ -32,6 +32,7 @@ import { GameScreen } from "./GameScreen.ts";
 import { TileMap } from "./TileMap.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { ActorBase } from "./ActorBase.ts";
+import { ActorType } from "./constants.ts";
 
 /**
  * 关卡加载器 / 屏块流式管理（CFR 基准：reverse/game1/2-decompiled-cfr/tjge/j.java）。
@@ -308,7 +309,7 @@ export class LevelLoader {
    */
   public static initBootSprites(a2: GameScreen): void {
     LevelLoader.spriteDefPool[0] = SpriteDef.loadFromBin(0);
-    LevelLoader.buildActorPool(a2, 0, 1);
+    LevelLoader.buildActorPool(a2, ActorType.Player, 1);
     LevelLoader.retainSpriteDef(8);
   }
 

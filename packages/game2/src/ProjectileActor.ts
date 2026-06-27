@@ -26,6 +26,7 @@ import { GameCanvas } from "./GameCanvas.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { ItemActor } from "./ItemActor.ts";
 import { ActorBase } from "./ActorBase.ts";
+import { ActorType } from "./constants.ts";
 
 export class ProjectileActor extends ActorBase {
   static collisionMaskTable: Int32Array = Int32Array.from([1, 1, 1, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0]);
@@ -62,7 +63,7 @@ export class ProjectileActor extends ActorBase {
   // public final void b() → b_
   update(): void {
     switch (this.typeId) {
-      case 10: {
+      case ActorType.DirectBullet: {
         switch (this.frameGroupIndex) {
           case 9: {
             if (Math.abs(this.targetVelY) <= 2048) {
@@ -88,7 +89,7 @@ export class ProjectileActor extends ActorBase {
           }
           // fall through
           case 6: {
-            if ((this.typeId as number) === 6 && !this.hasCollisionFlag(1)) {
+            if ((this.typeId as number) === ActorType.NavalOfficerNpc && !this.hasCollisionFlag(1)) {
               if (this.timer-- <= 0) {
                 this.targetVelX = 0;
               }
@@ -124,13 +125,13 @@ export class ProjectileActor extends ActorBase {
               }
             }
             if ((this.exploded || this.hitWall) && (this.frameGroupIndex === 6 || this.frameGroupIndex === 9 || this.frameGroupIndex === 10 || this.frameGroupIndex === 11 || this.frameGroupIndex === 12)) {
-              ProjectileActor.spawnProjectile(12, 0, this.posX, this.posY, this.collisionTypeMask, null);
+              ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, this.collisionTypeMask, null);
               this.kill();
               break;
             }
             if (this.frameGroupIndex === 11 && this.isSpecialGrenade && this.posY > 149504) {
-              const e2: ItemActor = this.canvas.scene.spawnActor(20, -1) as ItemActor;
-              (this.canvas.scene.spawnActor(20, -1) as ItemActor).posX = this.posX;
+              const e2: ItemActor = this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor;
+              (this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor).posX = this.posX;
               e2.posY = this.posY + 10240;
               e2.targetVelX = 0;
               e2.targetVelY = 0;
@@ -180,17 +181,17 @@ export class ProjectileActor extends ActorBase {
         }
         return;
       }
-      case 16: {
+      case ActorType.ArcCannonShell: {
         if (this.exploded) {
           this.kill();
           return;
         }
         if (!((this.targetVelX < 0 && this.collideLeft()) || (this.targetVelX > 0 && this.collideRight()) || !this.checkFloorCollision()) && !this.collidesWith(this.canvas.player)) break;
-        ProjectileActor.spawnProjectile(12, 0, this.posX, this.posY, 255, null);
+        ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, 255, null);
         this.exploded = true;
         return;
       }
-      case 12: {
+      case ActorType.ExplosionDebris: {
         if (this.isAnimationDone()) {
           this.kill();
           return;
@@ -198,7 +199,7 @@ export class ProjectileActor extends ActorBase {
         this.checkCollisions();
         return;
       }
-      case 9: {
+      case ActorType.GuidedGrenade: {
         ++this.timer;
         if (this.timer === 8) {
           const n: number = this.canvas.player.posX - this.posX;
@@ -228,8 +229,8 @@ export class ProjectileActor extends ActorBase {
           this.checkCollisions();
         }
         if (this.exploded) {
-          ProjectileActor.spawnProjectile(12, 0, this.posX, this.posY, 0, null);
-          ProjectileActor.spawnProjectile(12, 0, this.posX + 2048, this.posY - 4096, 0, null);
+          ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, 0, null);
+          ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + 2048, this.posY - 4096, 0, null);
           this.kill();
           return;
         }
@@ -251,15 +252,15 @@ export class ProjectileActor extends ActorBase {
   // protected final void c(tjge.h) → c_Th
   onCollide(h2: ActorBase): void {
     switch (this.typeId) {
-      case 10: {
-        if (h2.typeId === 11 || h2.typeId === 17 || h2.typeId === 21 || h2.typeId === 13 || h2.typeId === 19) {
+      case ActorType.DirectBullet: {
+        if (h2.typeId === ActorType.MobileGunEmplacement || h2.typeId === ActorType.PatrolLauncher || h2.typeId === ActorType.FinalBoss || h2.typeId === ActorType.DestructibleConsole || h2.typeId === ActorType.HelicopterBoss) {
           this.hitWall = true;
           return;
         }
         this.exploded = true;
         return;
       }
-      case 9: {
+      case ActorType.GuidedGrenade: {
         this.exploded = true;
       }
     }
@@ -303,7 +304,7 @@ export class ProjectileActor extends ActorBase {
       k2.collisionMask = 3;
       k2.collisionTypeMask = n5;
       switch (n) {
-        case 10: {
+        case ActorType.DirectBullet: {
           if (k2.frameGroupIndex === 9) break;
           if (k2.frameGroupIndex !== 6) {
             k2.collisionMask = 1;
@@ -321,11 +322,11 @@ export class ProjectileActor extends ActorBase {
           k2.update();
           break;
         }
-        case 12: {
+        case ActorType.ExplosionDebris: {
           k2.animLoop = false;
           break;
         }
-        case 9: {
+        case ActorType.GuidedGrenade: {
           k2.targetVelX = 0;
           k2.targetVelY = -2048;
           k2.timer = 0;
@@ -346,13 +347,13 @@ export class ProjectileActor extends ActorBase {
   // protected final int m() → m_
   getDamage(): number {
     switch (this.typeId) {
-      case 10: {
+      case ActorType.DirectBullet: {
         return ProjectileActor.collisionMaskTable[this.frameGroupIndex];
       }
-      case 12: {
+      case ActorType.ExplosionDebris: {
         return 3;
       }
-      case 9: {
+      case ActorType.GuidedGrenade: {
         return 2;
       }
     }

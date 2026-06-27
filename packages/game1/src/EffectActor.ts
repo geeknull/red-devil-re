@@ -23,7 +23,7 @@
  *   l2.b_()/l2.a_I(n)      = g.b()/g.a(int) （l 继承自 g）
  */
 import { Graphics } from "@red-devil/j2me-shim";
-import { GameState } from "./constants.ts";
+import { ActorType, GameState } from "./constants.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { PlayerActor } from "./PlayerActor.ts";
@@ -91,25 +91,25 @@ export class EffectActor extends ActorBase {
     this.shakeTick = 0;
     this.activated = false;
     switch (this.typeId) {
-      case 19: {
+      case ActorType.TreasureChestProp: {
         this.setFrame(byArray[0]);
         break;
       }
-      case 22: {
+      case ActorType.GrabAnchorZone: {
         this.anchorX = byArray[0];
         this.anchorY = byArray[1];
         break;
       }
-      case 5: {
+      case ActorType.CaptureTrigger: {
         this.hitPoints = 4;
       }
-      case 4: {
+      case ActorType.RescueTargetNpc: {
         this.destroyedFlag = 0;
         break;
       }
-      case 7:
-      case 9: {
-        this.hitPoints = this.typeId === 7 ? 3 : 9;
+      case ActorType.ExplosiveBarrel:
+      case ActorType.RegeneratingBarrier: {
+        this.hitPoints = this.typeId === ActorType.ExplosiveBarrel ? 3 : 9;
         this.anchorX = this.posX;
         this.anchorY = this.posY;
       }
@@ -137,7 +137,7 @@ export class EffectActor extends ActorBase {
     const var1_1: PlayerActor = this.world.player;
     this.tintBits = this.frameIndex & -16777216;
     switch (this.typeId) {
-      case 22: {
+      case ActorType.GrabAnchorZone: {
         if (this.intersectsActor(var1_1)) {
           var1_1.actionFlag = true;
           var1_1.linkedEnemy = this;
@@ -150,7 +150,7 @@ export class EffectActor extends ActorBase {
         var1_1.linkedEnemy = null;
         return;
       }
-      case 12: {
+      case ActorType.GatedTrigger: {
         if (!this.world.flagE) {
           return;
         }
@@ -162,7 +162,7 @@ export class EffectActor extends ActorBase {
         this.world.state = GameState.GoalCutscene;
         return;
       }
-      case 9: {
+      case ActorType.RegeneratingBarrier: {
         // case 9 落入：先依 d 选择动画帧，再 fall-through 到 case 7
         if (this.hitPoints >= 4) {
           // lbl28
@@ -177,10 +177,10 @@ export class EffectActor extends ActorBase {
         // GOTO lbl32 → 进入 case 7 主体
       }
       // lbl32
-      case 7: {
+      case ActorType.ExplosiveBarrel: {
         if (this.hitPoints <= 0) {
           let var2_2 = false;
-          if (this.typeId === 9) {
+          if (this.typeId === ActorType.RegeneratingBarrier) {
             if (this.world.levelIndex === 7 && this.posX >> 10 > 1720) {
               if ((this.world.player.stateFlags & 1) !== 0) {
                 var2_2 = true;
@@ -194,12 +194,12 @@ export class EffectActor extends ActorBase {
             var2_2 = true;
           }
           if (var2_2) {
-            if (this.typeId === 9) {
-              this.world.spawnProjectile(16, 0, 0, this.posX, this.posY - 5120, 2);
-              this.world.spawnProjectile(16, 0, 0, this.posX - 10240, this.posY - 20480, 2);
-              this.world.spawnProjectile(16, 0, 0, this.posX + 5120, this.posY - 10240, 2);
+            if (this.typeId === ActorType.RegeneratingBarrier) {
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY - 5120, 2);
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX - 10240, this.posY - 20480, 2);
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX + 5120, this.posY - 10240, 2);
             } else {
-              this.world.spawnProjectile(16, 0, 1, this.posX, this.posY - 5120, 2);
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 1, this.posX, this.posY - 5120, 2);
             }
             this.posX = this.anchorX;
             this.posY = this.anchorY;
@@ -207,7 +207,7 @@ export class EffectActor extends ActorBase {
             const var4_6 = (this.posY - 5120) >> 14;
             while (this.world.tileMap.queryColumnTileAt(--var3_4, var4_6, true) === 1) {
             }
-            const var5_7 = this.typeId === 7 ? 2 : 3;
+            const var5_7 = this.typeId === ActorType.ExplosiveBarrel ? 2 : 3;
             let var6_8 = 0;
             while (var6_8 < var5_7) {
               this.world.tileMap.clearTileAt(var3_4 + 1, var4_6 - var6_8);
@@ -230,7 +230,7 @@ export class EffectActor extends ActorBase {
           this.posX = this.anchorX;
           return;
         }
-        if (this.typeId !== 9 || this.regenTimer++ <= 40) break;
+        if (this.typeId !== ActorType.RegeneratingBarrier || this.regenTimer++ <= 40) break;
         if (this.hitPoints < 4 && this.hitPoints > 0) {
           this.hitPoints = 6;
         } else if (this.hitPoints < 7) {
@@ -239,7 +239,7 @@ export class EffectActor extends ActorBase {
         this.regenTimer = 0;
         return;
       }
-      case 4: {
+      case ActorType.RescueTargetNpc: {
         if (this.intersectsActor(var1_1)) {
           this.activated = true;
         }
@@ -247,7 +247,7 @@ export class EffectActor extends ActorBase {
         this.world.state = GameState.GoalCutscene;
         return;
       }
-      case 5: {
+      case ActorType.CaptureTrigger: {
         if (this.destroyedFlag === 1) {
           this.setFrame(1 | this.tintBits);
           var1_1.health = 0;
@@ -279,7 +279,7 @@ export class EffectActor extends ActorBase {
    * @param n2 屏幕绘制偏移 Y（相机偏移）。
    */
   public paint(graphics: Graphics, n: number, n2: number): void {
-    if (this.typeId === 12 && !this.world.flagE) {
+    if (this.typeId === ActorType.GatedTrigger && !this.world.flagE) {
       return;
     }
     super.paint(graphics, n, n2);
@@ -298,10 +298,10 @@ export class EffectActor extends ActorBase {
   public onProjectileHit(l2: ProjectileActor): void {
     block18: {
       switch (this.typeId) {
-        case 7:
-        case 9: {
+        case ActorType.ExplosiveBarrel:
+        case ActorType.RegeneratingBarrier: {
           switch (l2.typeId) {
-            case 21: {
+            case ActorType.GuidedMissileProjectile: {
               if ((l2.frameIndex & 0xffffff) !== 0) break;
               this.activated = true;
               this.shakeTick = 0;
@@ -315,17 +315,17 @@ export class EffectActor extends ActorBase {
               l2.setFrame(1);
               break;
             }
-            case 10: {
+            case ActorType.PlayerBounceShot: {
               this.activated = true;
               this.shakeTick = 0;
               --this.hitPoints;
               break;
             }
-            case 15:
-            case 20: {
+            case ActorType.GrenadeProjectile:
+            case ActorType.FallingBombProjectile: {
               this.activated = true;
               this.shakeTick = 0;
-              this.world.spawnProjectile(16, 0, 0, l2.posX, l2.posY, 2);
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY, 2);
               l2.deactivate();
               this.hitPoints -= 3;
               GameScreen.playSound(5, 1, 220);
@@ -333,9 +333,9 @@ export class EffectActor extends ActorBase {
           }
           return;
         }
-        case 5: {
+        case ActorType.CaptureTrigger: {
           switch (l2.typeId) {
-            case 21: {
+            case ActorType.GuidedMissileProjectile: {
               if ((l2.frameIndex & 0xffffff) === 0) {
                 l2.deactivate();
                 if (--this.hitPoints <= 0) {
@@ -348,9 +348,9 @@ export class EffectActor extends ActorBase {
               }
               break block18;
             }
-            case 15:
-            case 20: {
-              this.world.spawnProjectile(16, 0, 0, l2.posX, l2.posY + 8192, 2);
+            case ActorType.GrenadeProjectile:
+            case ActorType.FallingBombProjectile: {
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY + 8192, 2);
               l2.deactivate();
               this.destroyedFlag = 1;
               GameScreen.playSound(5, 1, 220);

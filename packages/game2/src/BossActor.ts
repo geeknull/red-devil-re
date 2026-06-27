@@ -25,7 +25,7 @@ import { SpriteDef } from "./SpriteDef.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { MIRROR_FLAG, FLIP_VERTICAL_BIT, LevelSubState } from "./constants.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, LevelSubState, ActorType } from "./constants.ts";
 
 /**
  * 游戏2《红魔特种兵2-深海战舰》中的 **Boss / 机关 / 触发器 Actor**（继承自基类 {@link ActorBase}）。
@@ -104,12 +104,12 @@ export class BossActor extends ActorBase {
       return false;
     }
     switch (this.typeId) {
-      case 11: {
+      case ActorType.MobileGunEmplacement: {
         this.health = 10;
         this.cN = this.posX;
         break;
       }
-      case 17: {
+      case ActorType.PatrolLauncher: {
         this.cO = byArray[7];
         this.cP = byArray[7];
         this.axisOrPhase = byArray[8];
@@ -126,17 +126,17 @@ export class BossActor extends ActorBase {
         this.targetVelY = 2048;
         break;
       }
-      case 13: {
+      case ActorType.DestructibleConsole: {
         this.health = 3;
         break;
       }
-      case 21: {
+      case ActorType.FinalBoss: {
         this.health = 10;
         this.cN = this.posX;
         this.cP = byArray[7];
         break;
       }
-      case 19: {
+      case ActorType.HelicopterBoss: {
         this.dormant = true;
         this.axisOrPhase = 0;
         this.health = 200;
@@ -199,7 +199,7 @@ export class BossActor extends ActorBase {
   // b() → b_
   update(): void {
     switch (this.typeId) {
-      case 11: {
+      case ActorType.MobileGunEmplacement: {
         if (this.pendingFire) {
           let n: number;
           let n2: number;
@@ -212,7 +212,7 @@ export class BossActor extends ActorBase {
           if (this.frameGroupIndex >= 2) {
             n5 = 1;
           }
-          if ((k2 = ProjectileActor.spawnProjectile(10, (n4 = BossActor.BULLET_PARAMS_T11[n5][2]), (n3 = this.posX + (BossActor.BULLET_PARAMS_T11[n5][0] << 10) * (n2 = this.actionHighByte === 0 ? 1 : -1)), (n = this.posY + (BossActor.BULLET_PARAMS_T11[n5][1] << 10)), 1, null)) != null) {
+          if ((k2 = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (n4 = BossActor.BULLET_PARAMS_T11[n5][2]), (n3 = this.posX + (BossActor.BULLET_PARAMS_T11[n5][0] << 10) * (n2 = this.actionHighByte === 0 ? 1 : -1)), (n = this.posY + (BossActor.BULLET_PARAMS_T11[n5][1] << 10)), 1, null)) != null) {
             if (n5 === 1) {
               k2.targetVelX = (BossActor.BULLET_PARAMS_T11[n5][4] << 10) * n2;
               k2.targetVelY = BossActor.BULLET_PARAMS_T11[n5][5] << 10;
@@ -245,7 +245,7 @@ export class BossActor extends ActorBase {
         this.canvas.player.onCollide(this);
         return;
       }
-      case 17: {
+      case ActorType.PatrolLauncher: {
         let n: number;
         let n6: number;
         let n7: number;
@@ -265,7 +265,7 @@ export class BossActor extends ActorBase {
             this.targetVelY = -2048;
           }
         }
-        if (this.cP-- < 0 && (k3 = ProjectileActor.spawnProjectile(10, (n9 = BossActor.BULLET_PARAMS_T17[(n8 = (this.frameGroupIndex / 3) | 0)][2] | (this.actionHighByte ^ MIRROR_FLAG)), (n7 = this.posX + this.targetVelX + (BossActor.BULLET_PARAMS_T17[n8][0] << 10) * (n6 = this.actionHighByte === 0 ? 1 : -1)), (n = this.posY + this.targetVelY + (BossActor.BULLET_PARAMS_T17[n8][1] << 10)), 1, null)) != null) {
+        if (this.cP-- < 0 && (k3 = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (n9 = BossActor.BULLET_PARAMS_T17[(n8 = (this.frameGroupIndex / 3) | 0)][2] | (this.actionHighByte ^ MIRROR_FLAG)), (n7 = this.posX + this.targetVelX + (BossActor.BULLET_PARAMS_T17[n8][0] << 10) * (n6 = this.actionHighByte === 0 ? 1 : -1)), (n = this.posY + this.targetVelY + (BossActor.BULLET_PARAMS_T17[n8][1] << 10)), 1, null)) != null) {
           k3.targetVelX = (BossActor.BULLET_PARAMS_T17[n8][4] << 10) * n6;
           k3.targetVelY = BossActor.BULLET_PARAMS_T17[n8][5] << 10;
           this.setAction(BossActor.BULLET_PARAMS_T17[n8][3] | this.actionHighByte);
@@ -285,7 +285,7 @@ export class BossActor extends ActorBase {
         this.killAndMarkSpawned();
         return;
       }
-      case 13: {
+      case ActorType.DestructibleConsole: {
         switch (this.frameGroupIndex) {
           case 1: {
             if (this.health <= 0) {
@@ -320,11 +320,11 @@ export class BossActor extends ActorBase {
         }
         return;
       }
-      case 21: {
+      case ActorType.FinalBoss: {
         if (this.cP === 0) {
           if (this.collidesWith(this.canvas.player)) {
             if (this.attachedEntity == null) {
-              this.attachedEntity = this.canvas.scene.spawnActor(22, -1);
+              this.attachedEntity = this.canvas.scene.spawnActor(ActorType.GrappleMarker, -1);
               this.attachedEntity!.setAction(5);
               this.attachedEntity!.posX = this.posX;
               this.attachedEntity!.posY = this.posY + ((this.boxTop - 10) << 10);
@@ -353,7 +353,7 @@ export class BossActor extends ActorBase {
         this.killAndMarkSpawned();
         return;
       }
-      case 19: {
+      case ActorType.HelicopterBoss: {
         let n: number;
         let n10: number;
         if (this.dormant) {
@@ -391,7 +391,7 @@ export class BossActor extends ActorBase {
             }
             case 3: {
               let k4: ProjectileActor | null;
-              if (this.cN % 4 < 2 && (this.cP > 7 || this.cP < 3) && (k4 = ProjectileActor.spawnProjectile(10, 12, this.posX, this.posY, 1, null)) != null) {
+              if (this.cN % 4 < 2 && (this.cP > 7 || this.cP < 3) && (k4 = ProjectileActor.spawnProjectile(ActorType.DirectBullet, 12, this.posX, this.posY, 1, null)) != null) {
                 k4.targetVelX = 0;
                 k4.targetVelY = 8192;
                 k4.accelY = 1024;
@@ -442,7 +442,7 @@ export class BossActor extends ActorBase {
             n = 0;
             while (n < 2) {
               const n11 = this.posX + ((this.boxRight - GameMIDlet.randomBelow(this.boxRight * 2)) << 10);
-              ProjectileActor.spawnProjectile(12, 0, n11, n10, 0, null);
+              ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, n11, n10, 0, null);
               ++n;
             }
           }
@@ -477,7 +477,7 @@ export class BossActor extends ActorBase {
         n = this.posY - 35840;
         this.targetVelX = 0;
         this.setAction((2 + this.phaseIndex) | this.actionHighByte);
-        const k5 = ProjectileActor.spawnProjectile(9, 0, n10, n, 1, null);
+        const k5 = ProjectileActor.spawnProjectile(ActorType.GuidedGrenade, 0, n10, n, 1, null);
         if (this.knockedBack) {
           k5!.isSpecialGrenade = true;
         }
@@ -522,15 +522,15 @@ export class BossActor extends ActorBase {
     if (!h2.hasCollisionFlag(8) || !this.isNewContact(h2)) {
       return false;
     }
-    if (h2.typeId === 10 || h2.typeId === 12) {
+    if (h2.typeId === ActorType.DirectBullet || h2.typeId === ActorType.ExplosionDebris) {
       switch (this.typeId) {
-        case 11: {
+        case ActorType.MobileGunEmplacement: {
           if (h2.posY >= this.posY - 20480 || Math.abs(this.posX - this.canvas.cameraX) > 153600) {
             return true;
           }
         }
-        case 21: {
-          if (this.typeId === 21 && this.cP === 0) {
+        case ActorType.FinalBoss: {
+          if (this.typeId === ActorType.FinalBoss && this.cP === 0) {
             return true;
           }
           this.health -= h2.getDamage();
@@ -539,7 +539,7 @@ export class BossActor extends ActorBase {
             while (n < 6) {
               let n2 = 30 - GameMIDlet.randomBelow(60);
               let n3 = 16 + GameMIDlet.randomBelow(32);
-              ProjectileActor.spawnProjectile(12, 0, this.posX + (n2 <<= 10), this.posY - (n3 <<= 10), 2, null);
+              ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + (n2 <<= 10), this.posY - (n3 <<= 10), 2, null);
               ++n;
             }
             this.canvas.startShake(4);
@@ -548,23 +548,23 @@ export class BossActor extends ActorBase {
           }
           return true;
         }
-        case 17: {
+        case ActorType.PatrolLauncher: {
           this.health -= h2.getDamage();
           if (this.health <= 0) {
-            ProjectileActor.spawnProjectile(12, 0, this.posX, this.posY, 0, null);
+            ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, 0, null);
           } else {
             this.knockedBack = true;
           }
           return true;
         }
-        case 13: {
+        case ActorType.DestructibleConsole: {
           if (this.frameGroupIndex <= 0 || this.frameGroupIndex >= 4) break;
           if (h2.hasCollisionFlag(2)) {
             this.health -= h2.getDamage();
           }
           return true;
         }
-        case 19: {
+        case ActorType.HelicopterBoss: {
           this.health -= h2.getDamage();
           if (this.health <= 0 && this.axisOrPhase === 0 && this.posX > this.canvas.cameraX && this.posX < this.canvas.cameraX + this.canvas.viewportWidth - 20480) {
             this.knockedBack = true;
@@ -583,7 +583,7 @@ export class BossActor extends ActorBase {
    */
   // d() → d_
   isAlive(): boolean {
-    if (this.typeId === 21) {
+    if (this.typeId === ActorType.FinalBoss) {
       return this.health > 0;
     }
     return true;

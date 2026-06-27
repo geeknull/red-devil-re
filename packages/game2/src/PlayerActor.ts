@@ -32,7 +32,7 @@ import { SpriteDef } from "./SpriteDef.ts";
 import { ItemActor } from "./ItemActor.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { LevelSubState, MIRROR_FLAG } from "./constants.ts";
+import { ActorType, LevelSubState, MIRROR_FLAG } from "./constants.ts";
 
 /**
  * 玩家 Actor（游戏2《深海战舰》主角，对应 CFR 基准 reverse/game2/2-decompiled-cfr/tjge/g.java，继承自 Actor 基类 h=ActorBase）。
@@ -137,7 +137,7 @@ export class PlayerActor extends ActorBase {
    */
   // a() → a_
   public spawnEntryEffect(): void {
-    this.companionEffect = this.canvas.scene.spawnActor(18, -1) as ItemActor;
+    this.companionEffect = this.canvas.scene.spawnActor(ActorType.PlayerAttachedEffect, -1) as ItemActor;
     this.companionEffect.applyCommand(0);
     this.companionEffect.setAction(0 | this.actionHighByte);
     this.companionEffect.animLoop = false;
@@ -363,7 +363,7 @@ export class PlayerActor extends ActorBase {
         const bl: boolean = false;
         const n4: number = 6 | this.actionHighByte;
         const n5: number = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, n3, 0);
-        const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(10, n4, n5, n2 = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, n3, 1), 26, null);
+        const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, n4, n5, n2 = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, n3, 1), 26, null);
         if (k2 == null) break;
         PlayerActor.ammoCurrent[2] = PlayerActor.ammoCurrent[2] - 1;
         k2.targetVelX = this.actionHighByte == 0 ? 8192 : -8192;
@@ -759,7 +759,7 @@ export class PlayerActor extends ActorBase {
         const bl: boolean = false;
         const n5: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, n4, 0);
         const n6: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, n4, 1);
-        const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(10, n3, n5, n6, 26, null);
+        const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, n3, n5, n6, 26, null);
         if (k2 == null) break;
         if (!k2.hitWall) {
           switch (n4) {
@@ -866,14 +866,14 @@ export class PlayerActor extends ActorBase {
       return false;
     }
     switch (h2.typeId) {
-      case 9:
-      case 10:
-      case 12: {
+      case ActorType.GuidedGrenade:
+      case ActorType.DirectBullet:
+      case ActorType.ExplosionDebris: {
         this.takeDamage(h2.getDamage(), h2.actionHighByte);
         return true;
       }
-      case 1:
-      case 3: {
+      case ActorType.RiflemanGrunt:
+      case ActorType.GrenadierGrunt: {
         if (h2.frameGroupIndex != 7) break;
         this.velX = 0;
         if (h2.actionHighByte == 0) {
@@ -886,7 +886,7 @@ export class PlayerActor extends ActorBase {
         this.takeDamage(h2.getDamage(), h2.actionHighByte);
         break;
       }
-      case 4: {
+      case ActorType.SentryGrunt: {
         this.takeDamage(3, h2.actionHighByte);
       }
     }
@@ -900,18 +900,18 @@ export class PlayerActor extends ActorBase {
   // c(tjge.h) → c_Th
   public onCollide(h2: ActorBase): void {
     switch (h2.typeId) {
-      case 1:
-      case 2:
-      case 3:
-      case 4:
-      case 5: {
+      case ActorType.RiflemanGrunt:
+      case ActorType.VehicleGunner:
+      case ActorType.GrenadierGrunt:
+      case ActorType.SentryGrunt:
+      case ActorType.TurretEmplacement: {
         if (this.frameGroupIndex != 23 || (this.reserved & 1) == 0 || !this.isFootOnGround()) break;
         this.targetVelX = 0;
         this.setAction(0x18 | this.actionHighByte);
         return;
       }
-      case 11:
-      case 13: {
+      case ActorType.MobileGunEmplacement:
+      case ActorType.DestructibleConsole: {
         const n: number = h2.actionHighByte == 0 ? h2.posX + (h2.boxLeft << 10) : h2.posX + (h2.boxRight << 10);
         if (this.actionHighByte != h2.actionHighByte) break;
         if (this.actionHighByte == 0) {

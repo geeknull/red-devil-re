@@ -71,3 +71,56 @@ export enum LevelSubState {
 export const MIRROR_FLAG = -2147483648;
 /** 垂直翻转。= 0x40000000。 */
 export const FLIP_VERTICAL_BIT = 0x40000000;
+
+/**
+ * actor 生成类型 id（对应 CFR 基准 actor 的 `h` 字段 / TS `ActorBase.typeId`）。
+ * 工厂 `GameCanvas.createActor(n)` 据此 new 子类，各 actor 内部又 `switch(typeId)` 分派行为。
+ * 语义经"行为代码 + docs + 精灵画廊看图"考据；★ 标的为看图修正项。
+ * 注：type 8 在工厂无 case（孤儿精灵），故不入枚举。
+ */
+export enum ActorType {
+  /** 玩家主角 */
+  Player = 0,
+  /** 标准步兵（直射 type10） */
+  RiflemanGrunt = 1,
+  /** 载具炮手（绑定 BossActor 载具，由其驱动开火） */
+  VehicleGunner = 2,
+  /** 投掷型步兵（抛物弹） */
+  GrenadierGrunt = 3,
+  /** 守点/碾压敌 */
+  SentryGrunt = 4,
+  /** 固定炮台（发 type16 抛物炮弹） */
+  TurretEmplacement = 5,
+  /** ★白制服人物（军官/NPC，转身面向玩家；非路标） */
+  NavalOfficerNpc = 6,
+  /** 可拾取道具 */
+  ItemPickup = 7,
+  /** 抛投/追踪榴弹飞行体 */
+  GuidedGrenade = 9,
+  /** 直射弹（玩家步枪/敌人通用） */
+  DirectBullet = 10,
+  /** 移动机关炮（中型 Boss/机关，血10） */
+  MobileGunEmplacement = 11,
+  /** 爆炸/碎片特效（播完即销毁，期间造爆炸伤害） */
+  ExplosionDebris = 12,
+  /** 可破坏控制台/机关（耐久3） */
+  DestructibleConsole = 13,
+  /** 竖卷关漂浮残骸 */
+  DriftingFlotsam = 14,
+  /** 巡逻飞行小怪 */
+  PatrolFlyer = 15,
+  /** 敌方炮台抛物炮弹 */
+  ArcCannonShell = 16,
+  /** 巡逻发射器机关（沿轴往返，血3） */
+  PatrolLauncher = 17,
+  /** ★跟随玩家的附属特效（蓝色长条，具体形态待考） */
+  PlayerAttachedEffect = 18,
+  /** 关5 直升机 Boss（血200，多阶段） */
+  HelicopterBoss = 19,
+  /** 落水/爆炸短特效 */
+  SplashEffect = 20,
+  /** ★关6 终 Boss */
+  FinalBoss = 21,
+  /** 终 Boss 近身生成的抓取标记/演出实体 */
+  GrappleMarker = 22,
+}

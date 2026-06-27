@@ -51,3 +51,57 @@ export enum GameState {
 export const MIRROR_FLAG = -2147483648;
 /** 垂直翻转。= 0x40000000。 */
 export const FLIP_VERTICAL_BIT = 0x40000000;
+
+/**
+ * actor 生成类型 id（对应 CFR 基准 actor 的 `q` 字段 / TS `ActorBase.typeId`）。
+ * 工厂 `GameScreen.createActor(n)` 据此 new 子类，各 actor 内部又 `switch(typeId)` 分派行为。
+ * 语义经"行为代码 + docs + 精灵画廊看图"考据；★ 标的为看图修正项。
+ */
+export enum ActorType {
+  /** 玩家主角 */
+  Player = 0,
+  /** 侦察兵：远程兵，发 type21 制导弹 */
+  ReconScoutEnemy = 1,
+  /** 轰炸/近战兵：发 type20 近战判定/投弹 */
+  MeleeBomberEnemy = 2,
+  /** 武器/弹药/手雷补给箱 */
+  AmmoSupplyPickup = 3,
+  /** ★白大褂人物：抵达即触发通关过场（救援/目标 NPC） */
+  RescueTargetNpc = 4,
+  /** 关键目标感应器：打爆触发被捕过场 */
+  CaptureTrigger = 5,
+  /** ★白伞：飞行敌的伴随拖尾 */
+  ParachuteTrailEffect = 6,
+  /** ★绿油桶：耐久3 可破坏物，毁时生成 type16 爆炸 */
+  ExplosiveBarrel = 7,
+  /** ★越野车 Boss（关3/6 多阶段；关4 为载具随从） */
+  AtvVehicleBoss = 8,
+  /** 高耐久(9)可再生破坏物 */
+  RegeneratingBarrier = 9,
+  /** 玩家武器1弹：直射可弹道 */
+  PlayerBounceShot = 10,
+  /** 血包（医疗箱） */
+  HealthPickup = 11,
+  /** 受 flagE 门控的触发器 */
+  GatedTrigger = 12,
+  /** 关卡门 / 出口 */
+  LevelExitGate = 13,
+  /** 一次性脚本点火触发器 */
+  ScriptedFuseTrigger = 14,
+  /** 榴弹飞行体（spawnProjectile） */
+  GrenadeProjectile = 15,
+  /** 爆炸特效 */
+  ExplosionEffect = 16,
+  /** 俯冲/突进危险物 */
+  DivingHazard = 17,
+  /** 关4/7 卷轴追逼大型敌（走 bossUpdate，仍属 EnemyActor） */
+  ScrollChaserHeavy = 18,
+  /** ★宝箱/木箱：无每帧逻辑的静态道具 */
+  TreasureChestProp = 19,
+  /** 下落炸弹飞行体 */
+  FallingBombProjectile = 20,
+  /** 制导/追踪弹 */
+  GuidedMissileProjectile = 21,
+  /** 抓附/吸附交互锚点（驱动被捕过场） */
+  GrabAnchorZone = 22,
+}

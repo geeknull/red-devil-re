@@ -48,7 +48,7 @@ import { ActorBase } from "./ActorBase.ts";
 import { TileSheet } from "./TileSheet.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
 import { setJ } from "./jref.ts";
-import { LevelSubState } from "./constants.ts";
+import { ActorType, LevelSubState } from "./constants.ts";
 
 /**
  * tjge.h 的包内可见（Java protected）成员视图。
@@ -588,7 +588,7 @@ export class LevelScene {
         }
         if (LevelScene.cutsceneState[1] === 2) {
           if (LevelScene.cutsceneStep === 0) {
-            this.dialogActor = this.spawnActor(19, -1) as unknown as BossActor; // 原 (c)this.c(19,-1)
+            this.dialogActor = this.spawnActor(ActorType.HelicopterBoss, -1) as unknown as BossActor; // 原 (c)this.c(19,-1)
             this.dialogActor!.resetBoss();
           } else if (LevelScene.cutsceneStep < 22) {
             this.dialogActor!.posY += 4096;
@@ -624,7 +624,7 @@ export class LevelScene {
               if (this.canvas.globalFrame % 2 === 0) {
                 n2 = (5 + GameMIDlet.randomBelow(3)) << 13;
                 n = GameMIDlet.randomBelow(3) << 13;
-                ProjectileActor.spawnProjectile(12, 0, this.dialogActor!.posX - n2, this.dialogActor!.posY - n, 0, null as unknown as Int32Array);
+                ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.dialogActor!.posX - n2, this.dialogActor!.posY - n, 0, null as unknown as Int32Array);
               }
               if (LevelScene.cutsceneSubStep === 0) {
                 LevelScene.cutsceneSubStep = 1;
@@ -751,7 +751,7 @@ export class LevelScene {
         if (g2.posY <= 132 << 10) break;
         let n: number = 0;
         while (n < 8) {
-          const h2: ActorBase | null = this.spawnActor(20, -1);
+          const h2: ActorBase | null = this.spawnActor(ActorType.SplashEffect, -1);
           if (h2 != null) {
             h2.posX = g2.posX + (pkg(g2).boxLeft << 10) + n % 4 * 14336 + ((n / 4) | 0) * 8192;
             h2.posY = g2.posY + 14336 + ((n / 4) | 0) * 8192;
@@ -1088,7 +1088,7 @@ export class LevelScene {
       const by3: number = this.cellActors[n3]![n5];
       if (by < by3) {
         if (LevelScene.activeActors[by] != null) {
-          if (pkg(LevelScene.activeActors[by]!).typeId >= 1 && pkg(LevelScene.activeActors[by]!).typeId <= 5) {
+          if (pkg(LevelScene.activeActors[by]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[by]!).typeId <= ActorType.TurretEmplacement) {
             if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) >= 180224 || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) >= 180224) {
               LevelScene.activeActors[by]!.kill();
               LevelScene.activeActors[by] = null;
@@ -1108,7 +1108,7 @@ export class LevelScene {
       ++n4;
       ++n5;
       if (LevelScene.activeActors[by] == null || LevelScene.activeActors[by]!.alive) continue;
-      if (pkg(LevelScene.activeActors[by]!).typeId >= 1 && pkg(LevelScene.activeActors[by]!).typeId <= 5) {
+      if (pkg(LevelScene.activeActors[by]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[by]!).typeId <= ActorType.TurretEmplacement) {
         if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) < 180224 && Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) < 180224) continue;
         LevelScene.activeActors[by] = null;
         continue;
@@ -1117,7 +1117,7 @@ export class LevelScene {
     }
     while (this.cellActors[this.currentCell] != null && n4 < this.cellActors[this.currentCell]!.length) {
       if (LevelScene.activeActors[this.cellActors[this.currentCell]![n4]] != null) {
-        if (pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!).typeId >= 1 && pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!).typeId <= 5) {
+        if (pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!).typeId <= ActorType.TurretEmplacement) {
           if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) >= 180224 || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) >= 180224) {
             LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.kill();
             LevelScene.activeActors[this.cellActors[this.currentCell]![n4]] = null;
@@ -1272,7 +1272,7 @@ export class LevelScene {
           LevelScene.formationState[0] = n;
           let n6: number = 0;
           while (n6 < n5) {
-            const h2: ActorBase | null = this.spawnActor(22, -1);
+            const h2: ActorBase | null = this.spawnActor(ActorType.GrappleMarker, -1);
             if (h2 != null) {
               h2.posX = n3 + n6 * 16384;
               h2.posY = n4;

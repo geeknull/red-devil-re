@@ -23,7 +23,7 @@ import { GameMIDlet } from "./GameMIDlet.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { LevelScene } from "./LevelScene.ts";
-import { MIRROR_FLAG } from "./constants.ts";
+import { MIRROR_FLAG, ActorType } from "./constants.ts";
 
 export class ItemActor extends ActorBase {
   patrolMinX: number = 0;
@@ -61,7 +61,7 @@ export class ItemActor extends ActorBase {
       return false;
     }
     switch (this.typeId) {
-      case 15: {
+      case ActorType.PatrolFlyer: {
         const n: number = byArray[7] & 0xff;
         this.patrolMinX = this.patrolMaxX = this.posX;
         if (this.actionHighByte === 0) {
@@ -74,7 +74,7 @@ export class ItemActor extends ActorBase {
         this.counter = 10;
         break;
       }
-      case 7: {
+      case ActorType.ItemPickup: {
         this.counter = byArray[7];
       }
     }
@@ -96,7 +96,7 @@ export class ItemActor extends ActorBase {
   // b() → b_
   update(): void {
     switch (this.typeId) {
-      case 15: {
+      case ActorType.PatrolFlyer: {
         const n: number = this.actionHighByte === 0 ? 1 : -1;
         this.targetVelX = 1024 * n;
         if ((n > 0 && this.posX > this.patrolMaxX) || (n < 0 && this.posX < this.patrolMinX)) {
@@ -115,12 +115,12 @@ export class ItemActor extends ActorBase {
         this.targetVelY = n2 > 0 ? -1024 : 1024;
         return;
       }
-      case 18: {
+      case ActorType.PlayerAttachedEffect: {
         if (this.frameGroupIndex !== 1 || !this.isAnimationDone()) break;
         this.kill();
         return;
       }
-      case 7: {
+      case ActorType.ItemPickup: {
         if (this.hitFlashTimer > 0) {
           if (this.hitFlashTimer !== 1) break;
           this.killAndMarkSpawned();
@@ -131,19 +131,19 @@ export class ItemActor extends ActorBase {
         this.canvas.player.applyPickup(this);
         return;
       }
-      case 20: {
+      case ActorType.SplashEffect: {
         if (!this.isAnimationDone()) break;
         this.kill();
         return;
       }
-      case 14: {
+      case ActorType.DriftingFlotsam: {
         if (!this.canvas.scene.isVerticalScrollLevel) break;
         this.targetVelX = -6144;
         if (this.posX >= this.canvas.cameraX - 40960) break;
         this.posX = this.canvas.cameraX + this.canvas.viewportWidth + 40960;
         return;
       }
-      case 6: {
+      case ActorType.NavalOfficerNpc: {
         if (this.canvas.player.posX > this.posX && this.actionHighByte === 0) {
           this.setAction(MIRROR_FLAG); // Integer.MIN_VALUE
           return;
@@ -185,7 +185,7 @@ export class ItemActor extends ActorBase {
   // a(Graphics,int,int) → a_GII
   paint(graphics: Graphics, n: number, n2: number): void {
     super.paint(graphics, n, n2);
-    if (this.hitFlashTimer > 0 && this.typeId === 7) {
+    if (this.hitFlashTimer > 0 && this.typeId === ActorType.ItemPickup) {
       const n3: number = (this.posX - this.canvas.cameraX) >> 10;
       const n4: number = ((this.posY - this.canvas.cameraY) >> 10) + this.boxTop;
       LevelScene.drawNumber(graphics, n3, n4 - (40 - 4 * this.hitFlashTimer), this.counter, true, false);

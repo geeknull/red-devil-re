@@ -43,7 +43,7 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { UiState, LevelSubState } from "./constants.ts";
+import { UiState, LevelSubState, ActorType } from "./constants.ts";
 
 // 原版：a extends FullCanvas implements Runnable（TS 无 Runnable 接口，run() 直接由 Thread 驱动）。
 export class GameCanvas extends Canvas {
@@ -133,37 +133,37 @@ export class GameCanvas extends Canvas {
   // a(int,tjge.d) → a_ITd（精灵/场景对象工厂）
   createActor(n: number, d2: SpriteDef): ActorBase {
     switch (n) {
-      case 0: {
+      case ActorType.Player: {
         this.player = new PlayerActor(n, d2);
         return this.player;
       }
-      case 1:
-      case 2:
-      case 3:
-      case 4:
-      case 5: {
+      case ActorType.RiflemanGrunt:
+      case ActorType.VehicleGunner:
+      case ActorType.GrenadierGrunt:
+      case ActorType.SentryGrunt:
+      case ActorType.TurretEmplacement: {
         return new EnemyActor(n, d2);
       }
-      case 11:
-      case 13:
-      case 17:
-      case 19:
-      case 21: {
+      case ActorType.MobileGunEmplacement:
+      case ActorType.DestructibleConsole:
+      case ActorType.PatrolLauncher:
+      case ActorType.HelicopterBoss:
+      case ActorType.FinalBoss: {
         return new BossActor(n, d2);
       }
-      case 6:
-      case 7:
-      case 14:
-      case 15:
-      case 18:
-      case 20:
-      case 22: {
+      case ActorType.NavalOfficerNpc:
+      case ActorType.ItemPickup:
+      case ActorType.DriftingFlotsam:
+      case ActorType.PatrolFlyer:
+      case ActorType.PlayerAttachedEffect:
+      case ActorType.SplashEffect:
+      case ActorType.GrappleMarker: {
         return new ItemActor(n, d2);
       }
-      case 9:
-      case 10:
-      case 12:
-      case 16: {
+      case ActorType.GuidedGrenade:
+      case ActorType.DirectBullet:
+      case ActorType.ExplosionDebris:
+      case ActorType.ArcCannonShell: {
         return new ProjectileActor(n, d2);
       }
     }

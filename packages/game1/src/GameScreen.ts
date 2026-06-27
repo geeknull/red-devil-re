@@ -47,7 +47,7 @@ import { EnemyActor } from "./EnemyActor.ts";
 import { LevelLoader } from "./LevelLoader.ts";
 import { PickupActor } from "./PickupActor.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { GameState } from "./constants.ts";
+import { GameState, ActorType } from "./constants.ts";
 
 const INT_MIN = -2147483648; // Integer.MIN_VALUE / 0x80000000
 
@@ -170,36 +170,36 @@ export class GameScreen extends Canvas {
   // a(int,tjge.d) → a_ITd（精灵工厂）
   createActor(n: number, d2: SpriteDef): ActorBase {
     switch (n) {
-      case 0: {
+      case ActorType.Player: {
         this.player = new PlayerActor(n, d2, this);
         return this.player;
       }
-      case 10: {
+      case ActorType.PlayerBounceShot: {
         return new ProjectileActor(n, d2, this);
       }
-      case 1:
-      case 2:
-      case 18: {
+      case ActorType.ReconScoutEnemy:
+      case ActorType.MeleeBomberEnemy:
+      case ActorType.ScrollChaserHeavy: {
         return new EnemyActor(n, d2, this);
       }
-      case 4:
-      case 5:
-      case 6:
-      case 7:
-      case 9:
-      case 12:
-      case 19:
-      case 22: {
+      case ActorType.RescueTargetNpc:
+      case ActorType.CaptureTrigger:
+      case ActorType.ParachuteTrailEffect:
+      case ActorType.ExplosiveBarrel:
+      case ActorType.RegeneratingBarrier:
+      case ActorType.GatedTrigger:
+      case ActorType.TreasureChestProp:
+      case ActorType.GrabAnchorZone: {
         return new EffectActor(n, d2, this);
       }
-      case 3:
-      case 11:
-      case 13: {
+      case ActorType.AmmoSupplyPickup:
+      case ActorType.HealthPickup:
+      case ActorType.LevelExitGate: {
         return new PickupActor(n, d2, this);
       }
-      case 8:
-      case 14:
-      case 17: {
+      case ActorType.AtvVehicleBoss:
+      case ActorType.ScriptedFuseTrigger:
+      case ActorType.DivingHazard: {
         return new BossActor(n, d2, this);
       }
     }
@@ -969,7 +969,7 @@ export class GameScreen extends Canvas {
       n = gfg[n2];
       // typeId 在 ActorBase 中为 protected（原 Java 为包内可见）；GameScreen 非 ActorBase 子类，经结构视图读取保持等价。
       const en = LevelLoader.activeActors[n] as unknown as ({ active: boolean; typeId: number } | null);
-      if (n !== 0 && en != null && en.active && en.typeId !== 0) {
+      if (n !== 0 && en != null && en.active && en.typeId !== ActorType.Player) {
         if (this.isPickupType(en.typeId)) {
           nArray[n4++] = n;
         } else {
@@ -1442,7 +1442,7 @@ export class GameScreen extends Canvas {
           this.projectilePools[0] = new Array<ProjectileActor | null>(10).fill(null);
           let n2 = 0;
           while (n2 < 10) {
-            this.projectilePools[0]![n2] = new ProjectileActor(21, LevelLoader.spriteDefPool[21]!, this);
+            this.projectilePools[0]![n2] = new ProjectileActor(ActorType.GuidedMissileProjectile, LevelLoader.spriteDefPool[21]!, this);
             ++n2;
           }
         }
@@ -1457,7 +1457,7 @@ export class GameScreen extends Canvas {
           this.projectilePools[1] = new Array<ProjectileActor | null>(3).fill(null);
           let n3 = 0;
           while (n3 < 3) {
-            this.projectilePools[1]![n3] = new ProjectileActor(10, LevelLoader.spriteDefPool[10]!, this);
+            this.projectilePools[1]![n3] = new ProjectileActor(ActorType.PlayerBounceShot, LevelLoader.spriteDefPool[10]!, this);
             ++n3;
           }
         }
@@ -1470,7 +1470,7 @@ export class GameScreen extends Canvas {
           this.projectilePools[2] = new Array<ProjectileActor | null>(6).fill(null);
           let n4 = 0;
           while (n4 < 6) {
-            this.projectilePools[2]![n4] = new ProjectileActor(20, LevelLoader.spriteDefPool[20]!, this);
+            this.projectilePools[2]![n4] = new ProjectileActor(ActorType.FallingBombProjectile, LevelLoader.spriteDefPool[20]!, this);
             ++n4;
           }
         }
@@ -1483,7 +1483,7 @@ export class GameScreen extends Canvas {
           this.projectilePools[3] = new Array<ProjectileActor | null>(2).fill(null);
           let n5 = 0;
           while (n5 < 2) {
-            this.projectilePools[3]![n5] = new ProjectileActor(15, LevelLoader.spriteDefPool[15]!, this);
+            this.projectilePools[3]![n5] = new ProjectileActor(ActorType.GrenadeProjectile, LevelLoader.spriteDefPool[15]!, this);
             ++n5;
           }
         }
@@ -1499,7 +1499,7 @@ export class GameScreen extends Canvas {
           this.projectilePools[4] = new Array<ProjectileActor | null>(10).fill(null);
           let n6 = 0;
           while (n6 < 10) {
-            this.projectilePools[4]![n6] = new ProjectileActor(16, LevelLoader.spriteDefPool[16]!, this);
+            this.projectilePools[4]![n6] = new ProjectileActor(ActorType.ExplosionEffect, LevelLoader.spriteDefPool[16]!, this);
             ++n6;
           }
         }
@@ -1519,20 +1519,20 @@ export class GameScreen extends Canvas {
               this.enemyGrid[0] = new Array<EnemyActor | null>(3).fill(null);
               let n7 = 0;
               while (n7 < 3) {
-                this.enemyGrid[0]![n7] = new EnemyActor(2, LevelLoader.spriteDefPool[2]!, this);
+                this.enemyGrid[0]![n7] = new EnemyActor(ActorType.MeleeBomberEnemy, LevelLoader.spriteDefPool[2]!, this);
                 ++n7;
               }
               LevelLoader.retainSpriteDef(1);
               this.enemyGrid[1] = new Array<EnemyActor | null>(3).fill(null);
               let n8 = 0;
               while (n8 < 3) {
-                this.enemyGrid[1]![n8] = new EnemyActor(1, LevelLoader.spriteDefPool[1]!, this);
+                this.enemyGrid[1]![n8] = new EnemyActor(ActorType.ReconScoutEnemy, LevelLoader.spriteDefPool[1]!, this);
                 ++n8;
               }
             }
             if (this.levelIndex !== 4 || this.boss != null) break;
-            this.boss = new BossActor(8, LevelLoader.spriteDefPool[8]!, this);
-            this.boss.minion = new EnemyActor(1, LevelLoader.spriteDefPool[1]!, this);
+            this.boss = new BossActor(ActorType.AtvVehicleBoss, LevelLoader.spriteDefPool[8]!, this);
+            this.boss.minion = new EnemyActor(ActorType.ReconScoutEnemy, LevelLoader.spriteDefPool[1]!, this);
           }
         }
         this.stateTimer = 9;
@@ -1706,25 +1706,25 @@ export class GameScreen extends Canvas {
     let n7 = 0;
     let bl = false;
     switch (n) {
-      case 21: {
+      case ActorType.GuidedMissileProjectile: {
         n7 = 0;
         break;
       }
-      case 10: {
+      case ActorType.PlayerBounceShot: {
         n7 = 1;
         break;
       }
-      case 20: {
+      case ActorType.FallingBombProjectile: {
         n7 = 2;
         bl = true;
         break;
       }
-      case 15: {
+      case ActorType.GrenadeProjectile: {
         n7 = 3;
         bl = true;
         break;
       }
-      case 16: {
+      case ActorType.ExplosionEffect: {
         n7 = 4;
         break;
       }
@@ -1797,10 +1797,10 @@ export class GameScreen extends Canvas {
   // b(int) → b_I（判断类型 id 是否属于“后置绘制”单位）
   isPickupType(n: number): boolean {
     switch (n) {
-      case 3:
-      case 8:
-      case 11:
-      case 13: {
+      case ActorType.AmmoSupplyPickup:
+      case ActorType.AtvVehicleBoss:
+      case ActorType.HealthPickup:
+      case ActorType.LevelExitGate: {
         return true;
       }
     }
@@ -1858,7 +1858,7 @@ export class GameScreen extends Canvas {
             h2.timerA = 0;
             h2.aiState = 0;
             if (h2.trailEffect == null) {
-              h2.trailEffect = new EffectActor(6, LevelLoader.spriteDefPool[6]!, this);
+              h2.trailEffect = new EffectActor(ActorType.ParachuteTrailEffect, LevelLoader.spriteDefPool[6]!, this);
             }
             h2.trailEffect.active = true;
             h2.trailEffect.posX = h2.posX;
@@ -2278,7 +2278,7 @@ export class GameScreen extends Canvas {
     while (n2 < 2) {
       let n3 = GameMIDlet.nextRandomMod(n);
       let n4 = GameMIDlet.nextRandomMod(160);
-      GameScreen.instance.spawnProjectile(16, 0, 0, this.cameraX + (n3 <<= 10), this.cameraY + (n4 <<= 10), 2);
+      GameScreen.instance.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.cameraX + (n3 <<= 10), this.cameraY + (n4 <<= 10), 2);
       ++n2;
     }
     GameScreen.playSound(5, 1, 220);

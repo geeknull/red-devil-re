@@ -27,7 +27,7 @@
  * 必要偏差：本类无资源/像素管线直接调用；tjge.a.a_III 为静态音效播放
  * （音频后续接入，调用保留，详见规约 new Sound 暂静音）。
  */
-import { GameState, MIRROR_FLAG } from "./constants.ts";
+import { ActorType, GameState, MIRROR_FLAG } from "./constants.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { TileMap } from "./TileMap.ts";
 import { BossActor } from "./BossActor.ts";
@@ -1152,12 +1152,12 @@ export class PlayerActor extends ActorBase {
         if (this.weaponIndex === 0) {
           let n2 = !this.facingLeft ? 25 : -25;
           n2 = n2 << 10;
-          l2 = this.screen.spawnProjectile(21, 0 | this.facingFlag, 0, this.posX + n2, this.posY - 20480, 0);
+          l2 = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | this.facingFlag, 0, this.posX + n2, this.posY - 20480, 0);
         } else {
           let n3 = !this.facingLeft ? 35 : -35;
           n3 = n3 << 10;
           l2 = this.screen.spawnProjectile(
-            10,
+            ActorType.PlayerBounceShot,
             0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0),
             1,
             this.posX + n3,
@@ -1186,7 +1186,7 @@ export class PlayerActor extends ActorBase {
         if (this.grenadeCount === 0 && this.screen.levelIndex !== 4) {
           return;
         }
-        l2 = this.screen.spawnProjectile(20, 0, 0, this.posX, this.posY - 35840, 0);
+        l2 = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - 35840, 0);
         if (l2 === null) break;
         if (--this.grenadeCount < 0) {
           this.grenadeCount = 0;
@@ -1213,7 +1213,7 @@ export class PlayerActor extends ActorBase {
           return;
         }
         let n4 = !this.facingLeft ? 40 : -40;
-        l2 = this.screen.spawnProjectile(15, 0 | this.facingFlag, 0, this.posX + (n4 = n4 << 10), this.posY - 18432, 0);
+        l2 = this.screen.spawnProjectile(ActorType.GrenadeProjectile, 0 | this.facingFlag, 0, this.posX + (n4 = n4 << 10), this.posY - 18432, 0);
         if (l2 === null) break;
         --this.magazineAmmo;
         if (this.actionId === 5) {
@@ -1223,7 +1223,7 @@ export class PlayerActor extends ActorBase {
           this.setFrame(6 | this.facingFlag);
         }
         if (this.screen.levelIndex !== 4 && l2.advanceAndCollide(this.facingLeft)) {
-          this.screen.spawnProjectile(16, 0, 0, l2.posX, l2.posY, 0);
+          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY, 0);
           l2.deactivate();
           break;
         }
@@ -1478,7 +1478,7 @@ export class PlayerActor extends ActorBase {
   onProjectileHit(l2: ProjectileActor): void {
     if (this.actionId !== 19 && this.actionId !== 23 && this.actionId !== 15 && this.actionId !== 16) {
       switch (l2.typeId) {
-        case 21: {
+        case ActorType.GuidedMissileProjectile: {
           if (this.facingLeft && l2.targetVelX < 0) {
             this.facingFlag = 0;
             this.facingLeft = false;
@@ -1491,14 +1491,14 @@ export class PlayerActor extends ActorBase {
           l2.deactivate();
           return;
         }
-        case 20: {
+        case ActorType.FallingBombProjectile: {
           const n = l2.targetVelX > 0 ? 8192 : -8192;
-          this.screen.spawnProjectile(16, 0, 0, l2.posX + n, l2.posY + 8192, l2.mode);
+          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX + n, l2.posY + 8192, l2.mode);
           l2.deactivate();
           GameScreen.playSound(5, 1, 220);
           return;
         }
-        case 16: {
+        case ActorType.ExplosionEffect: {
           this.takeDamage(3);
         }
       }

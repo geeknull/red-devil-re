@@ -28,7 +28,7 @@ import { GameMIDlet } from "./GameMIDlet.ts";
 import { GameCanvas } from "./GameCanvas.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { jref } from "./jref.ts"; // 延迟绑定 j，打破 h→j→子类 的 ESM 循环依赖
-import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, ActorType } from "./constants.ts";
 
 export class ActorBase {
   alive: boolean = false;
@@ -100,7 +100,7 @@ export class ActorBase {
   spawnFromBytes(byArray: Int8Array): boolean {
     let bl = false;
     if (this.slotIndex < this.canvas.scene.residentActorSlots && this.canvas.scene.triggerHitFlags[this.slotIndex]) {
-      if (this.typeId === 13) {
+      if (this.typeId === ActorType.DestructibleConsole) {
         bl = true;
       } else {
         return false;

@@ -25,7 +25,7 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { EnemyActor } from "./EnemyActor.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { GameState, MIRROR_FLAG } from "./constants.ts";
+import { ActorType, GameState, MIRROR_FLAG } from "./constants.ts";
 
 /**
  * Boss / 触发器演员（游戏1《红魔特种兵》，原 CFR 类 `tjge.c`，继承 ActorBase）。
@@ -103,12 +103,12 @@ export class BossActor extends ActorBase {
     this.hitFlashing = false;
     this.visible = true;
     switch (this.typeId) {
-      case 14: {
+      case ActorType.ScriptedFuseTrigger: {
         this.phase = 0;
         this.delayTimer = 15;
         break;
       }
-      case 8: {
+      case ActorType.AtvVehicleBoss: {
         const bl2: boolean = (this.disabled = byArray[0] === 0);
         if (this.disabled) {
           this.screen.player!.linkedBoss = this;
@@ -130,7 +130,7 @@ export class BossActor extends ActorBase {
         this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
         break;
       }
-      case 17: {
+      case ActorType.DivingHazard: {
         this.delayTimer = byArray[0];
         this.flashCounter = byArray[1];
         this.subTimer = -1;
@@ -166,19 +166,19 @@ export class BossActor extends ActorBase {
     const f2: PlayerActor = this.screen.player!;
     const n: number = this.frameIndex & 0xffffff;
     switch (this.typeId) {
-      case 14: {
+      case ActorType.ScriptedFuseTrigger: {
         if (this.intersectsActor(f2)) {
           this.phase = 1;
           this.setFrame(1);
           this.screen.levelLoader!.actorSpawned[this.extra] = true;
         }
         if (this.phase !== 1 || this.delayTimer-- >= 0) return;
-        this.screen.spawnProjectile(16, 0, 0, this.posX, this.posY, 2);
+        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, 2);
         this.deactivate();
         GameScreen.playSound(5, 1, 220);
         return;
       }
-      case 8: {
+      case ActorType.AtvVehicleBoss: {
         const n2: number = this.screen.cameraX + GameScreen.viewWidthFx;
         switch (this.screen.levelIndex) {
           case 3:
@@ -249,7 +249,7 @@ export class BossActor extends ActorBase {
                 if (this.subTimer++ > 15) {
                   const n5: number = 35840;
                   if (this.attackMode === 0) {
-                    const l2: ProjectileActor | null = this.screen.spawnProjectile(21, MIRROR_FLAG, 0, this.posX - n5, this.posY - n5, 1);
+                    const l2: ProjectileActor | null = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, MIRROR_FLAG, 0, this.posX - n5, this.posY - n5, 1);
                     if (l2 === null) break;
                     l2.targetVelX = -12288;
                     this.subTimer = 0;
@@ -260,7 +260,7 @@ export class BossActor extends ActorBase {
                     this.setFrame(-2147483645);
                     return;
                   }
-                  const l3: ProjectileActor | null = this.screen.spawnProjectile(20, 0, 0, this.posX + 5120, this.posY - n5, 1);
+                  const l3: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX + 5120, this.posY - n5, 1);
                   if (l3 === null) break;
                   this.subTimer = 0;
                   l3.launchArc(0);
@@ -331,7 +331,7 @@ export class BossActor extends ActorBase {
         }
         return;
       }
-      case 17: {
+      case ActorType.DivingHazard: {
         if (this.delayTimer-- > 0) {
           return;
         }
@@ -379,11 +379,11 @@ export class BossActor extends ActorBase {
    */
   // a(tjge.l) → a_Tl
   onProjectileHit(l2: ProjectileActor): void {
-    if (this.delayTimer > 0 || this.typeId !== 8) {
+    if (this.delayTimer > 0 || this.typeId !== ActorType.AtvVehicleBoss) {
       return;
     }
     switch (l2.typeId) {
-      case 21: {
+      case ActorType.GuidedMissileProjectile: {
         if ((l2.frameIndex & 0xffffff) !== 0) break;
         l2.setFrame(1);
         l2.targetVelX = 0;
@@ -392,14 +392,14 @@ export class BossActor extends ActorBase {
         --this.health;
         break;
       }
-      case 10: {
+      case ActorType.PlayerBounceShot: {
         if (this.targetVelX !== 0) break;
         --this.health;
         break;
       }
-      case 15:
-      case 20: {
-        this.screen.spawnProjectile(16, 0, 0, l2.posX, l2.posY, 0);
+      case ActorType.GrenadeProjectile:
+      case ActorType.FallingBombProjectile: {
+        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY, 0);
         l2.deactivate();
         if (this.targetVelX !== 0) break;
         this.health -= 3;
@@ -422,7 +422,7 @@ export class BossActor extends ActorBase {
       n4 = 18 - n4;
       let n5: number = GameMIDlet.nextRandomMod(20);
       n5 = 20 - n5;
-      this.screen.spawnProjectile(16, 0, 0, (n2 += n4 << 10), (n3 -= n5 << 10), 2);
+      this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, (n2 += n4 << 10), (n3 -= n5 << 10), 2);
     } while (n++ < 1);
     GameScreen.playSound(5, 1, 220);
   }
