@@ -27,7 +27,7 @@
  * 必要偏差：本类无资源/像素管线直接调用；tjge.a.a_III 为静态音效播放
  * （音频后续接入，调用保留，详见规约 new Sound 暂静音）。
  */
-import { ActorType, GameState, MIRROR_FLAG } from "./constants.ts";
+import { ActorType, GameState, MIRROR_FLAG, SEQUENCE_MASK, FACING_MASK } from "./constants.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { TileMap } from "./TileMap.ts";
 import { BossActor } from "./BossActor.ts";
@@ -265,8 +265,8 @@ export class PlayerActor extends ActorBase {
    */
   // e() → e_（物理步进，覆写基类 e_）
   stepPhysics(): void {
-    this.actionId = this.frameIndex & 0xffffff;
-    this.facingFlag = this.frameIndex & 0xff000000;
+    this.actionId = this.frameIndex & SEQUENCE_MASK;
+    this.facingFlag = this.frameIndex & FACING_MASK;
     --this.invulnTimer;
     this.advanceAnimation();
     this.velX = this.targetVelX;
@@ -408,9 +408,9 @@ export class PlayerActor extends ActorBase {
    */
   // a() → a_（每帧更新，覆写基类 a_）
   update(): void {
-    this.facingLeft = (this.frameIndex & 0xff000000) !== 0;
+    this.facingLeft = (this.frameIndex & FACING_MASK) !== 0;
     this.runActionStateMachine();
-    this.actionId = this.frameIndex & 0xffffff;
+    this.actionId = this.frameIndex & SEQUENCE_MASK;
     this.handleInput();
     if (this.health <= 0 && this.actionId !== 23 && this.actionId !== 15 && this.actionId !== 16) {
       this.setFrame(0x17 | this.facingFlag);
@@ -618,7 +618,7 @@ export class PlayerActor extends ActorBase {
           }
         }
         this.climbAdvance = false;
-        if ((this.frameIndex & 0xffffff) === 23) break;
+        if ((this.frameIndex & SEQUENCE_MASK) === 23) break;
         this.setFrame(this.climbAnimState | this.facingFlag);
         return;
       }
@@ -1486,7 +1486,7 @@ export class PlayerActor extends ActorBase {
             this.facingFlag = MIRROR_FLAG; // Integer.MIN_VALUE
             this.facingLeft = true;
           }
-          if ((l2.frameIndex & 0xffffff) !== 0) break;
+          if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
           this.takeDamage(1);
           l2.deactivate();
           return;

@@ -23,7 +23,7 @@ import { GameScreen } from "./GameScreen.ts";
 import { TileMap } from "./TileMap.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, SEQUENCE_MASK } from "./constants.ts";
 
 /**
  * 演员基类（原 `tjge.g`，CFR 基准 reverse/game1/2-decompiled-cfr/tjge/g.java，278 行）。
@@ -132,7 +132,7 @@ export class ActorBase {
    */
   public setFrame(n: number): void {
     this.frameIndex = n;
-    if ((n &= 0xffffff) < 0 || n > this.spriteDef.getSequenceCount()) {
+    if ((n &= SEQUENCE_MASK) < 0 || n > this.spriteDef.getSequenceCount()) {
       return;
     }
     if ((this.frameIndex & MIRROR_FLAG) === 0) {

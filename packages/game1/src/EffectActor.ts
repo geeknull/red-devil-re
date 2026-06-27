@@ -23,7 +23,7 @@
  *   l2.b_()/l2.a_I(n)      = g.b()/g.a(int) （l 继承自 g）
  */
 import { Graphics } from "@red-devil/j2me-shim";
-import { ActorType, GameState } from "./constants.ts";
+import { ActorType, GameState, SEQUENCE_MASK, FACING_MASK } from "./constants.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { PlayerActor } from "./PlayerActor.ts";
@@ -135,7 +135,7 @@ export class EffectActor extends ActorBase {
    */
   public update(): void {
     const var1_1: PlayerActor = this.world.player;
-    this.tintBits = this.frameIndex & -16777216;
+    this.tintBits = this.frameIndex & FACING_MASK;
     switch (this.typeId) {
       case ActorType.GrabAnchorZone: {
         if (this.intersectsActor(var1_1)) {
@@ -263,8 +263,8 @@ export class EffectActor extends ActorBase {
           this.activated = true;
           return;
         }
-        const var2_3 = this.frameIndex & 0xffffff;
-        const var3_5 = this.frameIndex & -16777216;
+        const var2_3 = this.frameIndex & SEQUENCE_MASK;
+        const var3_5 = this.frameIndex & FACING_MASK;
         if (var2_3 !== 1 || !this.isAnimationDone()) break;
         this.setFrame(0 | var3_5);
       }
@@ -302,7 +302,7 @@ export class EffectActor extends ActorBase {
         case ActorType.RegeneratingBarrier: {
           switch (l2.typeId) {
             case ActorType.GuidedMissileProjectile: {
-              if ((l2.frameIndex & 0xffffff) !== 0) break;
+              if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
               this.activated = true;
               this.shakeTick = 0;
               --this.hitPoints;
@@ -336,7 +336,7 @@ export class EffectActor extends ActorBase {
         case ActorType.CaptureTrigger: {
           switch (l2.typeId) {
             case ActorType.GuidedMissileProjectile: {
-              if ((l2.frameIndex & 0xffffff) === 0) {
+              if ((l2.frameIndex & SEQUENCE_MASK) === 0) {
                 l2.deactivate();
                 if (--this.hitPoints <= 0) {
                   this.destroyedFlag = 1;

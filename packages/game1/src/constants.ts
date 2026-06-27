@@ -51,6 +51,10 @@ export enum GameState {
 export const MIRROR_FLAG = -2147483648;
 /** 垂直翻转。= 0x40000000。 */
 export const FLIP_VERTICAL_BIT = 0x40000000;
+/** 帧整数低 24 位 = 序列 / 动作 id（剥掉翻转/朝向高位后得逻辑帧）。 */
+export const SEQUENCE_MASK = 0xffffff;
+/** 帧整数高字节 = 朝向 / 色调位。 */
+export const FACING_MASK = 0xff000000;
 
 /**
  * actor 生成类型 id（对应 CFR 基准 actor 的 `q` 字段 / TS `ActorBase.typeId`）。

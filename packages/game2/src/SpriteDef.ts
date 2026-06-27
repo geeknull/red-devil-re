@@ -27,7 +27,7 @@
 import { Graphics } from "@red-devil/j2me-shim";
 import { GameMIDlet } from "./GameMIDlet.ts";
 import { TileSheet } from "./TileSheet.ts";
-import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, SEQUENCE_MASK } from "./constants.ts";
 
 export class SpriteDef {
   static tileSheets: (TileSheet | null)[] = new Array<TileSheet | null>(32).fill(null);
@@ -103,7 +103,7 @@ export class SpriteDef {
   public drawFrame(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): void {
     const n7 = n3 & MIRROR_FLAG; // Integer.MIN_VALUE = 0x80000000
     const n8 = n3 & FLIP_VERTICAL_BIT;
-    const s = this.actionFrameGroups[(n3 &= 0xffffff)][n4];
+    const s = this.actionFrameGroups[(n3 &= SEQUENCE_MASK)][n4];
     const n9 = this.tilesPerGroup[s];
     let n10 = 0;
     while (n10 < n9) {

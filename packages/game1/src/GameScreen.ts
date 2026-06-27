@@ -47,7 +47,7 @@ import { EnemyActor } from "./EnemyActor.ts";
 import { LevelLoader } from "./LevelLoader.ts";
 import { PickupActor } from "./PickupActor.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { GameState, ActorType } from "./constants.ts";
+import { GameState, ActorType, SEQUENCE_MASK } from "./constants.ts";
 
 const INT_MIN = -2147483648; // Integer.MIN_VALUE / 0x80000000
 
@@ -2088,7 +2088,7 @@ export class GameScreen extends Canvas {
 
   // b(Graphics,int,int,int,int,int) → b_GIIIII（绘制 d 精灵某帧并判定动画终止）
   private drawBriefingAnim(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number): boolean {
-    const s = LevelLoader.spriteDefPool[n]!.getSequenceFrameCount(n2 & 0xffffff); // short
+    const s = LevelLoader.spriteDefPool[n]!.getSequenceFrameCount(n2 & SEQUENCE_MASK); // short
     if (n5 >= s) {
       this.animFrameIndex = 0;
       n5 = 0;

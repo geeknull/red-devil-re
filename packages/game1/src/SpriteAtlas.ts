@@ -39,6 +39,7 @@ import {
   TRANS_MIRROR_ROT270,
 } from "@red-devil/j2me-shim";
 import { GameMIDlet } from "./GameMIDlet.ts";
+import { SEQUENCE_MASK, FACING_MASK } from "./constants.ts";
 
 // Nokia DirectGraphics manipulation 常量（仅本文件像素管线偏差换算用）。
 const FLIP_HORIZONTAL = 8192; // 0x2000
@@ -73,8 +74,8 @@ export class SpriteAtlas {
    * n/n2=目标 x/y，n3=小图索引(高字节带翻转请求位 a/b)，n4=调色板组索引，n5=附加 manipulation(旋转)。
    */
   drawSprite(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number): void {
-    const n6 = n3 & 0xff000000;
-    n3 &= 0xffffff;
+    const n6 = n3 & FACING_MASK;
+    n3 &= SEQUENCE_MASK;
     let n7 = 0;
     // 原版：DirectGraphics directGraphics = DirectUtils.getDirectGraphics(graphics);
     //       —— 偏差：无 Nokia DirectGraphics，改用下方解码 + drawRegion。

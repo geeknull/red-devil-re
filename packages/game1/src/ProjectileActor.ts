@@ -14,7 +14,7 @@ import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { EffectActor } from "./EffectActor.ts";
 import { ActorBase } from "./ActorBase.ts";
-import { MIRROR_FLAG, ActorType } from "./constants.ts";
+import { MIRROR_FLAG, ActorType, SEQUENCE_MASK } from "./constants.ts";
 
 export class ProjectileActor extends ActorBase {
   world: GameScreen;
@@ -57,7 +57,7 @@ export class ProjectileActor extends ActorBase {
     if (!this.active) {
       return;
     }
-    const n2 = this.frameIndex & 0xffffff;
+    const n2 = this.frameIndex & SEQUENCE_MASK;
     const f2 = this.world.player;
     switch (this.typeId) {
       case ActorType.GrenadeProjectile:

@@ -21,7 +21,7 @@
  * （音频后续接入，调用保留）。
  */
 import { Graphics } from "@red-devil/j2me-shim";
-import { ActorType, GameState, MIRROR_FLAG } from "./constants.ts";
+import { ActorType, GameState, MIRROR_FLAG, SEQUENCE_MASK, FACING_MASK } from "./constants.ts";
 import { GameMIDlet } from "./GameMIDlet.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
@@ -159,8 +159,8 @@ export class EnemyActor extends ActorBase {
     if (this.screen.state === GameState.LevelScroll) {
       return;
     }
-    this.facingFlag = this.frameIndex & 0xff000000;
-    this.actionLow24 = this.frameIndex & 0xffffff;
+    this.facingFlag = this.frameIndex & FACING_MASK;
+    this.actionLow24 = this.frameIndex & SEQUENCE_MASK;
     if (this.target.actionId === 19 && this.aiState !== 4 && this.intersectsActor(this.target)) {
       this.target.frameTimer = 0;
       this.target.targetVelX = 0;
@@ -665,7 +665,7 @@ export class EnemyActor extends ActorBase {
     let bl: boolean = false;
     switch (l2.typeId) {
       case ActorType.GuidedMissileProjectile: {
-        if ((l2.frameIndex & 0xffffff) !== 0) break;
+        if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
         l2.deactivate();
         --this.lives;
         bl = true;

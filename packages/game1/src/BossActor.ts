@@ -25,7 +25,7 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { EnemyActor } from "./EnemyActor.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { ActorType, GameState, MIRROR_FLAG } from "./constants.ts";
+import { ActorType, GameState, MIRROR_FLAG, SEQUENCE_MASK } from "./constants.ts";
 
 /**
  * Boss / 触发器演员（游戏1《红魔特种兵》，原 CFR 类 `tjge.c`，继承 ActorBase）。
@@ -164,7 +164,7 @@ export class BossActor extends ActorBase {
   // a() → a_
   update(): void {
     const f2: PlayerActor = this.screen.player!;
-    const n: number = this.frameIndex & 0xffffff;
+    const n: number = this.frameIndex & SEQUENCE_MASK;
     switch (this.typeId) {
       case ActorType.ScriptedFuseTrigger: {
         if (this.intersectsActor(f2)) {
@@ -384,7 +384,7 @@ export class BossActor extends ActorBase {
     }
     switch (l2.typeId) {
       case ActorType.GuidedMissileProjectile: {
-        if ((l2.frameIndex & 0xffffff) !== 0) break;
+        if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
         l2.setFrame(1);
         l2.targetVelX = 0;
         l2.posY += 5120;

@@ -21,7 +21,7 @@ import { Graphics } from "@red-devil/j2me-shim";
 import { GameMIDlet } from "./GameMIDlet.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteAtlas } from "./SpriteAtlas.ts";
-import { MIRROR_FLAG, FLIP_VERTICAL_BIT } from "./constants.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, SEQUENCE_MASK } from "./constants.ts";
 
 /**
  * 精灵帧/动画定义（原 CFR `tjge.d`，基准文件 reverse/game1/2-decompiled-cfr/tjge/d.java）。
@@ -93,7 +93,7 @@ export class SpriteDef {
   paintSequenceFrame(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): void {
     const n7 = n3 & MIRROR_FLAG; // Integer.MIN_VALUE (0x80000000)
     const n8 = n3 & FLIP_VERTICAL_BIT;
-    const s = this.sequencePoseIndices[(n3 &= 0xffffff)][n4];
+    const s = this.sequencePoseIndices[(n3 &= SEQUENCE_MASK)][n4];
     const n9 = this.poseModuleCounts[s];
     graphics.setClip(0, 0, 176, 208);
     let n10 = 0;
