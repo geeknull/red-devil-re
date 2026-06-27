@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>精灵画廊 · Sprite Gallery</title>
+    <style>
+      body { margin: 0; background: #15181c; color: #cdd6df; font: 13px/1.45 system-ui, sans-serif; padding: 16px 20px; }
+      h1 { font-size: 16px; margin: 0 0 6px; }
+      .nav a { color: #6cf; margin-right: 14px; text-decoration: none; }
+      .nav a:hover { text-decoration: underline; }
+      .hint { color: #7a8694; margin: 6px 0 0; }
+      #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; margin-top: 16px; }
+      .cell { background: #1d2127; border: 1px solid #2c333c; border-radius: 6px; padding: 8px; text-align: center; }
+      .cell.amb { border-color: #e8a33d; box-shadow: 0 0 0 1px #e8a33d33; }
+      .cell canvas { image-rendering: pixelated; width: 96px; height: 96px; background: #0b0d10; border-radius: 3px; }
+      .id { font-weight: 700; color: #9fe6c0; margin-top: 4px; }
+      .nm { color: #c9d3dd; font-size: 12px; word-break: break-word; }
+      .amb .nm::after { content: " ⚠"; color: #e8a33d; }
+      .err { color: #e66; font-size: 11px; }
+      pre#err { color: #e66; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>精灵画廊 <span id="t"></span></h1>
+    <div class="nav">游戏：<a href="?game=1">① 红魔特种兵</a> <a href="?game=2">② 深海战舰</a></div>
+    <p class="hint">每格 = 一个 actor 类型 id 的「动作0·帧0」，用游戏自己的解码器渲染（与游戏内一致）。⚠ = 之前 med 置信、待确认的。</p>
+    <div id="grid"></div>
+    <pre id="err"></pre>
+    <script type="module" src="/src/sprite-gallery.ts"></script>
+  </body>
+</html>
