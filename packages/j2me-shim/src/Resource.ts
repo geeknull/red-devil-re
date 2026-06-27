@@ -4,7 +4,7 @@
  * 复刻 GameMIDlet 的字节读取原语（全部小端无符号）与归档容器结构：
  *   int32 count; int32 offset[count]; blob payload;
  *   entry[i] = payload[offset[i] : offset[i+1]]，末项为 EOF 哨兵。
- * 详见 docs/01-bin资源格式.md。
+ * 详见 docs/bin资源格式.md。
  */
 
 /** 顺序读取 Uint8Array 的小端读取器，对应 GameMIDlet.a/b/c。 */

@@ -189,7 +189,7 @@
     - **EnemyActor.ts**：patrolUpdate/airUpdate/`bossUpdate(实为关卡7追逼兵)` 各补方法级 JSDoc（敌人类型+分派条件，消除最大误导名）；aiState 取值内联；定点值单位注释；airUpdate:413 死局部标"反编译产物·删 n 留赋值"；fireProjectile 入参 n="Y偏移瓦数非子弹type"陷阱注。
     - **ProjectileActor.ts**：8 个方法全缺 JSDoc——update 总纲(扫描→守卫→按 typeId 推进+各 case fall-through)、computeHomingTrajectory(type21 追踪算法)、advanceAndCollide(bl)/launchArc(n) 的形参朝向语义、spawnAt byArray 三槽、paint type20 frameCounter<2 隐身意图；7 个弹型字段(launchOriginX/lifeTimer/armingDelay/loopFrames/subType/mode/frameCounter)行内注释。
     - **ActorBase.ts**：setFrame(frameIndex 位域 + orientation===270 碰撞箱交换 + L106 自赋值陷阱)、stepPhysics(L136-138 负加速"抬升到 maxVelX"反直觉守卫非 bug)、4 个 collide*(返回 1=SOLID + collideCeiling >>14 刻意差异)、spawnAt(params/flag 基类不用但子类用·勿删)、paint(两处出屏 early-return + short 截断)。引 `SYMBOLS.md:399-417` + g.java 行号。
-    - **GameMIDlet.ts(game2)**：accessSaveRecord 0读/1写/2清头两字节模式；saveRecord 5 字节布局([0]关/[1]继续数/[2]声音/[3]进度/[4]储备弹，`玩法与数值.md:281-285`)；playSound `_n2` 死参"保留匹配原签名"；readEntryBytes "读 n+1 条 offset 求长度依赖 bin EOF 哨兵"(`01-bin资源格式.md`)；tickSoundTimeout soundTimeout=2→<0 释放时序；readShortLE/readByte 有符号语义。
+    - **GameMIDlet.ts(game2)**：accessSaveRecord 0读/1写/2清头两字节模式；saveRecord 5 字节布局([0]关/[1]继续数/[2]声音/[3]进度/[4]储备弹，`玩法与数值.md:281-285`)；playSound `_n2` 死参"保留匹配原签名"；readEntryBytes "读 n+1 条 offset 求长度依赖 bin EOF 哨兵"(`bin资源格式.md`)；tickSoundTimeout soundTimeout=2→<0 释放时序；readShortLE/readByte 有符号语义。
   - 公共 API（v1）：shim 各文件 getter/工厂、`spawnProjectile` 6 参语义。
 
 ---

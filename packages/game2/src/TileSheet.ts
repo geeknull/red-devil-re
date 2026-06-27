@@ -6,7 +6,7 @@
  * 职责：加载 /res/t.bin（cell 切片表：源XY/宽/高 + 图像数）+ /res/actorPng.bin（PNG 主图），
  *       用标准 Graphics.drawRegion 切图贴出（无 DirectGraphics，无 4bit 像素自解码）。
  *
- * 与游戏1 的核心差异（见 docs/03-tjge引擎与兼容层设计.md、docs/game2-深海战舰/类清单与职责.md §10）：
+ * 与游戏1 的核心差异（见 docs/tjge引擎与兼容层设计.md、docs/game2-深海战舰/类清单与职责.md §10）：
  *   游戏1 的 i 自己做 4bit 像素解码 + RGB444 调色板 + Nokia DirectGraphics.drawPixels；
  *   游戏2 改为直接 Image.createImage(PNG) 加载 PNG，用 Graphics.drawRegion 切图。
  *
