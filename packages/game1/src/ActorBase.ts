@@ -23,7 +23,7 @@ import { GameScreen } from "./GameScreen.ts";
 import { TileMap } from "./TileMap.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { MIRROR_FLAG, FLIP_VERTICAL_BIT, SEQUENCE_MASK } from "./constants.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, SEQUENCE_MASK, px } from "./constants.ts";
 
 /**
  * 演员基类（原 `tjge.g`，CFR 基准 reverse/game1/2-decompiled-cfr/tjge/g.java，278 行）。
@@ -112,8 +112,8 @@ export class ActorBase {
     this.targetVelX = 0;
     this.accelY = 0;
     this.accelX = 0;
-    this.maxVelX = 12288;
-    this.maxVelY = 12288;
+    this.maxVelX = px(12);
+    this.maxVelY = px(12);
     this.orientation = 0;
     this.drawParam = 0;
     return true;
@@ -392,7 +392,7 @@ export class ActorBase {
     if (b2.queryColumnTileAt(n, n2, false) === 1) {
       this.targetVelY = 0;
       this.velY = (((n2 << 4) + 15 - this.boundsTop + 4) << 10) - this.posY;
-      this.accelY = 4096;
+      this.accelY = px(4);
       return true;
     }
     return false;

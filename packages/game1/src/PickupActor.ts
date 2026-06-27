@@ -41,7 +41,7 @@ import { Graphics } from "@red-devil/j2me-shim";
 import { ActorBase } from "./ActorBase.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
-import { ActorType, GameState } from "./constants.ts";
+import { ActorType, GameState, px } from "./constants.ts";
 
 export class PickupActor extends ActorBase {
   screen: GameScreen;
@@ -179,7 +179,7 @@ export class PickupActor extends ActorBase {
     }
     if (this.pickupFlashTimer > 0 && (this.typeId === ActorType.AmmoSupplyPickup || this.typeId === ActorType.HealthPickup)) {
       const n3 = (this.posX - this.screen.cameraX) >> 10;
-      const n4 = (this.posY - this.screen.cameraY - 20480) >> 10;
+      const n4 = (this.posY - this.screen.cameraY - px(20)) >> 10;
       this.screen.drawNumber(graphics, this.riseEffectTile, n3, n4 - (30 - 3 * this.pickupFlashTimer), false, true);
     }
   }

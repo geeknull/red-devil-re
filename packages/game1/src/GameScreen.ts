@@ -47,7 +47,7 @@ import { EnemyActor } from "./EnemyActor.ts";
 import { LevelLoader } from "./LevelLoader.ts";
 import { PickupActor } from "./PickupActor.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { GameState, ActorType, SEQUENCE_MASK } from "./constants.ts";
+import { GameState, ActorType, SEQUENCE_MASK, px } from "./constants.ts";
 
 const INT_MIN = -2147483648; // Integer.MIN_VALUE / 0x80000000
 
@@ -55,7 +55,7 @@ const INT_MIN = -2147483648; // Integer.MIN_VALUE / 0x80000000
 export class GameScreen extends Canvas {
   static screenWidth: number = 176;
   static playHeight: number = 176;
-  static viewWidthFx: number = 180224;
+  static viewWidthFx: number = px(176);
   static screenHeight: number = 208;
   static instance: GameScreen;
   private frameStepMs: number = 100; // long（计时步长，不溢出，用 number）
@@ -453,20 +453,20 @@ export class GameScreen extends Canvas {
           }
           if (this.isCutsceneEntry) {
             if (this.levelIndex === 7) {
-              this.scriptStageAc = this.cameraX = 184320;
-              this.player.posX -= 40960;
+              this.scriptStageAc = this.cameraX = px(180);
+              this.player.posX -= px(40);
             } else {
               this.player.posX = 0;
-              this.cameraX = 4096;
+              this.cameraX = px(4);
             }
-            this.player.targetVelX = 8192;
+            this.player.targetVelX = px(8);
             this.player.setFrame(2);
             this.state = GameState.LevelEnter;
             break;
           }
           this.cameraVelX = 0;
           this.cameraX = 0;
-          this.player.posX = -81920;
+          this.player.posX = px(-80);
           this.state = GameState.Playing;
           break;
         }
@@ -475,21 +475,21 @@ export class GameScreen extends Canvas {
             case 2: {
               if (!this.scriptFlagL) {
                 if (this.stateTimer++ <= 3) break;
-                this.cameraVelX = 12288;
+                this.cameraVelX = px(12);
                 this.cameraVelY = 0;
                 break;
               }
               if (this.stateTimer++ <= 9) break;
-              this.cameraVelX = -16384;
+              this.cameraVelX = px(-16);
               break;
             }
             case 7: {
               if (!this.scriptFlagL) {
                 if (this.stateTimer === 0) {
-                  this.cameraVelX = -8192;
+                  this.cameraVelX = px(-8);
                   break;
                 }
-                this.cameraVelX = 16384;
+                this.cameraVelX = px(16);
                 if (this.cameraX + this.cameraVelX <= this.scriptStageAc) break;
                 this.cameraX = this.scriptStageAc;
                 this.cameraVelX = 0;
@@ -745,7 +745,7 @@ export class GameScreen extends Canvas {
               case 0:
               case 6:
               case 7: {
-                this.player.targetVelX = 8192;
+                this.player.targetVelX = px(8);
                 this.player.setFrame(2);
                 break;
               }
@@ -756,14 +756,14 @@ export class GameScreen extends Canvas {
                 break;
               }
               case 2: {
-                this.player.targetVelX = 12288;
-                this.player.startLeapRight(-10240);
+                this.player.targetVelX = px(12);
+                this.player.startLeapRight(px(-10));
                 this.player.subState = 4;
                 ++this.stateTimer;
                 break;
               }
               case 4: {
-                this.player.targetVelX = 15360;
+                this.player.targetVelX = px(15);
               }
             }
           }
@@ -777,7 +777,7 @@ export class GameScreen extends Canvas {
             this.fillScreenColor(var1_1, this.stateTimer - 11);
             break;
           }
-          if (this.player.posX > this.cameraX + GameScreen.viewWidthFx + 10240) {
+          if (this.player.posX > this.cameraX + GameScreen.viewWidthFx + px(10)) {
             this.player.targetVelX = 0;
             if (this.stateTimer++ > 32) {
               this.state = GameState.MissionComplete;
@@ -1205,8 +1205,8 @@ export class GameScreen extends Canvas {
         this.scriptFlagL = true;
         this.cameraVelY = 0;
         this.cameraVelX = 0;
-        this.cameraX = 540672;
-        this.cameraY = 180224;
+        this.cameraX = px(528);
+        this.cameraY = px(176);
         break;
       }
       case 1: {
@@ -1215,9 +1215,9 @@ export class GameScreen extends Canvas {
             this.enemyAliveCount = 0;
           }
           if (this.enemyAliveCount === 0 && this.reinforceBudget > 0) {
-            let n4 = 425984;
+            let n4 = px(416);
             GameScreen.instance.spawnEnemyWave(2, 1, GameScreen.instance.cameraX + GameScreen.viewWidthFx, n4, 1, 1);
-            n4 = 507904;
+            n4 = px(496);
             GameScreen.instance.spawnEnemyWave(1, 2, GameScreen.instance.cameraX + GameScreen.viewWidthFx, n4, 1, 1);
             --this.reinforceBudget;
           }
@@ -1231,8 +1231,8 @@ export class GameScreen extends Canvas {
         this.reinforceBudget = 4;
         this.cameraVelX = 0;
         this.cameraVelY = 0;
-        this.cameraY = 360448;
-        this.cameraX = 720896;
+        this.cameraY = px(352);
+        this.cameraX = px(704);
         break;
       }
       case 2: {
@@ -1268,18 +1268,18 @@ export class GameScreen extends Canvas {
           this.scriptFlagL = true;
           this.cameraVelY = 0;
           this.cameraVelX = 0;
-          this.cameraX = 0x110000;
-          this.cameraY = 81920;
+          this.cameraX = px(1088);
+          this.cameraY = px(80);
           ++this.scriptStageAc;
           break;
         }
-        this.cameraVelY = 8192;
+        this.cameraVelY = px(8);
         break;
       }
       case 4: {
         this.cameraX += this.cameraVelX;
         if (this.player.linkedBoss != null) {
-          this.player.linkedBoss.posX = this.player.posX + 23552;
+          this.player.linkedBoss.posX = this.player.posX + px(23);
         }
         if (this.reinforceBudget > 0) {
           return;
@@ -1304,8 +1304,8 @@ export class GameScreen extends Canvas {
           this.scriptFlagL = true;
           this.cameraVelY = 0;
           this.cameraVelX = 0;
-          this.cameraX = 671744;
-          this.cameraY = 442368;
+          this.cameraX = px(656);
+          this.cameraY = px(432);
           ++this.scriptStageAc;
           break;
         }
@@ -1320,7 +1320,7 @@ export class GameScreen extends Canvas {
           const n11 = this.player.posX >> 10;
           const n12 = n11 - this.bossTriggerX;
           if (n12 < 176) {
-            this.cameraVelY = n12 > 50 ? (this.indicatorToggle ? -1536 : 1536) : this.indicatorToggle ? -2048 : 2048;
+            this.cameraVelY = n12 > 50 ? (this.indicatorToggle ? -1536 : 1536) : this.indicatorToggle ? px(-2) : px(2);
             this.indicatorToggle = !this.indicatorToggle;
           }
           if (this.bossTriggerX === 0) {
@@ -1343,7 +1343,7 @@ export class GameScreen extends Canvas {
         }
         if (this.state !== GameState.LevelScroll) break;
         if (this.scriptFlagL) {
-          this.cameraVelY = this.cameraVelY > 0 ? -2048 : 2048;
+          this.cameraVelY = this.cameraVelY > 0 ? px(-2) : px(2);
           this.cameraY += this.cameraVelY;
           if (this.stateTimer <= 12) break;
           this.spawnExplosionScatter(this.stateTimer * 3);
@@ -1381,7 +1381,7 @@ export class GameScreen extends Canvas {
     if (this.cameraX < 0) {
       this.cameraX = 0;
     }
-    if (this.cameraY > n3 - n + (this.levelIndex === 7 ? 2048 : 0)) {
+    if (this.cameraY > n3 - n + (this.levelIndex === 7 ? px(2) : 0)) {
       this.cameraY = n3 - n;
     }
     if (this.cameraY < 0) {
@@ -1845,16 +1845,16 @@ export class GameScreen extends Canvas {
             h2.isPatroller = false;
             h2.patrolRange = 0;
             let n11 = GameMIDlet.nextRandomMod(160);
-            h2.posX = this.cameraX + 5120 + (n11 <<= 10);
-            if (h2.posX > this.cameraX + 90112) {
-              h2.targetVelX = 7168;
+            h2.posX = this.cameraX + px(5) + (n11 <<= 10);
+            if (h2.posX > this.cameraX + px(88)) {
+              h2.targetVelX = px(7);
             } else {
-              h2.targetVelX = 9216;
+              h2.targetVelX = px(9);
               h2.setFrame(n5 | INT_MIN); // Integer.MIN_VALUE
             }
-            h2.targetVelY = 1024;
+            h2.targetVelY = px(1);
             h2.posY = n4 - n7;
-            n7 += 20480;
+            n7 += px(20);
             h2.timerA = 0;
             h2.aiState = 0;
             if (h2.trailEffect == null) {
@@ -1862,7 +1862,7 @@ export class GameScreen extends Canvas {
             }
             h2.trailEffect.active = true;
             h2.trailEffect.posX = h2.posX;
-            h2.trailEffect.posY = h2.posY - 30720;
+            h2.trailEffect.posY = h2.posY - px(30);
             h2.trailEffect.setFrame(0);
             break;
           }
@@ -1871,21 +1871,21 @@ export class GameScreen extends Canvas {
             h2.targetVelX = 0;
             h2.targetVelY = 0;
             h2.isPatroller = true;
-            h2.attackRangeUpper = 40960;
-            h2.attackRangeLower = -40960;
+            h2.attackRangeUpper = px(40);
+            h2.attackRangeLower = px(-40);
             h2.aiState = 7;
-            h2.posX = n3 + 20480;
+            h2.posX = n3 + px(20);
             h2.patrolDir = 0;
             h2.patrolRange = 100;
-            h2.patrolLeftBound = this.cameraX + 61440;
+            h2.patrolLeftBound = this.cameraX + px(60);
             h2.timerA = n8 << 3;
-            h2.patrolRightBound = n3 - 51200 + n8 * 20480;
+            h2.patrolRightBound = n3 - px(50) + n8 * px(20);
             if (n8 > 0) {
               h2.hitPoints = 1;
             }
             if (n !== 2) break;
-            h2.attackRangeUpper = 122880;
-            h2.patrolRightBound = n3 - 30720;
+            h2.attackRangeUpper = px(120);
+            h2.patrolRightBound = n3 - px(30);
             h2.patrolRange = 0;
           }
         }
@@ -1916,21 +1916,21 @@ export class GameScreen extends Canvas {
     this.boss.disabled = false;
     this.boss.visible = true;
     this.boss.posX = n;
-    this.boss.posY = this.player.linkedBoss!.posY - 3072;
+    this.boss.posY = this.player.linkedBoss!.posY - px(3);
     this.boss.targetVelX = n2;
     this.boss.setFrame(0);
     const h2 = this.boss.minion;
     this.boss.minion.active = true;
-    h2.attackRangeUpper = 40960;
-    h2.attackRangeLower = -40960;
+    h2.attackRangeUpper = px(40);
+    h2.attackRangeLower = px(-40);
     if (n > this.player.posX) {
-      h2.posX = this.boss.posX + 23552;
+      h2.posX = this.boss.posX + px(23);
       h2.setFrame(2);
     } else {
-      h2.posX = this.boss.posX - 23552;
+      h2.posX = this.boss.posX - px(23);
       h2.setFrame(-2147483646);
     }
-    h2.posY = this.player.posY - 2048;
+    h2.posY = this.player.posY - px(2);
     h2.targetVelX = this.boss.targetVelX;
     h2.targetVelY = 0;
     h2.patrolRange = 0;
@@ -1982,12 +1982,12 @@ export class GameScreen extends Canvas {
     const n3 = this.airdropWaveCount % 2 === 0 ? 2 : 1;
     const n4 = n3;
     void n4;
-    if (this.player.posX < this.cameraX + 90112) {
-      n2 = this.cameraX + 210944;
-      n = 2048;
+    if (this.player.posX < this.cameraX + px(88)) {
+      n2 = this.cameraX + px(206);
+      n = px(2);
     } else {
-      n2 = this.cameraX - 30720;
-      n = this.cameraVelX + 6144;
+      n2 = this.cameraX - px(30);
+      n = this.cameraVelX + px(6);
     }
     if (this.spawnEnemyWave(n3, 3, this.cameraX, 0, 0, 0) && this.spawnBossAttack(n2, n)) {
       ++this.airdropWaveCount;

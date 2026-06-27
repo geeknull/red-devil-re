@@ -14,7 +14,7 @@ import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { EffectActor } from "./EffectActor.ts";
 import { ActorBase } from "./ActorBase.ts";
-import { MIRROR_FLAG, ActorType, SEQUENCE_MASK } from "./constants.ts";
+import { MIRROR_FLAG, ActorType, SEQUENCE_MASK, px } from "./constants.ts";
 
 export class ProjectileActor extends ActorBase {
   world: GameScreen;
@@ -74,7 +74,7 @@ export class ProjectileActor extends ActorBase {
                   this.deactivate();
                   GameScreen.playSound(5, 1, 220);
                 }
-              } else if ((this.targetVelX > 0 && this.posX - this.launchOriginX > 204800) || (this.targetVelX < 0 && this.launchOriginX - this.posX > 204800)) {
+              } else if ((this.targetVelX > 0 && this.posX - this.launchOriginX > px(200)) || (this.targetVelX < 0 && this.launchOriginX - this.posX > px(200))) {
                 this.deactivate();
               }
             }
@@ -127,7 +127,7 @@ export class ProjectileActor extends ActorBase {
         }
         if (
           (this.world.levelIndex !== 4 && (this.collideGround(this.world.tileMap) || this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap))) ||
-          (this.world.levelIndex === 4 && this.posY >= f2.posY + 30720)
+          (this.world.levelIndex === 4 && this.posY >= f2.posY + px(30))
         ) {
           this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
           this.deactivate();
@@ -172,15 +172,15 @@ export class ProjectileActor extends ActorBase {
     let n4 = 0;
     let n5 = 0;
     while (n5 < this.world.drawQueueCount) {
-      if (this.isHomingTarget(this.world.drawQueue[n5]!.typeId) && (n4 > (n2 = Math.abs(this.posY - this.world.drawQueue[n5]!.posY + 15360)) || n4 === 0)) {
+      if (this.isHomingTarget(this.world.drawQueue[n5]!.typeId) && (n4 > (n2 = Math.abs(this.posY - this.world.drawQueue[n5]!.posY + px(15))) || n4 === 0)) {
         n4 = n2;
-        n3 = this.world.drawQueue[n5]!.posY - 20480;
+        n3 = this.world.drawQueue[n5]!.posY - px(20);
         n = Math.abs(this.posX - this.world.drawQueue[n5]!.posX);
       }
       ++n5;
     }
-    this.targetVelX += this.world.player!.facingFlag === 0 ? 12288 : -12288;
-    if (n4 === 0 || (this.posY > n3 - 10240 && this.posY < n3 + 10240)) {
+    this.targetVelX += this.world.player!.facingFlag === 0 ? px(12) : px(-12);
+    if (n4 === 0 || (this.posY > n3 - px(10) && this.posY < n3 + px(10))) {
       this.targetVelY = 0;
       return;
     }
@@ -234,10 +234,10 @@ export class ProjectileActor extends ActorBase {
   launchArc(n: number): void {
     let n2 = 0;
     let n3 = Math.abs(this.world.player.posX - this.posX);
-    if (n3 < 40960) {
-      n3 = 40960;
+    if (n3 < px(40)) {
+      n3 = px(40);
     }
-    const n4 = (n3 / 5120) | 0;
+    const n4 = (n3 / px(5)) | 0;
     const n5 = n4 >>> 1;
     let n6 = 0;
     let n7 = 0;
@@ -248,9 +248,9 @@ export class ProjectileActor extends ActorBase {
     n3 = (n3 >>> 2) * 3;
     n6 = ((n3 >>> 1) / n6) | 0;
     n2 = (n5 - 1) * n6;
-    this.targetVelX += n === 0 ? -5120 : 5120;
-    if (n2 > 15360) {
-      n2 = 15360;
+    this.targetVelX += n === 0 ? px(-5) : px(5);
+    if (n2 > px(15)) {
+      n2 = px(15);
     }
     this.targetVelY = -n2;
     this.accelY = n6;

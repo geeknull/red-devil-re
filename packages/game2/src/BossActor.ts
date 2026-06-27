@@ -25,7 +25,7 @@ import { SpriteDef } from "./SpriteDef.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { MIRROR_FLAG, FLIP_VERTICAL_BIT, LevelSubState, ActorType } from "./constants.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, LevelSubState, ActorType, px } from "./constants.ts";
 
 /**
  * 游戏2《红魔特种兵2-深海战舰》中的 **Boss / 机关 / 触发器 Actor**（继承自基类 {@link ActorBase}）。
@@ -117,13 +117,13 @@ export class BossActor extends ActorBase {
         if (this.axisOrPhase === 0) {
           this.rangeMin = this.posX;
           this.rangeMax = this.posX + (byArray[9] << 10);
-          this.targetVelX = 2048;
+          this.targetVelX = px(2);
           break;
         }
         if (this.axisOrPhase !== 1) break;
         this.rangeMin = this.posY;
         this.rangeMax = this.posY + (byArray[9] << 10);
-        this.targetVelY = 2048;
+        this.targetVelY = px(2);
         break;
       }
       case ActorType.DestructibleConsole: {
@@ -166,13 +166,13 @@ export class BossActor extends ActorBase {
   // a() → a_
   resetBoss(): void {
     this.posX = this.canvas.cameraX + ((this.canvas.viewportWidth / 2) | 0);
-    this.posY = this.canvas.cameraY - 20480;
+    this.posY = this.canvas.cameraY - px(20);
     this.health = 16;
     this.cN = 0;
     this.cO = 10;
     this.cP = 16;
-    this.rangeMin = this.canvas.cameraX - 819200;
-    this.rangeMax = this.canvas.cameraX + this.canvas.viewportWidth + 819200;
+    this.rangeMin = this.canvas.cameraX - px(800);
+    this.rangeMax = this.canvas.cameraX + this.canvas.viewportWidth + px(800);
     this.axisOrPhase = 1;
     this.knockedBack = false;
     this.pendingFire = false;
@@ -231,7 +231,7 @@ export class BossActor extends ActorBase {
         }
         if (this.knockedBack) {
           if (this.posX === this.cN) {
-            this.posX += 2048;
+            this.posX += px(2);
           } else {
             this.posX = this.cN;
             this.knockedBack = false;
@@ -254,15 +254,15 @@ export class BossActor extends ActorBase {
         let k3: ProjectileActor | null;
         if (this.axisOrPhase === 0) {
           if (this.posX < this.rangeMin) {
-            this.targetVelX = 2048;
+            this.targetVelX = px(2);
           } else if (this.posX > this.rangeMax) {
-            this.targetVelX = -2048;
+            this.targetVelX = px(-2);
           }
         } else if (this.axisOrPhase === 1) {
           if (this.posY < this.rangeMin) {
-            this.targetVelY = 2048;
+            this.targetVelY = px(2);
           } else if (this.posY > this.rangeMax) {
-            this.targetVelY = -2048;
+            this.targetVelY = px(-2);
           }
         }
         if (this.cP-- < 0 && (k3 = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (n9 = BossActor.BULLET_PARAMS_T17[(n8 = (this.frameGroupIndex / 3) | 0)][2] | (this.actionHighByte ^ MIRROR_FLAG)), (n7 = this.posX + this.targetVelX + (BossActor.BULLET_PARAMS_T17[n8][0] << 10) * (n6 = this.actionHighByte === 0 ? 1 : -1)), (n = this.posY + this.targetVelY + (BossActor.BULLET_PARAMS_T17[n8][1] << 10)), 1, null)) != null) {
@@ -343,7 +343,7 @@ export class BossActor extends ActorBase {
         }
         if (this.knockedBack) {
           if (this.posX === this.cN) {
-            this.posX += 1024;
+            this.posX += px(1);
           } else {
             this.posX = this.cN;
             this.knockedBack = false;
@@ -393,12 +393,12 @@ export class BossActor extends ActorBase {
               let k4: ProjectileActor | null;
               if (this.cN % 4 < 2 && (this.cP > 7 || this.cP < 3) && (k4 = ProjectileActor.spawnProjectile(ActorType.DirectBullet, 12, this.posX, this.posY, 1, null)) != null) {
                 k4.targetVelX = 0;
-                k4.targetVelY = 8192;
-                k4.accelY = 1024;
-                k4.maxVelY = 10240;
+                k4.targetVelY = px(8);
+                k4.accelY = px(1);
+                k4.maxVelY = px(10);
               }
-              if (this.posY < this.canvas.cameraY - 5120) {
-                this.posX = this.axisOrPhase > 0 ? this.canvas.cameraX - 30720 : this.canvas.cameraX + this.canvas.viewportWidth + 30720;
+              if (this.posY < this.canvas.cameraY - px(5)) {
+                this.posX = this.axisOrPhase > 0 ? this.canvas.cameraX - px(30) : this.canvas.cameraX + this.canvas.viewportWidth + px(30);
                 this.patrolCountdown = 20;
                 this.phaseIndex = 0;
               } else {
@@ -409,7 +409,7 @@ export class BossActor extends ActorBase {
             }
           }
           if (bl) {
-            this.targetVelX = this.axisOrPhase > 0 ? -6144 : 6144;
+            this.targetVelX = this.axisOrPhase > 0 ? px(-6) : px(6);
             this.targetVelY = (this.cP - 16) * 512;
             --this.cP;
           } else {
@@ -467,14 +467,14 @@ export class BossActor extends ActorBase {
           }
           if (this.randomMoveTimer++ > 5) {
             this.randomMoveTimer = 0;
-            const n12 = (this.targetVelX = GameMIDlet.randomBelow(2) > 0 ? 4096 : -4096);
+            const n12 = (this.targetVelX = GameMIDlet.randomBelow(2) > 0 ? px(4) : px(-4));
             void n12;
           }
         }
         if (!this.pendingFire) break;
         const nArray: number[] = [-12, -28, -42];
         n10 = this.posX + (nArray[this.phaseIndex] << 10);
-        n = this.posY - 35840;
+        n = this.posY - px(35);
         this.targetVelX = 0;
         this.setAction((2 + this.phaseIndex) | this.actionHighByte);
         const k5 = ProjectileActor.spawnProjectile(ActorType.GuidedGrenade, 0, n10, n, 1, null);
@@ -525,7 +525,7 @@ export class BossActor extends ActorBase {
     if (h2.typeId === ActorType.DirectBullet || h2.typeId === ActorType.ExplosionDebris) {
       switch (this.typeId) {
         case ActorType.MobileGunEmplacement: {
-          if (h2.posY >= this.posY - 20480 || Math.abs(this.posX - this.canvas.cameraX) > 153600) {
+          if (h2.posY >= this.posY - px(20) || Math.abs(this.posX - this.canvas.cameraX) > px(150)) {
             return true;
           }
         }
@@ -566,7 +566,7 @@ export class BossActor extends ActorBase {
         }
         case ActorType.HelicopterBoss: {
           this.health -= h2.getDamage();
-          if (this.health <= 0 && this.axisOrPhase === 0 && this.posX > this.canvas.cameraX && this.posX < this.canvas.cameraX + this.canvas.viewportWidth - 20480) {
+          if (this.health <= 0 && this.axisOrPhase === 0 && this.posX > this.canvas.cameraX && this.posX < this.canvas.cameraX + this.canvas.viewportWidth - px(20)) {
             this.knockedBack = true;
           }
           return true;
@@ -605,14 +605,14 @@ export class BossActor extends ActorBase {
     let n = 0;
     let n2 = 1;
     let n3 = Math.abs(this.canvas.player.posX - k2.posX);
-    if (n3 < 40960) {
-      k2.targetVelX = this.actionHighByte === 0 ? -2048 : 2048;
-      k2.targetVelY = -5120;
-      k2.accelY = 2048;
-      k2.maxVelY = 10240;
+    if (n3 < px(40)) {
+      k2.targetVelX = this.actionHighByte === 0 ? px(-2) : px(2);
+      k2.targetVelY = px(-5);
+      k2.accelY = px(2);
+      k2.maxVelY = px(10);
       return;
     }
-    const n4 = (n3 / 5120) | 0;
+    const n4 = (n3 / px(5)) | 0;
     const n5 = n4 >>> 1;
     let n6 = 0;
     while (n6 < n5) {
@@ -622,9 +622,9 @@ export class BossActor extends ActorBase {
     n3 = (n3 >>> 2) * 3;
     n2 = ((n3 >>> 1) / n2) | 0;
     n = (n5 - 1) * n2;
-    n = Math.min(15360, n);
-    k2.targetVelX = this.actionHighByte === 0 ? -5120 : 5120;
-    k2.targetVelY = -n + 2048;
+    n = Math.min(px(15), n);
+    k2.targetVelX = this.actionHighByte === 0 ? px(-5) : px(5);
+    k2.targetVelY = -n + px(2);
     k2.accelY = n2;
     k2.maxVelY = n;
   }

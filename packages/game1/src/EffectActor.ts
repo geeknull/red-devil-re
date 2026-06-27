@@ -23,7 +23,7 @@
  *   l2.b_()/l2.a_I(n)      = g.b()/g.a(int) （l 继承自 g）
  */
 import { Graphics } from "@red-devil/j2me-shim";
-import { ActorType, GameState, SEQUENCE_MASK, FACING_MASK } from "./constants.ts";
+import { ActorType, GameState, SEQUENCE_MASK, FACING_MASK, px } from "./constants.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { PlayerActor } from "./PlayerActor.ts";
@@ -195,16 +195,16 @@ export class EffectActor extends ActorBase {
           }
           if (var2_2) {
             if (this.typeId === ActorType.RegeneratingBarrier) {
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY - 5120, 2);
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX - 10240, this.posY - 20480, 2);
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX + 5120, this.posY - 10240, 2);
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY - px(5), 2);
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX - px(10), this.posY - px(20), 2);
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX + px(5), this.posY - px(10), 2);
             } else {
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 1, this.posX, this.posY - 5120, 2);
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 1, this.posX, this.posY - px(5), 2);
             }
             this.posX = this.anchorX;
             this.posY = this.anchorY;
             let var3_4 = this.posX >> 14;
-            const var4_6 = (this.posY - 5120) >> 14;
+            const var4_6 = (this.posY - px(5)) >> 14;
             while (this.world.tileMap.queryColumnTileAt(--var3_4, var4_6, true) === 1) {
             }
             const var5_7 = this.typeId === ActorType.ExplosiveBarrel ? 2 : 3;
@@ -223,7 +223,7 @@ export class EffectActor extends ActorBase {
         if (this.activated) {
           this.regenTimer = 0;
           // v0 = this.C = (this.C == this.b ? this.C + 2048 : this.b)
-          this.posX = this.posX === this.anchorX ? this.posX + 2048 : this.anchorX;
+          this.posX = this.posX === this.anchorX ? this.posX + px(2) : this.anchorX;
           if (this.shakeTick++ <= 5) break;
           this.activated = false;
           this.shakeTick = 0;
@@ -307,9 +307,9 @@ export class EffectActor extends ActorBase {
               this.shakeTick = 0;
               --this.hitPoints;
               if (l2.targetVelX > 0) {
-                l2.posX += 8192;
+                l2.posX += px(8);
               } else if (l2.targetVelX < 0) {
-                l2.posX -= 8192;
+                l2.posX -= px(8);
               }
               l2.targetVelX = 0;
               l2.setFrame(1);
@@ -350,7 +350,7 @@ export class EffectActor extends ActorBase {
             }
             case ActorType.GrenadeProjectile:
             case ActorType.FallingBombProjectile: {
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY + 8192, 2);
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY + px(8), 2);
               l2.deactivate();
               this.destroyedFlag = 1;
               GameScreen.playSound(5, 1, 220);

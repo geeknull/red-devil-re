@@ -21,7 +21,7 @@
  * （音频后续接入，调用保留）。
  */
 import { Graphics } from "@red-devil/j2me-shim";
-import { ActorType, GameState, MIRROR_FLAG, SEQUENCE_MASK, FACING_MASK } from "./constants.ts";
+import { ActorType, GameState, MIRROR_FLAG, SEQUENCE_MASK, FACING_MASK, px } from "./constants.ts";
 import { GameMIDlet } from "./GameMIDlet.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
@@ -98,23 +98,23 @@ export class EnemyActor extends ActorBase {
     this.trailEffect = null;
     switch (byArray[3]) {
       case 0: {
-        this.attackRangeUpper = 40960;
-        this.attackRangeLower = -40960;
+        this.attackRangeUpper = px(40);
+        this.attackRangeLower = px(-40);
         break;
       }
       case 1: {
-        this.attackRangeUpper = 81920;
-        this.attackRangeLower = -40960;
+        this.attackRangeUpper = px(80);
+        this.attackRangeLower = px(-40);
         break;
       }
       case 2: {
-        this.attackRangeUpper = 40960;
-        this.attackRangeLower = -81920;
+        this.attackRangeUpper = px(40);
+        this.attackRangeLower = px(-80);
         break;
       }
       case 3: {
-        this.attackRangeUpper = 81920;
-        this.attackRangeLower = -81920;
+        this.attackRangeUpper = px(80);
+        this.attackRangeLower = px(-80);
       }
     }
     switch (this.typeId) {
@@ -166,12 +166,12 @@ export class EnemyActor extends ActorBase {
       this.target.targetVelX = 0;
       this.target.movingFlag = 0;
       this.knockedBack = true;
-      this.target.posX = this.target.posX + (this.target.facingLeft ? 8192 : -8192);
+      this.target.posX = this.target.posX + (this.target.facingLeft ? px(8) : px(-8));
       this.target.setFrame(0x14 | this.target.facingFlag);
       return;
     }
     if (this.knockedBack) {
-      if (this.target.actionId === 21 && this.aiState !== 4 && Math.abs(this.posX - this.target.posX) < 40960) {
+      if (this.target.actionId === 21 && this.aiState !== 4 && Math.abs(this.posX - this.target.posX) < px(40)) {
         this.targetVelX = 0;
         this.lives = 0;
         this.aiState = 9;
@@ -222,7 +222,7 @@ export class EnemyActor extends ActorBase {
       this.timerB = 0;
     }
     if (this.aiState === 0 || this.aiState === 3 || this.aiState === 1) {
-      if ((this.facingFlag === 0 && this.posX > this.target.posX && this.posX - this.target.posX < 30720 || this.facingFlag !== 0 && this.target.posX > this.posX && this.target.posX - this.posX < 30720) && Math.abs(this.target.posY - this.posY) < 10240 && this.target.actionId !== 23 && this.target.actionId !== 15 && this.target.actionId !== 16 && this.target.actionId !== 20 && this.target.actionId !== 21 && this.target.actionId !== 19) {
+      if ((this.facingFlag === 0 && this.posX > this.target.posX && this.posX - this.target.posX < px(30) || this.facingFlag !== 0 && this.target.posX > this.posX && this.target.posX - this.posX < px(30)) && Math.abs(this.target.posY - this.posY) < px(10) && this.target.actionId !== 23 && this.target.actionId !== 15 && this.target.actionId !== 16 && this.target.actionId !== 20 && this.target.actionId !== 21 && this.target.actionId !== 19) {
         this.attackMode = 1;
         this.targetVelX = 0;
         this.timerB = 0;
@@ -232,7 +232,7 @@ export class EnemyActor extends ActorBase {
         return;
       }
       if (this.target.posY < this.posY + this.attackRangeUpper && this.target.posY > this.posY + this.attackRangeLower) {
-        const n: number = 143360;
+        const n: number = px(140);
         if (this.facingFlag === 0 && this.posX > this.target.posX && this.posX - this.target.posX < n || this.facingFlag !== 0 && this.posX < this.target.posX && this.target.posX - this.posX < n) {
           if (this.aiming && this.timerB++ > this.rhythmThreshold) {
             this.aiState = this.hitPoints > 0 && this.comboToggle ? 8 : 5;
@@ -268,7 +268,7 @@ export class EnemyActor extends ActorBase {
         if (!this.isAnimationDone()) break;
         if (this.patrolRange > 0) {
           if (this.facingFlag === 0 && this.posX > this.patrolLeftBound || this.facingFlag !== 0 && this.posX < this.patrolRightBound) {
-            this.targetVelX = this.facingFlag === 0 ? -3072 : 3072;
+            this.targetVelX = this.facingFlag === 0 ? px(-3) : px(3);
             this.setFrame(1 | this.facingFlag);
           } else {
             this.targetVelX = 0;
@@ -289,7 +289,7 @@ export class EnemyActor extends ActorBase {
         if (this.timerB < 20) break;
         this.timerB = 0;
         this.aiState = 3;
-        this.targetVelX = this.facingFlag === 0 ? -3072 : 3072;
+        this.targetVelX = this.facingFlag === 0 ? px(-3) : px(3);
         this.setFrame(1 | this.facingFlag);
         return;
       }
@@ -364,7 +364,7 @@ export class EnemyActor extends ActorBase {
                 if (l2.advanceAndCollide(this.facingFlag === 0)) {
                   l2.setFrame(1);
                 } else {
-                  l2.targetVelX = l2.targetVelX + (this.facingFlag === 0 ? -12288 : 12288);
+                  l2.targetVelX = l2.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
                 }
                 this.aiState = 11;
                 this.rhythmThreshold = this.hitPoints > 0 ? 12 : 15;
@@ -376,7 +376,7 @@ export class EnemyActor extends ActorBase {
             if (!this.isAnimationDone()) break;
             this.target.takeDamage(1);
             if (this.posX <= this.target.posX && !this.target.checkWallRight(this.screen.tileMap!, 100) || this.posX >= this.target.posX && !this.target.checkWallLeft(this.screen.tileMap!, 100)) {
-              this.target.posX = this.target.posX + (this.posX >= this.target.posX ? -8192 : 8192);
+              this.target.posX = this.target.posX + (this.posX >= this.target.posX ? px(-8) : px(8));
             }
             this.aiState = 0;
             this.setFrame(0 | this.facingFlag);
@@ -422,7 +422,7 @@ export class EnemyActor extends ActorBase {
           this.aiState = 0;
           return;
         }
-        this.targetVelX = this.patrolDir === 0 ? -4096 : 4096;
+        this.targetVelX = this.patrolDir === 0 ? px(-4) : px(4);
       }
     }
   }
@@ -438,7 +438,7 @@ export class EnemyActor extends ActorBase {
   airUpdate(): void {
     if (this.trailEffect !== null && this.trailEffect.active) {
       this.trailEffect.posX = this.posX;
-      this.trailEffect.posY = this.posY - 30720;
+      this.trailEffect.posY = this.posY - px(30);
     }
     if (this.aiState === 0) {
       if (this.facingFlag === 0 && this.posX < this.target.posX) {
@@ -449,16 +449,16 @@ export class EnemyActor extends ActorBase {
         this.setFrame(this.actionLow24 | 0);
       }
       if (this.posY < this.target.posY && this.targetVelY > 0) {
-        if (this.timerA++ % 60 === 0 && this.posX > this.screen.cameraX + 61440 && this.posX < this.screen.cameraX + GameScreen.viewWidthFx - 61440) {
-          const n: number = (this.targetVelX = GameMIDlet.nextRandomMod(1) === 1 ? 9216 : 7168);
+        if (this.timerA++ % 60 === 0 && this.posX > this.screen.cameraX + px(60) && this.posX < this.screen.cameraX + GameScreen.viewWidthFx - px(60)) {
+          const n: number = (this.targetVelX = GameMIDlet.nextRandomMod(1) === 1 ? px(9) : px(7));
         }
-        if (this.posX < this.screen.cameraX + 40960) {
-          this.targetVelX = 9216;
-        } else if (this.posX > this.screen.cameraX + GameScreen.viewWidthFx - 40960) {
-          this.targetVelX = 7168;
+        if (this.posX < this.screen.cameraX + px(40)) {
+          this.targetVelX = px(9);
+        } else if (this.posX > this.screen.cameraX + GameScreen.viewWidthFx - px(40)) {
+          this.targetVelX = px(7);
         }
       }
-      if ((this.typeId === ActorType.MeleeBomberEnemy && this.posY > this.screen.cameraY + 40960 || this.typeId === ActorType.ReconScoutEnemy && this.posY >= this.target.posY - 30720) && Math.abs(this.posX - this.target.posX) > 40960 && this.timerB++ > this.rhythmThreshold) {
+      if ((this.typeId === ActorType.MeleeBomberEnemy && this.posY > this.screen.cameraY + px(40) || this.typeId === ActorType.ReconScoutEnemy && this.posY >= this.target.posY - px(30)) && Math.abs(this.posX - this.target.posX) > px(40) && this.timerB++ > this.rhythmThreshold) {
         this.timerB = 0;
         this.aiState = 5;
       }
@@ -470,7 +470,7 @@ export class EnemyActor extends ActorBase {
       --this.screen.enemyAliveCount;
       return;
     }
-    if (this.posY >= this.target.posY + 25600 && this.targetVelY > 0) {
+    if (this.posY >= this.target.posY + px(25) && this.targetVelY > 0) {
       this.targetVelY = 0;
       this.targetVelX = 0;
       this.killTrailEffect();
@@ -486,7 +486,7 @@ export class EnemyActor extends ActorBase {
       this.aiState = 9;
       this.targetVelX = 0;
       this.timerB = 0;
-      this.targetVelY = 10240;
+      this.targetVelY = px(10);
       this.lives = 0;
       this.setFrame(7 | this.facingFlag);
     }
@@ -517,7 +517,7 @@ export class EnemyActor extends ActorBase {
             const l2: ProjectileActor | null = this.fireProjectile(28);
             if (l2 === null) break;
             this.aiState = 0;
-            l2.targetVelX = l2.targetVelX + (this.facingFlag === 0 ? -12288 : 12288);
+            l2.targetVelX = l2.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
             this.setFrame(3 | this.facingFlag);
             this.rhythmThreshold = 12;
           }
@@ -526,8 +526,8 @@ export class EnemyActor extends ActorBase {
       }
       case 9: {
         this.killTrailEffect();
-        if (this.targetVelY <= 0 || this.targetVelY >= 12288) break;
-        this.targetVelY = 12288;
+        if (this.targetVelY <= 0 || this.targetVelY >= px(12)) break;
+        this.targetVelY = px(12);
         return;
       }
       case 4: {
@@ -539,7 +539,7 @@ export class EnemyActor extends ActorBase {
 
   // i() → i_
   private spawnMeleeHitbox(): void {
-    const l2: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - 30720, 1);
+    const l2: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - px(30), 1);
     if (l2 !== null) {
       this.timerB = 0;
       l2.launchArc(this.facingFlag !== 0 ? 1 : 0);
@@ -550,9 +550,9 @@ export class EnemyActor extends ActorBase {
 
   // b(int) → b_I
   private fireProjectile(n: number): ProjectileActor | null {
-    let n2: number = 29696;
+    let n2: number = px(29);
     if (this.facingFlag === 0) {
-      n2 = -29696;
+      n2 = px(-29);
     }
     return this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0), 0, this.posX + n2, this.posY - (n << 10), 1); // Integer.MIN_VALUE
   }
@@ -573,13 +573,13 @@ export class EnemyActor extends ActorBase {
    */
   // h() → h_
   bossUpdate(): void {
-    if ((this.aiState === 0 || this.aiState === 1 || this.aiState === 3) && Math.abs(this.posX - this.target.posX) < 131072) {
-      if (this.target.posY < this.posY + 61440 && this.target.posY > this.posY - 10240 && Math.abs(this.posX - this.target.posX) < 81920) {
-        this.targetVelX = 4096;
+    if ((this.aiState === 0 || this.aiState === 1 || this.aiState === 3) && Math.abs(this.posX - this.target.posX) < px(128)) {
+      if (this.target.posY < this.posY + px(60) && this.target.posY > this.posY - px(10) && Math.abs(this.posX - this.target.posX) < px(80)) {
+        this.targetVelX = px(4);
         this.aiState = 6;
         this.facingFlag = MIRROR_FLAG; // Integer.MIN_VALUE
         this.setFrame(1 | MIRROR_FLAG); // Integer.MIN_VALUE
-      } else if (this.screen.scriptFlagL && this.screen.enemyAliveCount <= 0 && this.posX < this.screen.cameraX + GameScreen.viewWidthFx - 40960) {
+      } else if (this.screen.scriptFlagL && this.screen.enemyAliveCount <= 0 && this.posX < this.screen.cameraX + GameScreen.viewWidthFx - px(40)) {
         this.targetVelX = 0;
         this.aiState = 5;
         this.facingFlag = 0;
@@ -617,12 +617,12 @@ export class EnemyActor extends ActorBase {
       case 5: {
         if (!this.isAnimationDone()) break;
         this.aiState = 0;
-        const n: number = 327680;
+        const n: number = px(320);
         this.screen.spawnEnemyWave(1, 3, this.screen.cameraX + GameScreen.viewWidthFx, n, 1, 1);
         return;
       }
       case 6: {
-        if (this.posX <= this.screen.cameraX + GameScreen.viewWidthFx + 20480) break;
+        if (this.posX <= this.screen.cameraX + GameScreen.viewWidthFx + px(20)) break;
         this.targetVelX = 0;
         this.facingFlag = 0;
         this.aiState = 10;
@@ -630,7 +630,7 @@ export class EnemyActor extends ActorBase {
         return;
       }
       case 10: {
-        if (this.target.posY - this.posY <= 71680) break;
+        if (this.target.posY - this.posY <= px(70)) break;
         this.aiState = 0;
         this.timerB = 11;
         return;
@@ -679,8 +679,8 @@ export class EnemyActor extends ActorBase {
       }
       case ActorType.GrenadeProjectile:
       case ActorType.FallingBombProjectile: {
-        const n: number = l2.targetVelX > 0 ? 8192 : -8192;
-        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX + n, l2.posY + 8192, 0);
+        const n: number = l2.targetVelX > 0 ? px(8) : px(-8);
+        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX + n, l2.posY + px(8), 0);
         l2.deactivate();
         GameScreen.playSound(5, 1, 220);
       }

@@ -32,7 +32,7 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { MIRROR_FLAG, FLIP_VERTICAL_BIT, ActorType } from "./constants.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, ActorType, px } from "./constants.ts";
 
 export class EnemyActor extends ActorBase {
   private static readonly fireOffsetTable: number[][] = [
@@ -45,7 +45,7 @@ export class EnemyActor extends ActorBase {
     [0, -32],
     [0, -24],
   ];
-  private static readonly turretShotParams: number[] = [16, 0, 0, 8192];
+  private static readonly turretShotParams: number[] = [16, 0, 0, px(8)];
   hp: number = 0;
   facingSign: number = 0;
   timer: number = 0;
@@ -185,7 +185,7 @@ export class EnemyActor extends ActorBase {
         this.updateTurretAi();
       }
     }
-    if (this.reserved !== 6 && this.reserved !== 7 && this.hp > 0 && this.player.frameGroupIndex === 23 && Math.abs(this.player.posY - this.posY) <= 10240 && Math.abs(this.player.posX - this.posX) <= 25600) {
+    if (this.reserved !== 6 && this.reserved !== 7 && this.hp > 0 && this.player.frameGroupIndex === 23 && Math.abs(this.player.posY - this.posY) <= px(10) && Math.abs(this.player.posX - this.posX) <= px(25)) {
       this.player.onCollide(this);
     }
   }
@@ -266,12 +266,12 @@ export class EnemyActor extends ActorBase {
       }
       case 4:
       case 8: {
-        this.targetVelX = 4096 * this.facingSign;
+        this.targetVelX = px(4) * this.facingSign;
         this.hasFired = false;
         if ((this.facingSign > 0 && this.posX > this.patrolRightBound) || (this.facingSign < 0 && this.posX < this.patrolLeftBound)) {
           if (this.reserved === 8) {
-            this.patrolLeftBound = this.canvas.cameraX + 20480;
-            this.patrolRightBound = this.canvas.cameraX + this.canvas.viewportWidth - 20480;
+            this.patrolLeftBound = this.canvas.cameraX + px(20);
+            this.patrolRightBound = this.canvas.cameraX + this.canvas.viewportWidth - px(20);
             this.preHitSubState = 0;
             this.reserved = 4;
           } else {
@@ -474,15 +474,15 @@ export class EnemyActor extends ActorBase {
     }
     n = (((this.canvas.viewportWidth * 9) / 10) | 0) / ((2 / n5) | 0) | 0;
     n2 = (((this.canvas.viewportWidth * 9) / 10) | 0) / ((2 / n6) | 0) | 0;
-    n3 = 20480;
-    n4 = 20480;
+    n3 = px(20);
+    n4 = px(20);
     switch (this.typeId) {
       case ActorType.RiflemanGrunt:
       case ActorType.GrenadierGrunt: {
-        let n7: number = this.posX - 30720;
-        let n8: number = this.posX + 30720;
-        let n9: number = this.posY - 20480;
-        let n10: number = this.posY + 20480;
+        let n7: number = this.posX - px(30);
+        let n8: number = this.posX + px(30);
+        let n9: number = this.posY - px(20);
+        let n10: number = this.posY + px(20);
         if (this.player.posX > n7 && this.player.posX < n8 && this.player.posY > n9 && this.player.posY < n10 && this.player.frameGroupIndex !== 23 && this.player.frameGroupIndex !== 24) {
           return 4;
         }
@@ -575,8 +575,8 @@ export class EnemyActor extends ActorBase {
       }
       case ActorType.SentryGrunt: {
         if (this.hp > 0 || this.reserved === 6 || this.reserved === 7) break;
-        ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX - 5120, this.posY - 10240, 0, null);
-        ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + 5120, this.posY - 20480, 0, null);
+        ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX - px(5), this.posY - px(10), 0, null);
+        ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + px(5), this.posY - px(20), 0, null);
         this.reserved = 6;
         this.setAction(0 | this.actionHighByte);
         return;
@@ -602,8 +602,8 @@ export class EnemyActor extends ActorBase {
     let n: number = 0;
     let n2: number = 0;
     let n3: number = Math.abs(this.player.posX - k2.posX);
-    n3 = Math.max(40960, n3);
-    const n4: number = (n3 / 5120) | 0;
+    n3 = Math.max(px(40), n3);
+    const n4: number = (n3 / px(5)) | 0;
     const n5: number = n4 >>> 1;
     let n6: number = 0;
     while (n6 < n5) {
@@ -613,8 +613,8 @@ export class EnemyActor extends ActorBase {
     n3 = (n3 >>> 2) * 3;
     n2 = ((n3 >>> 1) / n2) | 0;
     n = (n5 - 1) * n2;
-    n = Math.min(15360, n);
-    k2.targetVelX = this.facingSign * 5120;
+    n = Math.min(px(15), n);
+    k2.targetVelX = this.facingSign * px(5);
     k2.targetVelY = -n;
     k2.accelY = n2;
     k2.maxVelY = n;

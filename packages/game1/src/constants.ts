@@ -57,6 +57,13 @@ export const SEQUENCE_MASK = 0xffffff;
 export const FACING_MASK = 0xff000000;
 
 /**
+ * 定点像素 helper：`px(n) = n << 10`，即 n 像素的定点表示
+ * （原版坐标/速度/距离均以 1px = 1024 的定点数表示）。
+ * 仅用于把"本就是 N×1024 的定点字面量"显形为 `px(N)`，运行时同值（`px(8) === 8192`）。
+ */
+export const px = (n: number): number => n << 10;
+
+/**
  * actor 生成类型 id（对应 CFR 基准 actor 的 `q` 字段 / TS `ActorBase.typeId`）。
  * 工厂 `GameScreen.createActor(n)` 据此 new 子类，各 actor 内部又 `switch(typeId)` 分派行为。
  * 语义经"行为代码 + docs + 精灵画廊看图"考据；★ 标的为看图修正项。

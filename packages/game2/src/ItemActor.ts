@@ -23,7 +23,7 @@ import { GameMIDlet } from "./GameMIDlet.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { LevelScene } from "./LevelScene.ts";
-import { MIRROR_FLAG, ActorType } from "./constants.ts";
+import { MIRROR_FLAG, ActorType, px } from "./constants.ts";
 
 export class ItemActor extends ActorBase {
   patrolMinX: number = 0;
@@ -69,8 +69,8 @@ export class ItemActor extends ActorBase {
         } else {
           this.patrolMinX = this.posX - (n << 10);
         }
-        this.patrolMinY = this.posY - 10240;
-        this.patrolMaxY = this.posY + 10240;
+        this.patrolMinY = this.posY - px(10);
+        this.patrolMaxY = this.posY + px(10);
         this.counter = 10;
         break;
       }
@@ -98,21 +98,21 @@ export class ItemActor extends ActorBase {
     switch (this.typeId) {
       case ActorType.PatrolFlyer: {
         const n: number = this.actionHighByte === 0 ? 1 : -1;
-        this.targetVelX = 1024 * n;
+        this.targetVelX = px(1) * n;
         if ((n > 0 && this.posX > this.patrolMaxX) || (n < 0 && this.posX < this.patrolMinX)) {
           this.targetVelX = 0;
           this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
           this.setAction(0 | this.actionHighByte);
         }
         if (this.posY > this.patrolMaxY) {
-          this.targetVelY = -1024;
+          this.targetVelY = px(-1);
         } else if (this.posY < this.patrolMinY) {
-          this.targetVelY = 1024;
+          this.targetVelY = px(1);
         }
         if (this.counter-- >= 0) break;
         const n2: number = GameMIDlet.randomBelow(2);
         this.counter = 1 + n2;
-        this.targetVelY = n2 > 0 ? -1024 : 1024;
+        this.targetVelY = n2 > 0 ? px(-1) : px(1);
         return;
       }
       case ActorType.PlayerAttachedEffect: {
@@ -138,9 +138,9 @@ export class ItemActor extends ActorBase {
       }
       case ActorType.DriftingFlotsam: {
         if (!this.canvas.scene.isVerticalScrollLevel) break;
-        this.targetVelX = -6144;
-        if (this.posX >= this.canvas.cameraX - 40960) break;
-        this.posX = this.canvas.cameraX + this.canvas.viewportWidth + 40960;
+        this.targetVelX = px(-6);
+        if (this.posX >= this.canvas.cameraX - px(40)) break;
+        this.posX = this.canvas.cameraX + this.canvas.viewportWidth + px(40);
         return;
       }
       case ActorType.NavalOfficerNpc: {
@@ -165,7 +165,7 @@ export class ItemActor extends ActorBase {
   applyCommand(n: number): void {
     if (n === 0) {
       this.posX = this.canvas.player.posX;
-      this.posY = this.canvas.player.posY - 12288;
+      this.posY = this.canvas.player.posY - px(12);
       return;
     }
     if (n === 1) {

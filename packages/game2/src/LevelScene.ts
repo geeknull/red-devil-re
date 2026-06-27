@@ -48,7 +48,7 @@ import { ActorBase } from "./ActorBase.ts";
 import { TileSheet } from "./TileSheet.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
 import { setJ } from "./jref.ts";
-import { ActorType, LevelSubState } from "./constants.ts";
+import { ActorType, LevelSubState, px } from "./constants.ts";
 
 /**
  * tjge.h 的包内可见（Java protected）成员视图。
@@ -363,10 +363,10 @@ export class LevelScene {
           if (LevelScene.cutsceneStep === 1) {
             if (g2.stepThrowQueue() === 1) {
               g2.advanceEffectFrame();
-              g2.targetVelY = 8192;
+              g2.targetVelY = px(8);
               ++LevelScene.cutsceneStep;
             }
-            g2.targetVelX = 10240;
+            g2.targetVelX = px(10);
             return;
           }
           if (LevelScene.cutsceneStep !== 2 || pkg(g2).frameGroupIndex !== 0) break;
@@ -417,7 +417,7 @@ export class LevelScene {
             return;
           }
           g2.stepThrowQueue();
-          if (g2.posX >= this.canvas.cameraX - 20480) break;
+          if (g2.posX >= this.canvas.cameraX - px(20)) break;
           this.canvas.showResult(true);
           return;
         }
@@ -429,7 +429,7 @@ export class LevelScene {
           PlayerActor.throwCooldownQueue[0][2] = 6;
           PlayerActor.throwCooldownQueue[1][0] = 2;
           LevelScene.cutsceneState[4] = LevelScene.cutsceneState[4] << 14;
-          PlayerActor.throwCooldownQueue[1][1] = ((LevelScene.cutsceneState[4] - g2.posX + 129024) / 8192) | 0;
+          PlayerActor.throwCooldownQueue[1][1] = ((LevelScene.cutsceneState[4] - g2.posX + px(126)) / px(8)) | 0;
           PlayerActor.throwCooldownQueue[1][2] = 2;
           PlayerActor.throwCooldownQueue[2][0] = 16;
           PlayerActor.throwCooldownQueue[2][1] = 1;
@@ -514,7 +514,7 @@ export class LevelScene {
             return;
           }
           g2.stepThrowQueue();
-          if (g2.posX <= this.canvas.cameraX + this.canvas.viewportWidth + 20480) break;
+          if (g2.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(20)) break;
           g2.targetVelX = 0;
           g2.setAction(0 | g2.actionHighByte);
           this.setSubState(LevelSubState.MissionDialog);
@@ -591,7 +591,7 @@ export class LevelScene {
             this.dialogActor = this.spawnActor(ActorType.HelicopterBoss, -1) as unknown as BossActor; // 原 (c)this.c(19,-1)
             this.dialogActor!.resetBoss();
           } else if (LevelScene.cutsceneStep < 22) {
-            this.dialogActor!.posY += 4096;
+            this.dialogActor!.posY += px(4);
           } else if (LevelScene.cutsceneStep === 22) {
             LevelScene.dialogState[1] = 2;
             LevelScene.dialogState[2] = 0;
@@ -629,12 +629,12 @@ export class LevelScene {
               if (LevelScene.cutsceneSubStep === 0) {
                 LevelScene.cutsceneSubStep = 1;
                 n2 = 0x130000 - this.dialogActor!.posX;
-                n = 616448 - this.dialogActor!.posY;
+                n = px(602) - this.dialogActor!.posY;
                 this.dialogActor!.targetVelX = (n2 / 20) | 0;
                 this.dialogActor!.targetVelY = (n / 20) | 0;
                 break;
               }
-              if (this.dialogActor!.posY <= 616448) break;
+              if (this.dialogActor!.posY <= px(602)) break;
               this.dialogActor!.targetVelX = 0;
               this.dialogActor!.targetVelY = 0;
               this.dialogActor!.setAction(-2147483647);
@@ -642,14 +642,14 @@ export class LevelScene {
               break;
             }
             case 1: {
-              this.dialogActor!.posY = this.dialogActor!.posY + (LevelScene.cutsceneSubStep % 1 === 1 ? -2048 : 2048);
+              this.dialogActor!.posY = this.dialogActor!.posY + (LevelScene.cutsceneSubStep % 1 === 1 ? px(-2) : px(2));
               if (LevelScene.cutsceneSubStep++ <= 5) break;
               LevelScene.cutsceneStep = 2;
-              this.dialogActor!.targetVelX = 10240;
+              this.dialogActor!.targetVelX = px(10);
               break;
             }
             case 2: {
-              if (this.dialogActor!.posX <= this.canvas.cameraX + this.canvas.viewportWidth + 61440) break;
+              if (this.dialogActor!.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(60)) break;
               this.dialogActor!.targetVelX = 0;
               this.cameraTargetCacheX = g2.posX - ((this.canvas.viewportWidth / 2) | 0);
               LevelScene.cutsceneState[1] = 5;
@@ -665,7 +665,7 @@ export class LevelScene {
           ++LevelScene.cutsceneStep;
           g2.setAction(0);
           PlayerActor.throwCooldownQueue[0][0] = 2;
-          PlayerActor.throwCooldownQueue[0][1] = ((0x109000 - g2.posX) / 8192) | 0;
+          PlayerActor.throwCooldownQueue[0][1] = ((0x109000 - g2.posX) / px(8)) | 0;
           PlayerActor.throwCooldownQueue[0][2] = 0;
           PlayerActor.throwCooldownQueue[1][0] = 128;
           PlayerActor.throwCooldownQueue[1][1] = 2;
@@ -690,7 +690,7 @@ export class LevelScene {
         }
         if (LevelScene.cutsceneStep !== 2) break;
         g2.stepThrowQueue();
-        if (g2.posX <= this.canvas.cameraX + this.canvas.viewportWidth + 51200) break;
+        if (g2.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(50)) break;
         this.canvas.showResult(true);
         return;
       }
@@ -712,7 +712,7 @@ export class LevelScene {
             this.setSubState(LevelSubState.MissionDialog);
             return;
           }
-          g2.targetVelX = 10240;
+          g2.targetVelX = px(10);
           return;
         }
         if (LevelScene.cutsceneState[1] === 1) {
@@ -727,7 +727,7 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] !== 2) break;
         if (LevelScene.cutsceneStep === 0) {
           g2.targetVelX = 0;
-          g2.targetVelY = 12288;
+          g2.targetVelY = px(12);
           g2.publicFlagB = true;
           ++LevelScene.cutsceneStep;
           return;
@@ -753,8 +753,8 @@ export class LevelScene {
         while (n < 8) {
           const h2: ActorBase | null = this.spawnActor(ActorType.SplashEffect, -1);
           if (h2 != null) {
-            h2.posX = g2.posX + (pkg(g2).boxLeft << 10) + n % 4 * 14336 + ((n / 4) | 0) * 8192;
-            h2.posY = g2.posY + 14336 + ((n / 4) | 0) * 8192;
+            h2.posX = g2.posX + (pkg(g2).boxLeft << 10) + n % 4 * px(14) + ((n / 4) | 0) * px(8);
+            h2.posY = g2.posY + px(14) + ((n / 4) | 0) * px(8);
             h2.setAction(0);
           }
           ++n;
@@ -1089,7 +1089,7 @@ export class LevelScene {
       if (by < by3) {
         if (LevelScene.activeActors[by] != null) {
           if (pkg(LevelScene.activeActors[by]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[by]!).typeId <= ActorType.TurretEmplacement) {
-            if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) >= 180224 || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) >= 180224) {
+            if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) >= px(176) || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) >= px(176)) {
               LevelScene.activeActors[by]!.kill();
               LevelScene.activeActors[by] = null;
             }
@@ -1109,7 +1109,7 @@ export class LevelScene {
       ++n5;
       if (LevelScene.activeActors[by] == null || LevelScene.activeActors[by]!.alive) continue;
       if (pkg(LevelScene.activeActors[by]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[by]!).typeId <= ActorType.TurretEmplacement) {
-        if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) < 180224 && Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) < 180224) continue;
+        if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) < px(176) && Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) < px(176)) continue;
         LevelScene.activeActors[by] = null;
         continue;
       }
@@ -1118,7 +1118,7 @@ export class LevelScene {
     while (this.cellActors[this.currentCell] != null && n4 < this.cellActors[this.currentCell]!.length) {
       if (LevelScene.activeActors[this.cellActors[this.currentCell]![n4]] != null) {
         if (pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!).typeId <= ActorType.TurretEmplacement) {
-          if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) >= 180224 || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) >= 180224) {
+          if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) >= px(176) || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) >= px(176)) {
             LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.kill();
             LevelScene.activeActors[this.cellActors[this.currentCell]![n4]] = null;
           }
@@ -1274,7 +1274,7 @@ export class LevelScene {
           while (n6 < n5) {
             const h2: ActorBase | null = this.spawnActor(ActorType.GrappleMarker, -1);
             if (h2 != null) {
-              h2.posX = n3 + n6 * 16384;
+              h2.posX = n3 + n6 * px(16);
               h2.posY = n4;
               h2.setAction(GameMIDlet.readIntLE(this.triggerTable[n]!, 21 + n6, 1));
               LevelScene.formationState[n6 + 1] = h2.slotIndex;
@@ -1341,7 +1341,7 @@ export class LevelScene {
           n10 = n5;
         }
         if (n10 === 1) {
-          n6 = this.canvas.cameraX - ++n8 * 15360;
+          n6 = this.canvas.cameraX - ++n8 * px(15);
           n7 = 0;
         } else if (n10 === 2) {
           n6 = this.canvas.cameraX + this.canvas.viewportWidth + ++n9 * 15060;

@@ -32,7 +32,7 @@ import { SpriteDef } from "./SpriteDef.ts";
 import { ItemActor } from "./ItemActor.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { ActorType, LevelSubState, MIRROR_FLAG } from "./constants.ts";
+import { ActorType, LevelSubState, MIRROR_FLAG, px } from "./constants.ts";
 
 /**
  * 玩家 Actor（游戏2《深海战舰》主角，对应 CFR 基准 reverse/game2/2-decompiled-cfr/tjge/g.java，继承自 Actor 基类 h=ActorBase）。
@@ -53,8 +53,8 @@ import { ActorType, LevelSubState, MIRROR_FLAG } from "./constants.ts";
  * 协作者：ProjectileActor（发射子弹/手雷）、ItemActor（伴随特效与拾取物）、LevelScene（场景/相位/相机/开关）。
  */
 export class PlayerActor extends ActorBase {
-  public static readonly jumpVelocityX: Int32Array = Int32Array.from([8192, 4096, 8192, 8192, 8192, 8192]);
-  public static readonly jumpVelocityY: Int32Array = Int32Array.from([-10240, -10240, -15360, -17408, -15360, -10240]);
+  public static readonly jumpVelocityX: Int32Array = Int32Array.from([px(8), px(4), px(8), px(8), px(8), px(8)]);
+  public static readonly jumpVelocityY: Int32Array = Int32Array.from([px(-10), px(-10), px(-15), px(-17), px(-15), px(-10)]);
   public static readonly ammoInitTable: Int32Array = Int32Array.from([10, 1, 3]);
   public static readonly reserveInitTable: Int32Array = Int32Array.from([99, 6, 3]);
   public static ammoCurrent: Int32Array = new Int32Array(3);
@@ -179,7 +179,7 @@ export class PlayerActor extends ActorBase {
         n2 = (this.posY + this.velY >> 10) - 30 >> 3;
         n = this.tileAt(n3, n2);
         if ((n & 3) != 0) {
-          this.velY = (n2 << 13) + 8192 - this.posY;
+          this.velY = (n2 << 13) + px(8) - this.posY;
           this.setAction(0x16 | this.actionHighByte);
           this.ceilingBlocked = true;
         }
@@ -218,28 +218,28 @@ export class PlayerActor extends ActorBase {
       } else if (!this.collideDown()) {
         if ((this.reserved & 1) != 0) {
           this.knockbackTimer = 1;
-          this.velX = this.actionHighByte == 0 ? 10240 : -10240;
-          this.velY = 6144;
-          this.targetVelY = 10240;
+          this.velX = this.actionHighByte == 0 ? px(10) : px(-10);
+          this.velY = px(6);
+          this.targetVelY = px(10);
           this.reserved &= 0xFFFFFFFE;
           this.airborneJumping = false;
           if (this.frameGroupIndex != 5 && this.frameGroupIndex != 6) {
             this.setAction(0x10 | this.actionHighByte);
           }
         } else if (this.frameGroupIndex == 18 || this.frameGroupIndex == 19 || this.frameGroupIndex == 20 || this.frameGroupIndex == 21) {
-          this.targetVelY = 12288;
+          this.targetVelY = px(12);
           this.airborneJumping = false;
           this.setAction(0x10 | this.actionHighByte);
         }
-        this.accelY = 4096;
+        this.accelY = px(4);
         this.updateVaultMotion();
       }
     }
     if (this.canvas.scene.subState == LevelSubState.Normal || this.canvas.scene.subState == LevelSubState.BattleWave) {
       n3 = this.posX + (this.boxLeft << 10) + this.velX;
       n2 = this.posX + (this.boxRight << 10) + this.velX;
-      n = this.canvas.cameraX + 4096;
-      const n4: number = this.canvas.cameraX + this.canvas.viewportWidth - 4096;
+      n = this.canvas.cameraX + px(4);
+      const n4: number = this.canvas.cameraX + this.canvas.viewportWidth - px(4);
       if (n3 < n) {
         this.velX = n - (this.posX + (this.boxLeft << 10));
       } else if (n2 > n4) {
@@ -366,10 +366,10 @@ export class PlayerActor extends ActorBase {
         const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, n4, n5, n2 = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, n3, 1), 26, null);
         if (k2 == null) break;
         PlayerActor.ammoCurrent[2] = PlayerActor.ammoCurrent[2] - 1;
-        k2.targetVelX = this.actionHighByte == 0 ? 8192 : -8192;
+        k2.targetVelX = this.actionHighByte == 0 ? px(8) : px(-8);
         k2.targetVelY = -6656;
         k2.accelY = 1128;
-        k2.maxVelY = 15360;
+        k2.maxVelY = px(15);
         return;
       }
       case 9:
@@ -383,17 +383,17 @@ export class PlayerActor extends ActorBase {
       case 25: {
         if ((this.reserved & 1) != 0) {
           this.actionSubTimer = 0;
-          this.targetVelX = 8192 * n;
+          this.targetVelX = px(8) * n;
           this.setAction(0x17 | this.actionHighByte);
           return;
         }
         if ((this.reserved & 4) != 0) break;
-        this.targetVelX = 8192 * n;
+        this.targetVelX = px(8) * n;
         return;
       }
       case 26: {
         if ((this.reserved & 4) == 0) {
-          this.targetVelX = 8192 * n;
+          this.targetVelX = px(8) * n;
         }
         if (!this.isAnimationDone()) break;
         this.setAction(0x19 | this.actionHighByte);
@@ -402,13 +402,13 @@ export class PlayerActor extends ActorBase {
       case 22: {
         if (!this.isAnimationDone()) break;
         if (this.ceilingBlocked) {
-          this.posY -= 8192;
+          this.posY -= px(8);
           this.reserved &= 0xFFFFFFFD;
           this.setAction(0 | this.actionHighByte);
           this.canvas.inputAction = 0;
           return;
         }
-        this.posY += 24576;
+        this.posY += px(24);
         this.setAction(0x12 | this.actionHighByte);
         return;
       }
@@ -422,7 +422,7 @@ export class PlayerActor extends ActorBase {
           return;
         }
         if (this.airborneJumping) {
-          this.targetVelX = (this.canJump ? PlayerActor.jumpVelocityX[this.vaultType] : 5120) * n;
+          this.targetVelX = (this.canJump ? PlayerActor.jumpVelocityX[this.vaultType] : px(5)) * n;
         } else if (--this.knockbackTimer < 0) {
           this.targetVelX = 0;
         }
@@ -441,8 +441,8 @@ export class PlayerActor extends ActorBase {
       }
       case 17: {
         if (this.vaultType < 2 || this.vaultType > 3) {
-          this.posY += -12288;
-          this.targetVelY = -15360;
+          this.posY += px(-12);
+          this.targetVelY = px(-15);
           this.actionSubTimer = 0;
         }
         this.setAction(0x23 | this.actionHighByte);
@@ -452,7 +452,7 @@ export class PlayerActor extends ActorBase {
         if (this.actionSubTimer++ > 2) {
           this.setAction(0x10 | this.actionHighByte);
         }
-        this.targetVelX = (this.canJump ? 8192 : 5120) * n;
+        this.targetVelX = (this.canJump ? px(8) : px(5)) * n;
         return;
       }
       case 23: {
@@ -535,7 +535,7 @@ export class PlayerActor extends ActorBase {
           if (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) {
             if (this.actionHighByte != 0) {
               if (this.frameGroupIndex == 2 && !this.isFootOnGround()) break;
-              this.targetVelX = -8192;
+              this.targetVelX = px(-8);
               this.setAction(-2147483647);
               return;
             }
@@ -549,11 +549,11 @@ export class PlayerActor extends ActorBase {
             return;
           }
           if (this.targetVelX != 0) break;
-          this.targetVelX = -8192;
+          this.targetVelX = px(-8);
           return;
         }
         if ((this.reserved & 4) != 0) {
-          this.targetVelX = -10240;
+          this.targetVelX = px(-10);
           this.targetVelY = 0;
           return;
         }
@@ -566,11 +566,11 @@ export class PlayerActor extends ActorBase {
         if (this.collideLeft()) break;
         this.airborneJumping = false;
         this.reserved &= 0xFFFFFFFD;
-        this.posX -= 8192;
-        this.posY += 8192;
-        this.targetVelX = -8192;
-        this.targetVelY = 12288;
-        this.accelY = 4096;
+        this.posX -= px(8);
+        this.posY += px(8);
+        this.targetVelX = px(-8);
+        this.targetVelY = px(12);
+        this.accelY = px(4);
         this.setAction(-2147483632);
         return;
       }
@@ -579,7 +579,7 @@ export class PlayerActor extends ActorBase {
           if (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) {
             if (this.actionHighByte == 0) {
               if (this.frameGroupIndex == 2 && !this.isFootOnGround()) break;
-              this.targetVelX = 8192;
+              this.targetVelX = px(8);
               this.setAction(1);
               return;
             }
@@ -593,11 +593,11 @@ export class PlayerActor extends ActorBase {
             return;
           }
           if (this.targetVelX != 0) break;
-          this.targetVelX = 8192;
+          this.targetVelX = px(8);
           return;
         }
         if ((this.reserved & 4) != 0) {
-          this.targetVelX = 10240;
+          this.targetVelX = px(10);
           this.targetVelY = 0;
           return;
         }
@@ -610,11 +610,11 @@ export class PlayerActor extends ActorBase {
         if (this.collideRight()) break;
         this.airborneJumping = false;
         this.reserved &= 0xFFFFFFFD;
-        this.posX += 8192;
-        this.posY += 8192;
-        this.targetVelX = 8192;
-        this.targetVelY = 12288;
-        this.accelY = 4096;
+        this.posX += px(8);
+        this.posY += px(8);
+        this.targetVelX = px(8);
+        this.targetVelY = px(12);
+        this.accelY = px(4);
         this.setAction(16);
         return;
       }
@@ -643,24 +643,24 @@ export class PlayerActor extends ActorBase {
             if (this.vaultType == 5) {
               this.canJump = false;
             }
-            this.posY -= 5120;
+            this.posY -= px(5);
             this.setAction(0xE | this.actionHighByte);
           }
           this.targetVelX = PlayerActor.jumpVelocityX[this.vaultType] * n2;
           this.targetVelY = PlayerActor.jumpVelocityY[this.vaultType];
           this.airborneJumping = true;
-          this.accelY = 4096;
+          this.accelY = px(4);
           this.canvas.inputAction = 0;
           this.reserved &= 0xFFFFFFFE;
           return;
         }
         if ((this.reserved & 4) != 0) {
-          this.targetVelY = -6144;
+          this.targetVelY = px(-6);
           return;
         }
         if (this.frameGroupIndex != 14 && this.frameGroupIndex != 15 || !this.canJump || this.vaultTargetX >= 0 || this.vaultTargetY >= 0) break;
-        this.posY -= 20480;
-        this.targetVelY = -5120;
+        this.posY -= px(20);
+        this.targetVelY = px(-5);
         this.canJump = false;
         this.setAction(0x19 | this.actionHighByte);
         return;
@@ -669,14 +669,14 @@ export class PlayerActor extends ActorBase {
         if ((this.reserved & 1) != 0) {
           if (this.frameGroupIndex == 2) {
             this.actionSubTimer = 0;
-            this.targetVelX = 8192 * n2;
+            this.targetVelX = px(8) * n2;
             this.setAction(0x17 | this.actionHighByte);
             return;
           }
           if (this.snapToLedge(1)) {
             this.reserved = 2;
             this.accelY = 0;
-            this.posY += 24576;
+            this.posY += px(24);
             this.ceilingBlocked = false;
             this.setAction(0x16 | this.actionHighByte);
             return;
@@ -687,21 +687,21 @@ export class PlayerActor extends ActorBase {
           return;
         }
         if ((this.reserved & 2) != 0) {
-          this.targetVelY = 4096;
+          this.targetVelY = px(4);
           this.setAction(21 - (21 - this.frameGroupIndex + 1) % 4 | this.actionHighByte);
           return;
         }
         if ((this.reserved & 4) == 0) break;
-        this.targetVelY = 6144;
+        this.targetVelY = px(6);
         return;
       }
       case 32: {
         if ((this.reserved & 4) != 0) {
-          this.targetVelY = -6144;
+          this.targetVelY = px(-6);
           return;
         }
         if ((this.reserved & 2) != 0) {
-          this.targetVelY = -4096;
+          this.targetVelY = px(-4);
           this.setAction(18 + (this.frameGroupIndex - 18 + 1) % 4 | this.actionHighByte);
           return;
         }
@@ -716,7 +716,7 @@ export class PlayerActor extends ActorBase {
         }
         if (this.snapToLedge(0)) {
           this.reserved = 2;
-          this.targetVelY = -8192;
+          this.targetVelY = px(-8);
           this.accelY = 0;
           this.setAction(0x12 | this.actionHighByte);
           return;
@@ -764,25 +764,25 @@ export class PlayerActor extends ActorBase {
         if (!k2.hitWall) {
           switch (n4) {
             case 0: {
-              k2.targetVelY = -12288;
+              k2.targetVelY = px(-12);
               break;
             }
             case 1:
             case 2: {
-              k2.targetVelX = 12288 * n2;
+              k2.targetVelX = px(12) * n2;
               break;
             }
             case 3: {
-              k2.targetVelX = 12288 * n2;
-              k2.targetVelY = 12288;
+              k2.targetVelX = px(12) * n2;
+              k2.targetVelY = px(12);
             }
           }
         }
         this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][n4][1] | this.actionHighByte);
         if (this.canvas.scene.isVerticalScrollLevel) {
-          k2.targetVelX = 4096;
-          k2.targetVelY = 6144;
-          k2.accelY = 2048;
+          k2.targetVelX = px(4);
+          k2.targetVelY = px(6);
+          k2.accelY = px(2);
           k2.isSpecialGrenade = true;
         } else {
           const n7: number = this.currentWeaponIndex;
@@ -878,10 +878,10 @@ export class PlayerActor extends ActorBase {
         this.velX = 0;
         if (h2.actionHighByte == 0) {
           if (!this.collideRight()) {
-            this.posX += 8192;
+            this.posX += px(8);
           }
         } else if (!this.collideLeft()) {
-          this.posX -= 8192;
+          this.posX -= px(8);
         }
         this.takeDamage(h2.getDamage(), h2.actionHighByte);
         break;
@@ -962,8 +962,8 @@ export class PlayerActor extends ActorBase {
         }
         return;
       }
-      this.targetVelY = 6144;
-      this.accelY = 4096;
+      this.targetVelY = px(6);
+      this.accelY = px(4);
       this.setAction(5 | this.actionHighByte);
     }
     this.canJump = false;
@@ -1020,8 +1020,8 @@ export class PlayerActor extends ActorBase {
               const n13: number = this.tileAt(n8, n9 - 1);
               if (n12 == 0 && n13 == 0) {
                 this.vaultTargetX = n > 0 ? n8 << 13 : (n8 << 3) + 8 << 10;
-                this.vaultTargetX += this.actionHighByte == 0 ? -10240 : 10240;
-                this.vaultTargetY = (n9 << 13) + 40960;
+                this.vaultTargetX += this.actionHighByte == 0 ? px(-10) : px(10);
+                this.vaultTargetY = (n9 << 13) + px(40);
                 if (n11 < 3) {
                   return 4;
                 }
@@ -1120,7 +1120,7 @@ export class PlayerActor extends ActorBase {
       }
       --n4;
     }
-    this.accelY = 4096;
+    this.accelY = px(4);
     return false;
   }
 
@@ -1152,7 +1152,7 @@ export class PlayerActor extends ActorBase {
       }
       ++n3;
     }
-    this.accelY = 4096;
+    this.accelY = px(4);
     return false;
   }
 

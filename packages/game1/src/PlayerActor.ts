@@ -27,7 +27,7 @@
  * 必要偏差：本类无资源/像素管线直接调用；tjge.a.a_III 为静态音效播放
  * （音频后续接入，调用保留，详见规约 new Sound 暂静音）。
  */
-import { ActorType, GameState, MIRROR_FLAG, SEQUENCE_MASK, FACING_MASK } from "./constants.ts";
+import { ActorType, GameState, MIRROR_FLAG, SEQUENCE_MASK, FACING_MASK, px } from "./constants.ts";
 import { GameScreen } from "./GameScreen.ts";
 import { TileMap } from "./TileMap.ts";
 import { BossActor } from "./BossActor.ts";
@@ -129,7 +129,7 @@ export class PlayerActor extends ActorBase {
         }
         this.velX = (((n3 << 4) - 9) << 10) - this.posX;
       } else if (!bl3 && bl4) {
-        this.velY = 2048;
+        this.velY = px(2);
       }
     } else if (this.facingFlag === 0 && (bl4 || bl3)) {
       if (bl4 && !bl3) {
@@ -153,10 +153,10 @@ export class PlayerActor extends ActorBase {
         }
         this.velX = (((n2 << 4) + 25) << 10) - this.posX;
       } else if (!bl4 && bl3) {
-        this.velY = 2048;
+        this.velY = px(2);
       }
     }
-    this.accelY = 4096;
+    this.accelY = px(4);
     return false;
   }
 
@@ -166,7 +166,7 @@ export class PlayerActor extends ActorBase {
       return false;
     }
     const n = (this.posX + this.velX) >> 14;
-    const n2 = (this.posY - 10240) >> 14;
+    const n2 = (this.posY - px(10)) >> 14;
     let n3 = 0;
     while (n3 < 3) {
       if (b2.queryColumnTileAt(n, n2 + n3, true) === 1) {
@@ -179,7 +179,7 @@ export class PlayerActor extends ActorBase {
 
   // f(tjge.b) → f_Tb（前方贴墙检测）
   checkWallAhead(b2: TileMap): boolean {
-    let n = this.facingLeft ? this.posX - 2048 : this.posX + 2048;
+    let n = this.facingLeft ? this.posX - px(2) : this.posX + px(2);
     const n2 = ((this.posY >> 10) - 34) >> 4;
     return b2.queryColumnTileAt((n >>= 14), n2, true) === 1;
   }
@@ -187,10 +187,10 @@ export class PlayerActor extends ActorBase {
   // a(tjge.b,boolean) → a_TbZ（侧向墙体碰撞）
   checkLadderTile(b2: TileMap, bl: boolean): boolean {
     let n = bl
-      ? (this.posY - 30720) >> 14
+      ? (this.posY - px(30)) >> 14
       : (this.stateFlags & 0x2000) !== 0
         ? (this.posY + this.velY) >> 14
-        : (this.posY + this.velY + 20480) >> 14;
+        : (this.posY + this.velY + px(20)) >> 14;
     const n2 = ((this.posX >> 10) - 3) >> 4;
     const n3 = ((this.posX >> 10) + 3) >> 4;
     let n4 = n2;
@@ -207,7 +207,7 @@ export class PlayerActor extends ActorBase {
     if ((this.stateFlags & 0x2000) !== 0) {
       if (bl) {
         ++n;
-        this.posY = (n <<= 14) + 10240;
+        this.posY = (n <<= 14) + px(10);
       } else {
         this.posY = n <<= 14;
       }
@@ -228,7 +228,7 @@ export class PlayerActor extends ActorBase {
     this.movingFlag = 0;
     this.linkedEnemy = null;
     this.linkedBoss = null;
-    this.accelY = 4096;
+    this.accelY = px(4);
     this.stateFlags = 1;
     return true;
   }
@@ -299,9 +299,9 @@ export class PlayerActor extends ActorBase {
           if (this.screen.reinforceBudget-- > 25) {
             this.targetVelX = 0;
           } else if (this.screen.reinforceBudget > 12) {
-            this.targetVelX = 10240;
+            this.targetVelX = px(10);
           } else if (this.screen.reinforceBudget <= 12) {
-            this.screen.cameraVelX = 8192;
+            this.screen.cameraVelX = px(8);
           }
           if (
             this.screen.boss!.active &&
@@ -314,18 +314,18 @@ export class PlayerActor extends ActorBase {
           }
           this.posX += this.velX;
           if (this.screen.cameraVelX <= 0) break;
-          if (this.posX < this.screen.cameraX + 20480) {
-            this.posX = this.screen.cameraX + 20480;
+          if (this.posX < this.screen.cameraX + px(20)) {
+            this.posX = this.screen.cameraX + px(20);
             return;
           }
-          if (this.posX - this.screen.cameraX <= n2 - 20480) break;
-          this.posX = this.screen.cameraX + n2 - 20480;
+          if (this.posX - this.screen.cameraX <= n2 - px(20)) break;
+          this.posX = this.screen.cameraX + n2 - px(20);
           return;
         }
         if ((this.stateFlags & 0x2000) === 0) {
           if (this.collideCeiling(this.screen.tileMap!)) {
             if (!this.collideGround(this.screen.tileMap!)) {
-              this.targetVelY = 5120;
+              this.targetVelY = px(5);
               this.beginFall();
             } else {
               this.setFrame(5 | this.facingFlag);
@@ -367,36 +367,36 @@ export class PlayerActor extends ActorBase {
         if (
           (this.stateFlags & 1) !== 0 &&
           (this.actionId === 2 || this.actionId === 0) &&
-          (n = this.posX % 8192) > 2048 &&
-          n < 6144
+          (n = this.posX % px(8)) > px(2) &&
+          n < px(6)
         ) {
-          if (n > 4096) {
-            n = 8192 - n;
+          if (n > px(4)) {
+            n = px(8) - n;
             this.posX += n;
           } else {
             this.posX -= n;
           }
         }
         if (this.screen.scriptFlagL && this.screen.levelIndex !== 7 && this.screen.levelIndex !== 2) {
-          if (this.posX < this.screen.cameraX + 10240) {
-            this.posX = this.screen.cameraX + 10240;
+          if (this.posX < this.screen.cameraX + px(10)) {
+            this.posX = this.screen.cameraX + px(10);
             this.targetVelX = 0;
             return;
           }
-          if (this.posX <= this.screen.cameraX + n2 - 10240) break;
-          this.posX = this.screen.cameraX + n2 - 10240;
+          if (this.posX <= this.screen.cameraX + n2 - px(10)) break;
+          this.posX = this.screen.cameraX + n2 - px(10);
           this.targetVelX = 0;
           return;
         }
         this.screen.cameraVelX =
           this.facingFlag === 0
             ? this.posX > (((GameScreen.screenWidth / 5) | 0) << 10)
-              ? this.targetVelX + 14336
+              ? this.targetVelX + px(14)
               : 0
             : this.posX < ((this.screen.tileMap!.getPixelWidth() - ((GameScreen.screenWidth / 5) | 0)) << 10)
-              ? this.targetVelX + -14336
+              ? this.targetVelX + px(-14)
               : 0;
-        this.screen.cameraVelY = -4096;
+        this.screen.cameraVelY = px(-4);
       }
     }
   }
@@ -432,8 +432,8 @@ export class PlayerActor extends ActorBase {
           case 0: {
             this.checkClimbable(this.screen.tileMap!);
             if (this.climbResult === 2 && this.canClimb) {
-              this.posX = this.facingLeft ? this.climbTargetX + 10240 : this.climbTargetX - 10240;
-              this.posY = this.climbTargetY + 36864;
+              this.posX = this.facingLeft ? this.climbTargetX + px(10) : this.climbTargetX - px(10);
+              this.posY = this.climbTargetY + px(36);
               this.subState = 3;
               this.setFrame(0x16 | this.facingFlag);
               return;
@@ -452,8 +452,8 @@ export class PlayerActor extends ActorBase {
           case 3: {
             this.checkClimbable(this.screen.tileMap!);
             if (this.climbResult !== 2 || !this.canClimb) break;
-            this.posX = this.facingLeft ? this.climbTargetX + 10240 : this.climbTargetX - 10240;
-            this.posY = this.climbTargetY + 36864;
+            this.posX = this.facingLeft ? this.climbTargetX + px(10) : this.climbTargetX - px(10);
+            this.posY = this.climbTargetY + px(36);
             this.setFrame(0x16 | this.facingFlag);
             break;
           }
@@ -475,7 +475,7 @@ export class PlayerActor extends ActorBase {
           case 3: {
             if (this.posY >= this.climbTargetY) break;
             this.targetVelX =
-              this.subState === 3 ? (this.facingLeft ? -8192 : 8192) : this.facingLeft ? -4096 : 4096;
+              this.subState === 3 ? (this.facingLeft ? px(-8) : px(8)) : this.facingLeft ? px(-4) : px(4);
             this.setFrame(0x11 | this.facingFlag);
           }
         }
@@ -507,9 +507,9 @@ export class PlayerActor extends ActorBase {
             break;
           }
           case 6: {
-            this.posX = this.facingLeft ? this.climbTargetX + 10240 : this.climbTargetX - 10240;
-            this.posY = this.climbTargetY + 36864;
-            this.targetVelY = -4096;
+            this.posX = this.facingLeft ? this.climbTargetX + px(10) : this.climbTargetX - px(10);
+            this.posY = this.climbTargetY + px(36);
+            this.targetVelY = px(-4);
             this.subState = 3;
             this.setFrame(0x16 | this.facingFlag);
           }
@@ -519,11 +519,11 @@ export class PlayerActor extends ActorBase {
       case 22: {
         if (this.subState !== 2 && this.subState !== 3) break;
         this.canClimb = false;
-        this.accelY = 4096;
-        const n = (this.targetVelX = this.facingLeft ? -4096 : 4096);
+        this.accelY = px(4);
+        const n = (this.targetVelX = this.facingLeft ? px(-4) : px(4));
         void n;
         if (this.subState === 3) {
-          this.targetVelY = -15360;
+          this.targetVelY = px(-15);
         }
         this.setFrame(4 | this.facingFlag);
         return;
@@ -627,8 +627,8 @@ export class PlayerActor extends ActorBase {
           this.climbAnimState = 24;
           this.setFrame(this.climbAnimState | this.facingFlag);
         } else {
-          this.accelY = 4096;
-          this.posY -= 25600;
+          this.accelY = px(4);
+          this.posY -= px(25);
           this.stateFlags &= 0xffffdfff;
           this.setFrame(0 | this.facingFlag);
         }
@@ -733,12 +733,12 @@ export class PlayerActor extends ActorBase {
                         if (this.checkLadderTile(this.screen.tileMap!, false)) {
                           this.frameTimer = 0;
                           this.movingFlag = 1;
-                          this.targetVelY = 10240;
-                          this.targetVelX = -8192;
+                          this.targetVelY = px(10);
+                          this.targetVelX = px(-8);
                           this.subState = 5;
                           this.setFrame(-2147483631);
                         } else {
-                          this.velY = 4096;
+                          this.velY = px(4);
                           this.setFrame(MIRROR_FLAG);
                         }
                         this.stateFlags &= -8193;
@@ -764,12 +764,12 @@ export class PlayerActor extends ActorBase {
                         if (this.checkLadderTile(this.screen.tileMap!, false)) {
                           this.frameTimer = 0;
                           this.movingFlag = 1;
-                          this.targetVelY = 10240;
-                          this.targetVelX = 8192;
+                          this.targetVelY = px(10);
+                          this.targetVelX = px(8);
                           this.subState = 5;
                           this.setFrame(17);
                         } else {
-                          this.velY = 4096;
+                          this.velY = px(4);
                           this.setFrame(0);
                         }
                         this.stateFlags &= -8193;
@@ -790,7 +790,7 @@ export class PlayerActor extends ActorBase {
                         this.climbAdvance = true;
                         this.stateFlags &= -2;
                         this.stateFlags |= 8192;
-                        this.targetVelY = -5120;
+                        this.targetVelY = px(-5);
                         this.movingFlag = 0;
                         this.setFrame(this.climbAnimState | this.facingFlag);
                       } else if ((this.stateFlags & 8192) !== 0) {
@@ -809,16 +809,16 @@ export class PlayerActor extends ActorBase {
                           this.stateFlags |= 8192;
                           this.movingFlag = 0;
                           this.ledgeGrabFlag = false;
-                          this.posY += 30720;
+                          this.posY += px(30);
                           this.setFrame(27 | this.facingFlag);
                         } else {
                           this.setFrame(this.climbAnimState | this.facingFlag);
                         }
-                        this.targetVelY = 5120;
+                        this.targetVelY = px(5);
                         this.climbAdvance = true;
                       } else if ((this.stateFlags & 8192) !== 0) {
                         this.stateFlags &= -8193;
-                        this.velY = 4096;
+                        this.velY = px(4);
                         this.setFrame(0 | this.facingFlag);
                       } else if (
                         (this.stateFlags & 1) !== 0 &&
@@ -826,7 +826,7 @@ export class PlayerActor extends ActorBase {
                           (this.actionId === 5 && this.inputHoldCount > 0))
                       ) {
                         this.movingFlag = 1;
-                        this.targetVelX = this.facingLeft === false ? 8192 : -8192;
+                        this.targetVelX = this.facingLeft === false ? px(8) : px(-8);
                         this.setFrame(19 | this.facingFlag);
                       } else if ((this.stateFlags & 1) !== 0 && this.inputHoldCount > 0) {
                         this.setFrame(5 | this.facingFlag);
@@ -854,27 +854,27 @@ export class PlayerActor extends ActorBase {
                         if (this.subState === 4) {
                           if (!this.checkWallLeft(this.screen.tileMap!, 2)) {
                             this.subState = 0;
-                            this.targetVelX = -8192;
+                            this.targetVelX = px(-8);
                           }
                         } else if (this.subState === 1) {
-                          this.targetVelX = -4096;
+                          this.targetVelX = px(-4);
                         }
                         // fall through (lbl138)
                       }
                       case 3: {
-                        this.startLeapLeft(-10240);
+                        this.startLeapLeft(px(-10));
                         break;
                       }
                       case 2: {
-                        this.startLeapLeft(-15360);
+                        this.startLeapLeft(px(-15));
                       }
                     }
                     break block91;
                   }
                   // block90:
                   this.subState = 0;
-                  this.startLeapLeft(-10240);
-                  this.targetVelX = -8192;
+                  this.startLeapLeft(px(-10));
+                  this.targetVelX = px(-8);
                   break block91;
                 }
                 // block89:
@@ -908,27 +908,27 @@ export class PlayerActor extends ActorBase {
                 if (this.subState === 4) {
                   if (!this.checkWallRight(this.screen.tileMap!, 2)) {
                     this.subState = 0;
-                    this.targetVelX = 8192;
+                    this.targetVelX = px(8);
                   }
                 } else if (this.subState === 1) {
-                  this.targetVelX = 4096;
+                  this.targetVelX = px(4);
                 }
                 // fall through (lbl178)
               }
               case 3: {
-                this.startLeapRight(-10240);
+                this.startLeapRight(px(-10));
                 break;
               }
               case 2: {
-                this.startLeapRight(-15360);
+                this.startLeapRight(px(-15));
               }
             }
             break block95;
           }
           // block94:
           this.subState = 0;
-          this.startLeapRight(-10240);
-          this.targetVelX = 8192;
+          this.startLeapRight(px(-10));
+          this.targetVelX = px(8);
           break block95;
         }
         // block93:
@@ -1026,7 +1026,7 @@ export class PlayerActor extends ActorBase {
   // b(int) → b_I（向左跳跃/落地动作分支设定）
   startLeapLeft(n: number): void {
     if (this.subState === 2) {
-      this.posX = this.climbTargetX + 12288;
+      this.posX = this.climbTargetX + px(12);
       this.setFrame(-2147483626);
     } else if (this.subState === 5) {
       this.setFrame(-2147483631);
@@ -1034,7 +1034,7 @@ export class PlayerActor extends ActorBase {
       this.setFrame(-2147483645);
     }
     this.targetVelY = n;
-    this.accelY = 4096;
+    this.accelY = px(4);
     this.stateFlags &= 0xfffffffe;
     this.movingFlag = 1;
   }
@@ -1046,7 +1046,7 @@ export class PlayerActor extends ActorBase {
   // c(int) → c_I（向右跳跃/落地动作分支设定）
   startLeapRight(n: number): void {
     if (this.subState === 2) {
-      this.posX = this.climbTargetX - 12288;
+      this.posX = this.climbTargetX - px(12);
       this.setFrame(22);
     } else if (this.subState === 5) {
       this.setFrame(17);
@@ -1054,7 +1054,7 @@ export class PlayerActor extends ActorBase {
       this.setFrame(3);
     }
     this.targetVelY = n;
-    this.accelY = 4096;
+    this.accelY = px(4);
     this.stateFlags &= 0xfffffffe;
     this.movingFlag = 1;
   }
@@ -1099,9 +1099,9 @@ export class PlayerActor extends ActorBase {
     }
     this.stateFlags &= 0xfffffffe;
     if (this.actionId === 23 || this.velY > 0) {
-      this.targetVelY = 10240;
-      this.accelY = 4096;
-      this.maxVelY = 12288;
+      this.targetVelY = px(10);
+      this.accelY = px(4);
+      this.maxVelY = px(12);
       this.frameTimer = 0;
       this.movingFlag = 1;
       if (this.actionId === 23) {
@@ -1109,21 +1109,21 @@ export class PlayerActor extends ActorBase {
         return;
       }
       this.subState = 5;
-      this.targetVelX = this.facingLeft ? -8192 : 8192;
+      this.targetVelX = this.facingLeft ? px(-8) : px(8);
       this.setFrame(0x11 | this.facingFlag);
     }
   }
 
   // k() → k_（向左移动）
   walkLeft(): void {
-    this.targetVelX = -8192;
+    this.targetVelX = px(-8);
     this.movingFlag = 0;
     this.setFrame(-2147483646);
   }
 
   // l() → l_（向右移动）
   walkRight(): void {
-    this.targetVelX = 8192;
+    this.targetVelX = px(8);
     this.movingFlag = 0;
     this.setFrame(2);
   }
@@ -1152,7 +1152,7 @@ export class PlayerActor extends ActorBase {
         if (this.weaponIndex === 0) {
           let n2 = !this.facingLeft ? 25 : -25;
           n2 = n2 << 10;
-          l2 = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | this.facingFlag, 0, this.posX + n2, this.posY - 20480, 0);
+          l2 = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | this.facingFlag, 0, this.posX + n2, this.posY - px(20), 0);
         } else {
           let n3 = !this.facingLeft ? 35 : -35;
           n3 = n3 << 10;
@@ -1161,13 +1161,13 @@ export class PlayerActor extends ActorBase {
             0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0),
             1,
             this.posX + n3,
-            this.posY - 23552,
+            this.posY - px(23),
             0,
           );
         }
         if (l2 !== null) {
           if (this.actionId === 5) {
-            l2.posY += 5120;
+            l2.posY += px(5);
             this.setFrame(9 | this.facingFlag);
           } else {
             this.setFrame(6 | this.facingFlag);
@@ -1175,7 +1175,7 @@ export class PlayerActor extends ActorBase {
           if (this.screen.levelIndex !== 4 && this.weaponIndex === 0 && l2.advanceAndCollide(this.facingLeft)) {
             l2.setFrame(1);
           } else if (this.weaponIndex === 0) {
-            l2.targetVelX = l2.targetVelX + (!this.facingLeft ? 12288 : -12288);
+            l2.targetVelX = l2.targetVelX + (!this.facingLeft ? px(12) : px(-12));
           }
           --this.magazineAmmo;
         }
@@ -1186,21 +1186,21 @@ export class PlayerActor extends ActorBase {
         if (this.grenadeCount === 0 && this.screen.levelIndex !== 4) {
           return;
         }
-        l2 = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - 35840, 0);
+        l2 = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - px(35), 0);
         if (l2 === null) break;
         if (--this.grenadeCount < 0) {
           this.grenadeCount = 0;
         }
         if (this.actionId === 5) {
-          l2.posY += 4096;
+          l2.posY += px(4);
           this.setFrame(0xa | this.facingFlag);
         } else {
           this.setFrame(7 | this.facingFlag);
         }
-        l2.targetVelX = l2.targetVelX + (!this.facingLeft ? 8192 : -8192);
+        l2.targetVelX = l2.targetVelX + (!this.facingLeft ? px(8) : px(-8));
         l2.targetVelY = -6656;
         l2.accelY = 1128;
-        l2.maxVelY = 15360;
+        l2.maxVelY = px(15);
         break;
       }
       case 15: {
@@ -1213,11 +1213,11 @@ export class PlayerActor extends ActorBase {
           return;
         }
         let n4 = !this.facingLeft ? 40 : -40;
-        l2 = this.screen.spawnProjectile(ActorType.GrenadeProjectile, 0 | this.facingFlag, 0, this.posX + (n4 = n4 << 10), this.posY - 18432, 0);
+        l2 = this.screen.spawnProjectile(ActorType.GrenadeProjectile, 0 | this.facingFlag, 0, this.posX + (n4 = n4 << 10), this.posY - px(18), 0);
         if (l2 === null) break;
         --this.magazineAmmo;
         if (this.actionId === 5) {
-          l2.posY += 4096;
+          l2.posY += px(4);
           this.setFrame(9 | this.facingFlag);
         } else {
           this.setFrame(6 | this.facingFlag);
@@ -1318,7 +1318,7 @@ export class PlayerActor extends ActorBase {
         this.setFrame(this.actionId);
         return;
       }
-      this.targetVelX = 16384;
+      this.targetVelX = px(16);
       return;
     }
     if (this.screen.heldKeyAction === 4) {
@@ -1492,8 +1492,8 @@ export class PlayerActor extends ActorBase {
           return;
         }
         case ActorType.FallingBombProjectile: {
-          const n = l2.targetVelX > 0 ? 8192 : -8192;
-          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX + n, l2.posY + 8192, l2.mode);
+          const n = l2.targetVelX > 0 ? px(8) : px(-8);
+          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX + n, l2.posY + px(8), l2.mode);
           l2.deactivate();
           GameScreen.playSound(5, 1, 220);
           return;

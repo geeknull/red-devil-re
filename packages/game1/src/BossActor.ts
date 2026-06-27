@@ -25,7 +25,7 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { EnemyActor } from "./EnemyActor.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { ActorType, GameState, MIRROR_FLAG, SEQUENCE_MASK } from "./constants.ts";
+import { ActorType, GameState, MIRROR_FLAG, SEQUENCE_MASK, px } from "./constants.ts";
 
 /**
  * Boss / 触发器演员（游戏1《红魔特种兵》，原 CFR 类 `tjge.c`，继承 ActorBase）。
@@ -229,7 +229,7 @@ export class BossActor extends ActorBase {
               this.hitFlashing = false;
               this.flashCounter = 0;
             } else if (this.hitFlashing) {
-              const n4: number = (this.posX = this.posX === this.homeX ? this.posX + 2048 : this.homeX);
+              const n4: number = (this.posX = this.posX === this.homeX ? this.posX + px(2) : this.homeX);
               if (this.flashCounter++ > 5) {
                 this.hitFlashing = false;
                 this.flashCounter = 0;
@@ -238,8 +238,8 @@ export class BossActor extends ActorBase {
             }
             switch (this.phase) {
               case 0: {
-                this.targetVelX = -2048;
-                if (this.posX >= n2 - 20480) break;
+                this.targetVelX = px(-2);
+                if (this.posX >= n2 - px(20)) break;
                 this.phase = 1;
                 this.targetVelX = 0;
                 this.setFrame(-2147483646);
@@ -247,11 +247,11 @@ export class BossActor extends ActorBase {
               }
               case 1: {
                 if (this.subTimer++ > 15) {
-                  const n5: number = 35840;
+                  const n5: number = px(35);
                   if (this.attackMode === 0) {
                     const l2: ProjectileActor | null = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, MIRROR_FLAG, 0, this.posX - n5, this.posY - n5, 1);
                     if (l2 === null) break;
-                    l2.targetVelX = -12288;
+                    l2.targetVelX = px(-12);
                     this.subTimer = 0;
                     if (this.targetVelX === 0) {
                       this.setFrame(-2147483644);
@@ -260,7 +260,7 @@ export class BossActor extends ActorBase {
                     this.setFrame(-2147483645);
                     return;
                   }
-                  const l3: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX + 5120, this.posY - n5, 1);
+                  const l3: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX + px(5), this.posY - n5, 1);
                   if (l3 === null) break;
                   this.subTimer = 0;
                   l3.launchArc(0);
@@ -279,7 +279,7 @@ export class BossActor extends ActorBase {
                 if (this.isAnimationDone()) {
                   this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
                 }
-                if (this.posX <= n2 - 20480) break;
+                if (this.posX <= n2 - px(20)) break;
                 this.subTimer = 0;
                 this.targetVelX = 0;
                 if (this.screen.levelIndex !== 6) {
@@ -292,7 +292,7 @@ export class BossActor extends ActorBase {
                 if (this.subTimer++ > 15) {
                   this.subTimer = 0;
                   this.phase = 3;
-                  this.targetVelX = -10240;
+                  this.targetVelX = px(-10);
                   this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
                   return;
                 }
@@ -302,7 +302,7 @@ export class BossActor extends ActorBase {
               }
               case 3: {
                 if (!this.collideLeftWall(this.screen.tileMap!)) break;
-                this.targetVelX = 4096;
+                this.targetVelX = px(4);
                 this.phase = 1;
                 this.attackMode = 1;
               }
@@ -312,19 +312,19 @@ export class BossActor extends ActorBase {
           case 4: {
             if (this.disabled) return;
             if (this.minion!.active && this.minion!.lives > 0) {
-              this.minion!.posX = this.posX - 23552;
-              if ((this.posX >= f2.posX || this.posX <= this.screen.cameraX + 32768) && (this.posX <= f2.posX || this.posX >= this.screen.cameraX + 186368)) return;
+              this.minion!.posX = this.posX - px(23);
+              if ((this.posX >= f2.posX || this.posX <= this.screen.cameraX + px(32)) && (this.posX <= f2.posX || this.posX >= this.screen.cameraX + px(182))) return;
               this.targetVelX = this.screen.cameraVelX;
               return;
             }
             if (this.minion!.aiState === 9 && this.minion!.lives <= 0 && this.minion!.targetVelY === 0) {
-              this.minion!.targetVelY = 12288;
+              this.minion!.targetVelY = px(12);
               this.minion!.targetVelX = 0;
               this.minion!.isPatroller = false;
-              this.targetVelX = this.posX > f2.posX ? this.screen.cameraVelX + 8192 : 0;
+              this.targetVelX = this.posX > f2.posX ? this.screen.cameraVelX + px(8) : 0;
               return;
             }
-            if (this.posX <= this.screen.cameraX + 210944 && this.posX >= this.screen.cameraX - 30720) return;
+            if (this.posX <= this.screen.cameraX + px(206) && this.posX >= this.screen.cameraX - px(30)) return;
             this.deactivate();
             return;
           }
@@ -339,7 +339,7 @@ export class BossActor extends ActorBase {
           case 0: {
             if (!this.isAnimationDone()) return;
             this.setFrame(1);
-            this.targetVelY = 12288;
+            this.targetVelY = px(12);
             return;
           }
           case 1: {
@@ -387,7 +387,7 @@ export class BossActor extends ActorBase {
         if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
         l2.setFrame(1);
         l2.targetVelX = 0;
-        l2.posY += 5120;
+        l2.posY += px(5);
         if (this.targetVelX !== 0) break;
         --this.health;
         break;
@@ -413,10 +413,10 @@ export class BossActor extends ActorBase {
 
   // f() → f_
   private spawnDeathBurst(): void {
-    this.posX = this.posX === this.homeX ? this.homeX + 2048 : this.homeX;
+    this.posX = this.posX === this.homeX ? this.homeX + px(2) : this.homeX;
     let n: number = 0;
     let n2: number = this.posX;
-    let n3: number = this.posY + 5120;
+    let n3: number = this.posY + px(5);
     do {
       let n4: number = GameMIDlet.nextRandomMod(36);
       n4 = 18 - n4;

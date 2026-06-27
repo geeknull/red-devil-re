@@ -43,7 +43,7 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { UiState, LevelSubState, ActorType } from "./constants.ts";
+import { UiState, LevelSubState, ActorType, px } from "./constants.ts";
 
 // 原版：a extends FullCanvas implements Runnable（TS 无 Runnable 接口，run() 直接由 Thread 驱动）。
 export class GameCanvas extends Canvas {
@@ -754,8 +754,8 @@ export class GameCanvas extends Canvas {
    */
   // b() → b_（镜头初始定位到玩家出生点）
   initCamera(): void {
-    this.viewportWidth = 180224;
-    this.viewportHeight = 176128;
+    this.viewportWidth = px(176);
+    this.viewportHeight = px(172);
     this.sceneWidth = this.scene.mapWidth << 10;
     this.sceneHeight = this.scene.mapHeight << 10;
     const n = GameMIDlet.readIntLE(this.scene.actorInstanceTable[0]!, 1, 2);
@@ -794,27 +794,27 @@ export class GameCanvas extends Canvas {
     this.cameraVelX = 0;
     this.cameraVelY = 0;
     if (this.cameraX < n) {
-      if (n - this.cameraX > 16384) {
-        this.cameraVelX = this.player.targetVelX + 16384;
+      if (n - this.cameraX > px(16)) {
+        this.cameraVelX = this.player.targetVelX + px(16);
       } else {
         this.cameraX = n;
       }
     } else if (this.cameraX > n) {
-      if (this.cameraX - n > 16384) {
-        this.cameraVelX = this.player.targetVelX - 16384;
+      if (this.cameraX - n > px(16)) {
+        this.cameraVelX = this.player.targetVelX - px(16);
       } else {
         this.cameraX = n;
       }
     }
     if (this.cameraY < n2) {
-      if (n2 - this.cameraY > 10240) {
-        this.cameraVelY = Math.min(this.player.targetVelY + 10240, 15360);
+      if (n2 - this.cameraY > px(10)) {
+        this.cameraVelY = Math.min(this.player.targetVelY + px(10), px(15));
       } else {
         this.cameraY = n2;
       }
     } else if (this.cameraY > n2) {
-      if (this.cameraY - n2 > 10240) {
-        this.cameraVelY = Math.max(this.player.targetVelY - 10240, -15360);
+      if (this.cameraY - n2 > px(10)) {
+        this.cameraVelY = Math.max(this.player.targetVelY - px(10), px(-15));
       } else {
         this.cameraY = n2;
       }
@@ -822,7 +822,7 @@ export class GameCanvas extends Canvas {
     this.cameraX += this.cameraVelX;
     this.cameraY += this.cameraVelY;
     if (this.shaking) {
-      this.cameraX = this.shakeCounter % 2 === 0 ? (this.cameraX -= 2048) : (this.cameraX += 2048);
+      this.cameraX = this.shakeCounter % 2 === 0 ? (this.cameraX -= px(2)) : (this.cameraX += px(2));
       if (--this.shakeCounter <= 0) {
         this.shaking = false;
       }

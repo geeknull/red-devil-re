@@ -28,7 +28,7 @@ import { GameMIDlet } from "./GameMIDlet.ts";
 import { GameCanvas } from "./GameCanvas.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { jref } from "./jref.ts"; // 延迟绑定 j，打破 h→j→子类 的 ESM 循环依赖
-import { MIRROR_FLAG, FLIP_VERTICAL_BIT, ActorType, SEQUENCE_MASK, FACING_MASK } from "./constants.ts";
+import { MIRROR_FLAG, FLIP_VERTICAL_BIT, ActorType, SEQUENCE_MASK, FACING_MASK, px } from "./constants.ts";
 
 export class ActorBase {
   alive: boolean = false;
@@ -122,8 +122,8 @@ export class ActorBase {
     this.targetVelX = 0;
     this.accelX = 0;
     this.accelY = 0;
-    this.maxVelX = 15360;
-    this.maxVelY = 15360;
+    this.maxVelX = px(15);
+    this.maxVelY = px(15);
     this.hitFlashTimer = 0;
     this.animLoop = true;
     this.layer = jref().actorDrawLayer[this.typeId];

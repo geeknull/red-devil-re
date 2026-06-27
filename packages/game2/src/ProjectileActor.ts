@@ -26,7 +26,7 @@ import { GameCanvas } from "./GameCanvas.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { ItemActor } from "./ItemActor.ts";
 import { ActorBase } from "./ActorBase.ts";
-import { ActorType } from "./constants.ts";
+import { ActorType, px } from "./constants.ts";
 
 export class ProjectileActor extends ActorBase {
   static collisionMaskTable: Int32Array = Int32Array.from([1, 1, 1, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0]);
@@ -66,13 +66,13 @@ export class ProjectileActor extends ActorBase {
       case ActorType.DirectBullet: {
         switch (this.frameGroupIndex) {
           case 9: {
-            if (Math.abs(this.targetVelY) <= 2048) {
+            if (Math.abs(this.targetVelY) <= px(2)) {
               this.setAction(0xa | this.actionHighByte);
             }
           }
           // fall through
           case 10: {
-            if (this.targetVelY > 3072) {
+            if (this.targetVelY > px(3)) {
               this.setAction(0xb | this.actionHighByte);
             }
           }
@@ -101,26 +101,26 @@ export class ProjectileActor extends ActorBase {
             if (this.targetVelX > 0) {
               if (this.collideRight()) {
                 this.hitWall = true;
-              } else if (this.posX > this.canvas.cameraX + this.canvas.viewportWidth + 8192) {
+              } else if (this.posX > this.canvas.cameraX + this.canvas.viewportWidth + px(8)) {
                 this.expired = true;
               }
             } else if (this.targetVelX < 0) {
               if (this.collideLeft()) {
                 this.hitWall = true;
-              } else if (this.posX < this.canvas.cameraX - 8192) {
+              } else if (this.posX < this.canvas.cameraX - px(8)) {
                 this.expired = true;
               }
             }
             if (this.targetVelY < 0) {
               if (this.collideDown()) {
                 this.hitWall = true;
-              } else if (this.posY < this.canvas.cameraY - 8192) {
+              } else if (this.posY < this.canvas.cameraY - px(8)) {
                 this.expired = true;
               }
             } else if (this.targetVelY > 0) {
               if (this.checkFloorCollision()) {
                 this.hitWall = true;
-              } else if (this.posY > this.canvas.cameraY + this.canvas.viewportHeight + 8192) {
+              } else if (this.posY > this.canvas.cameraY + this.canvas.viewportHeight + px(8)) {
                 this.expired = true;
               }
             }
@@ -129,10 +129,10 @@ export class ProjectileActor extends ActorBase {
               this.kill();
               break;
             }
-            if (this.frameGroupIndex === 11 && this.isSpecialGrenade && this.posY > 149504) {
+            if (this.frameGroupIndex === 11 && this.isSpecialGrenade && this.posY > px(146)) {
               const e2: ItemActor = this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor;
               (this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor).posX = this.posX;
-              e2.posY = this.posY + 10240;
+              e2.posY = this.posY + px(10);
               e2.targetVelX = 0;
               e2.targetVelY = 0;
               e2.accelY = 0;
@@ -154,13 +154,13 @@ export class ProjectileActor extends ActorBase {
             }
             if (this.hitWall) {
               if (this.targetVelX > 0) {
-                this.posX += 2048;
+                this.posX += px(2);
               } else if (this.targetVelX < 0) {
-                this.posX -= 2048;
+                this.posX -= px(2);
               } else if (this.targetVelY < 0) {
-                this.posY -= 2048;
+                this.posY -= px(2);
               } else if (this.targetVelY > 0) {
-                this.posY += 2048;
+                this.posY += px(2);
               }
               this.targetVelX = 0;
               this.targetVelY = 0;
@@ -206,16 +206,16 @@ export class ProjectileActor extends ActorBase {
           const n2: number = Math.abs(this.posY - this.canvas.player.posY);
           const n3: number = Math.abs(n);
           if (n3 > ((((n2 * 4) | 0) / 3) | 0)) {
-            this.targetVelX = this.posX > this.canvas.player.posX ? -8192 : 8192;
-            this.targetVelY = -((n2 / ((n3 / 8192) | 0)) | 0);
+            this.targetVelX = this.posX > this.canvas.player.posX ? px(-8) : px(8);
+            this.targetVelY = -((n2 / ((n3 / px(8)) | 0)) | 0);
           } else {
-            this.targetVelY = -10240;
-            this.targetVelX = (n / ((n2 / 10240) | 0)) | 0;
+            this.targetVelY = px(-10);
+            this.targetVelX = (n / ((n2 / px(10)) | 0)) | 0;
           }
           this.accelY = 0;
-          if (this.targetVelX < -4096) {
+          if (this.targetVelX < px(-4)) {
             this.setAction(1);
-          } else if (this.targetVelX > 4096) {
+          } else if (this.targetVelX > px(4)) {
             this.setAction(-2147483647);
           }
         }
@@ -230,11 +230,11 @@ export class ProjectileActor extends ActorBase {
         }
         if (this.exploded) {
           ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, 0, null);
-          ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + 2048, this.posY - 4096, 0, null);
+          ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + px(2), this.posY - px(4), 0, null);
           this.kill();
           return;
         }
-        if (this.posX >= this.canvas.cameraX - 10240 && this.posY >= this.canvas.cameraY - 10240 && this.posX <= this.canvas.cameraX + this.canvas.viewportWidth + 10240) break;
+        if (this.posX >= this.canvas.cameraX - px(10) && this.posY >= this.canvas.cameraY - px(10) && this.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(10)) break;
         this.kill();
       }
     }
@@ -292,7 +292,7 @@ export class ProjectileActor extends ActorBase {
       k2.targetVelY = 0;
       k2.accelX = 0;
       k2.accelY = 0;
-      k2.maxVelY = 15360;
+      k2.maxVelY = px(15);
       k2.drawAlpha = 0;
       k2.frameTicks = 0;
       k2.exploded = false;
@@ -328,7 +328,7 @@ export class ProjectileActor extends ActorBase {
         }
         case ActorType.GuidedGrenade: {
           k2.targetVelX = 0;
-          k2.targetVelY = -2048;
+          k2.targetVelY = px(-2);
           k2.timer = 0;
           k2.setAction(0);
         }
