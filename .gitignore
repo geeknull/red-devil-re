@@ -13,3 +13,22 @@ packages/*/dist/
 tools/decompilers/
 tools/emulator/
 *.rms
+
+# 密钥/凭证（预防性，当前仓内无此类文件）
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.npmrc
+.netrc
+
+# 编辑器 / 系统垃圾（预防性）
+.vscode/
+.idea/
+*.iml
+*.swp
+*~
+*.bak
+*.tmp
+Thumbs.db
