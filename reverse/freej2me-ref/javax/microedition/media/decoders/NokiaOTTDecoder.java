@@ -1,4 +1,19 @@
 /*
+ * NokiaOTTDecoder — Nokia OTT (over-the-air ringtone) to MIDI decoder.
+ *
+ * This file is a CFR 0.152 decompilation of a class from FreeJ2ME
+ * (package org.recompile.mobile), project:
+ *   https://github.com/TASEmulators/freej2me-plus
+ * Copyright (C) the FreeJ2ME authors.
+ *
+ * FreeJ2ME is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation, either version 3 of the License, or (at your option)
+ * any later version. The full GPLv3 text is in ./LICENSE (this directory).
+ *
+ * Included here ONLY as a reference fragment for comparing J2ME audio
+ * behaviour; it is NOT imported or linked by this repository's own code.
+ *
  * Decompiled with CFR 0.152.
  */
 package javax.microedition.media.decoders;

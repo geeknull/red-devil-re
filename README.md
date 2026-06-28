@@ -55,8 +55,9 @@ pnpm --filter @red-devil/web dev   # 浏览器开 http://localhost:2005
 
 ## 许可
 
-- 自有原创部分（`packages/`、`docs/`、`tools/` 自有脚本）以 **MIT** 授权，见 [LICENSE](LICENSE)。
-- 原版游戏 JAR、反编译产物与游戏资源版权归原始权利人（Sina / TGS）所有，仅作存档 / 研究收录，**不在 MIT 范围内**（详见 `LICENSE` 末尾声明）。
-- 第三方工具（CFR / Procyon / FreeJ2ME-Plus）不随仓库分发，许可见 [tools/README.md](tools/README.md)。
+- 本仓库**未附带开源许可证**：自有原创部分（`packages/`、`docs/`、`tools/` 自有脚本）© 2026 geeknull，相应权利依法保留，详见 [LICENSE](LICENSE)。
+- 原版游戏 JAR、反编译产物与游戏资源版权归原始权利人（Sina / TGS）所有，仅作存档 / 研究收录，不属于本仓库作者（详见 [LICENSE](LICENSE)）。
+- `reverse/freej2me-ref/` 为单独的 **GPLv3** 第三方组件（© FreeJ2ME 作者），见该目录内 [LICENSE](reverse/freej2me-ref/LICENSE)。
+- 其余第三方工具（CFR / Procyon / FreeJ2ME-Plus）不随仓库分发，许可见 [tools/README.md](tools/README.md)。
 
 > 文档与实现以 `docs/` 与 `reverse/` 为权威；权威反编译源为 CFR（`reverse/gameN/2-decompiled-cfr/`）。
