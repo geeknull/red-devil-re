@@ -4,6 +4,8 @@
 
 **🎮 在线试玩**：[游戏1 红魔特种兵](https://geeknull.github.io/red-devil-re/?game=1) · [游戏2 深海战舰](https://geeknull.github.io/red-devil-re/?game=2)
 
+<p align="center"><img src="docs/screenshots/game1.png" alt="游戏1 红魔特种兵" width="280"></p>
+
 |  | 游戏1 红魔特种兵 | 游戏2 深海战舰 |
 |---|---|---|
 | 发行 / 开发 | Sina / TGS | Sina |
