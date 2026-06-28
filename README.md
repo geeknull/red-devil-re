@@ -2,6 +2,8 @@
 
 把两款 2005/2006 年的 J2ME 功能机游戏**以位级/逐帧一致为目标**复刻到现代 Web 技术栈（TypeScript + HTML5 Canvas），并沉淀完整解析文档，为后续二次开发打基础。核心逻辑层（RNG/资源/状态机/数值）已做到位级一致；MIDI 音色、ASCII 字距等为平台必要偏差（见 [验证方法](docs/04-验证方法-位级一致.md)）。
 
+**🎮 在线试玩**：[游戏1 红魔特种兵](https://geeknull.github.io/red-devil-re/?game=1) · [游戏2 深海战舰](https://geeknull.github.io/red-devil-re/?game=2)
+
 > 这是对**自有持有软件**的存档保护与再实现（正当逆向工程）。
 
 ## 两款游戏
