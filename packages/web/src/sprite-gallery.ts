@@ -64,7 +64,8 @@ async function preloadImages(logicalPath: string, bytes: Uint8Array): Promise<vo
   for (let i = 0; i < arc.entryCount; i++) {
     const entry = arc.entry(i);
     if (!(entry.length >= 8 && PNG_SIG.every((b, k) => entry[k] === b))) continue;
-    const bmp = await createImageBitmap(new Blob([entry], { type: "image/png" }));
+    // entry 为 Uint8Array<ArrayBufferLike>；TS6 起 Blob 入参须断言为 BlobPart（仅类型，运行时不变）。
+    const bmp = await createImageBitmap(new Blob([entry as BlobPart], { type: "image/png" }));
     registerImage(logicalPath, i, Image.fromSource(bmp, bmp.width, bmp.height));
   }
 }
