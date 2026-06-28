@@ -1,0 +1,4 @@
+# GitHub Linguist 语言统计
+# reverse/ 是逆向中间产物（CFR 反编译的 Java、解包 .class、原始游戏资源等），
+# 并非本项目编写的代码，标为 vendored 排除出语言统计，使仓库语言正确显示为 TypeScript。
+reverse/** linguist-vendored
