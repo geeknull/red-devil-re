@@ -130,7 +130,9 @@ async function boot(): Promise<void> {
   document.title = `${def.title} — 复刻版`;
 
   for (const name of def.bins) {
-    const bytes = await fetchBytes(`${def.fetchDir}/${name}.bin`);
+    // 资源 fetch 加 Vite base 前缀，支持子路径部署（GitHub Pages /<repo>/）；本地/根部署 BASE_URL 为 "/"，行为不变。
+    const dir = def.fetchDir.replace(/^\//, "");
+    const bytes = await fetchBytes(`${import.meta.env.BASE_URL}${dir}/${name}.bin`);
     const logical = `/res/${name}.bin`; // 游戏代码内固定用 /res/ 前缀
     registerResource(logical, bytes);
     if (def.pngArchives.includes(name)) await preloadImages(logical, bytes);
