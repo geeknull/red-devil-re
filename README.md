@@ -1,65 +1,41 @@
-# 红魔特种兵 1 & 2 — 逆向复刻项目
+# 红魔特种兵 1 & 2 — 逆向复刻
 
-把两款 2005/2006 年的 J2ME 功能机游戏**以位级/逐帧一致为目标**复刻到现代 Web 技术栈（TypeScript + HTML5 Canvas），并沉淀完整解析文档，为后续二次开发打基础。核心逻辑层（RNG/资源/状态机/数值）已做到位级一致；MIDI 音色、ASCII 字距等为平台必要偏差（见 [验证方法](docs/04-验证方法-位级一致.md)）。
+把两款 2005 / 2006 年的功能机 J2ME 游戏搬进现代浏览器（TypeScript + HTML5 Canvas），直接就能玩。这是对自己持有的老游戏做的存档保护与再实现。
 
 **🎮 在线试玩**：[游戏1 红魔特种兵](https://geeknull.github.io/red-devil-re/?game=1) · [游戏2 深海战舰](https://geeknull.github.io/red-devil-re/?game=2)
 
-> 这是对**自有持有软件**的存档保护与再实现（正当逆向工程）。
-
-## 两款游戏
-
-| | 游戏1 红魔特种兵 | 游戏2 红魔特种兵2-深海战舰 |
+|  | 游戏1 红魔特种兵 | 游戏2 深海战舰 |
 |---|---|---|
 | 发行 / 开发 | Sina / TGS | Sina |
 | 目标机型 | Nokia N-Gage QD | Motorola E398 |
-| 屏幕 / 帧率 | 176×208 / 100ms (10FPS) | 176×204 / 80ms |
 
-## 核心架构
+## 怎么做的
 
-不凭"理解"重写，而是**逐行翻译** CFR 反编译出的逻辑。三层结构：
+不凭印象重写，而是把反编译出的原版逻辑**逐行**搬过来，底层再复刻一套 J2ME 兼容层（随机数 / 绘图 / 资源 / 时序）：
 
 ```
-Web 运行壳 (Vite)            键盘映射 / 画布缩放 / 主循环
+Web 运行壳 (Vite)
    ↓
-忠实移植的游戏逻辑 (game1 / game2)   逐行对应反编译源码
+游戏逻辑 (game1 / game2)    逐行对应反编译源
    ↓
-J2ME 兼容层 (j2me-shim)      Random · Graphics · Image · Resource · Sound
+J2ME 兼容层 (j2me-shim)     Random · Graphics · Image · Resource · Sound
 ```
 
-只要底层原语（随机数 / 绘图 / 资源 / 时序）与原版字节一致，上层逻辑就天然一致。设计与三支点详见 [项目总览与设计](docs/00-项目总览与设计.md) 与 [tjge 引擎与兼容层](docs/tjge引擎与兼容层设计.md)。
+底层原语和原版字节对齐，上层逻辑自然就一致。
 
 ## 快速开始
 
 ```bash
 pnpm install
-pnpm --filter @red-devil/web dev   # 浏览器开 http://localhost:2005
+pnpm --filter @red-devil/web dev   # 打开 http://localhost:2005
 ```
 
-`?game=1` 红魔特种兵 · `?game=2` 深海战舰。按键说明见页面画布右侧；详细键位、音频/字体实现与完整开发命令见 [实现进展与技术细节](docs/实现进展与技术细节.md)。
+`?game=1` 红魔特种兵 · `?game=2` 深海战舰，按键说明在页面右侧。
 
-## 文档导航
+## 文档
 
-| 文档 | 内容 |
-|---|---|
-| [项目总览与设计](docs/00-项目总览与设计.md) | 项目总览与复刻设计 spec（含目录结构、架构图） |
-| [bin资源格式](docs/bin资源格式.md) · [资源清单](docs/资源清单.md) | `.bin` 归档格式 / 资源清单 |
-| [tjge引擎与兼容层设计](docs/tjge引擎与兼容层设计.md) | tjge 引擎与 J2ME 兼容层设计 |
-| [验证方法-位级一致](docs/04-验证方法-位级一致.md) | 四层验证方法（位级 / 逐帧一致） |
-| [移植规约](docs/05-移植规约.md) | 移植规约与命名约定 |
-| [复盘-语义化改名静默崩溃](docs/复盘-语义化改名静默崩溃.md) | 复盘：静态闸门全绿 ≠ 功能已验证 |
-| [实现进展与技术细节](docs/实现进展与技术细节.md) | 实现进展 + 音频/字体/按键实现 + 开发命令 |
-| `docs/game1-红魔特种兵/` · `docs/game2-深海战舰/` | 两游戏深度解析（类清单/状态机/主循环/资源映射/玩法数值） |
-| [reverse/](reverse/) · [tools/](tools/) | 逆向中间产物 / 工具脚本（各自附 README） |
-
-## 状态
-
-两款游戏均在浏览器跑通（开机 → 菜单 → 关卡/过场）；核心逻辑层第 1–3 层位级一致已对抗式收敛（覆盖全部 25 类约 311 方法）。MIDI 音色 / ASCII 字距为设备相关偏差，逐帧像素自动 diff 待补。详见 [实现进展与技术细节](docs/实现进展与技术细节.md) 与 [验证方法](docs/04-验证方法-位级一致.md)；验证措辞纪律见 [复盘](docs/复盘-语义化改名静默崩溃.md)。
+设计、逆向、验证、移植规约、实现细节等完整文档都在 [`docs/`](docs/)。
 
 ## 许可
 
-- 本仓库**未附带开源许可证**：自有原创部分（`packages/`、`docs/`、`tools/` 自有脚本）© 2026 geeknull，相应权利依法保留，详见 [LICENSE](LICENSE)。
-- 原版游戏 JAR、反编译产物与游戏资源版权归原始权利人（Sina / TGS）所有，仅作存档 / 研究收录，不属于本仓库作者（详见 [LICENSE](LICENSE)）。
-- `reverse/freej2me-ref/` 为单独的 **GPLv3** 第三方组件（© FreeJ2ME 作者），见该目录内 [LICENSE](reverse/freej2me-ref/LICENSE)。
-- 其余第三方工具（CFR / Procyon / FreeJ2ME-Plus）不随仓库分发，许可见 [tools/README.md](tools/README.md)。
-
-> 文档与实现以 `docs/` 与 `reverse/` 为权威；权威反编译源为 CFR（`reverse/gameN/2-decompiled-cfr/`）。
+本仓库**未附带开源许可**：自有原创部分（代码 / 文档 / 脚本）保留权利；原版游戏 JAR、反编译产物与素材版权归原始权利人（Sina / TGS），仅作存档 / 研究收录。详见 [LICENSE](LICENSE)。
