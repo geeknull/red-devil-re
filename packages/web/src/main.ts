@@ -129,6 +129,21 @@ async function boot(): Promise<void> {
   const def = GAMES[which] ?? GAMES["1"];
   document.title = `${def.title} — 复刻版`;
 
+  // 先把画布设为本游戏最终尺寸并显示“加载中”，避免慢网下资源拉取期间露出默认 300×150 小黑框。
+  const screen = document.getElementById("screen") as HTMLCanvasElement;
+  screen.width = def.width * SCALE;
+  screen.height = def.height * SCALE;
+  const loadingCtx = screen.getContext("2d");
+  if (loadingCtx) {
+    loadingCtx.fillStyle = "#000";
+    loadingCtx.fillRect(0, 0, screen.width, screen.height);
+    loadingCtx.fillStyle = "#888";
+    loadingCtx.font = "16px monospace";
+    loadingCtx.textAlign = "center";
+    loadingCtx.textBaseline = "middle";
+    loadingCtx.fillText("加载中…", screen.width / 2, screen.height / 2);
+  }
+
   for (const name of def.bins) {
     // 资源 fetch 加 Vite base 前缀，支持子路径部署（GitHub Pages /<repo>/）；本地/根部署 BASE_URL 为 "/"，行为不变。
     const dir = def.fetchDir.replace(/^\//, "");
@@ -163,7 +178,6 @@ async function boot(): Promise<void> {
   // 屏外按键说明（用户否则不知道按什么键）
   renderControls(def);
 
-  const screen = document.getElementById("screen") as HTMLCanvasElement;
   configureScreen({ width: def.width, height: def.height, scale: SCALE, screen, keymap: def.keymap });
   const midlet = def.make();
   midlet.startApp();
