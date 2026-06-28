@@ -32,7 +32,8 @@
         <a href="?game=1">游戏1 红魔特种兵</a> · <a href="?game=2">游戏2 深海战舰</a>
       </div>
       <div class="stage">
-        <canvas id="screen"></canvas>
+        <!-- 首帧即给出尺寸（游戏1：176×208 × 3 倍），避免默认 300×150 到真实尺寸的跳变；boot() 再按 ?game 设回各自权威尺寸。 -->
+        <canvas id="screen" width="528" height="624"></canvas>
         <div id="controls">
           <div id="controls-panel">
             <!-- 由 main.ts 按当前游戏动态填充 -->
