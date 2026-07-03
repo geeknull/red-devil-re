@@ -168,19 +168,19 @@ export class GameScreen extends Canvas {
    * @param d2 该类型对应的精灵帧定义
    */
   // a(int,tjge.d) → a_ITd（精灵工厂）
-  createActor(n: number, d2: SpriteDef): ActorBase {
-    switch (n) {
+  createActor(typeId: number, spriteDef: SpriteDef): ActorBase {
+    switch (typeId) {
       case ActorType.Player: {
-        this.player = new PlayerActor(n, d2, this);
+        this.player = new PlayerActor(typeId, spriteDef, this);
         return this.player;
       }
       case ActorType.PlayerBounceShot: {
-        return new ProjectileActor(n, d2, this);
+        return new ProjectileActor(typeId, spriteDef, this);
       }
       case ActorType.ReconScoutEnemy:
       case ActorType.MeleeBomberEnemy:
       case ActorType.ScrollChaserHeavy: {
-        return new EnemyActor(n, d2, this);
+        return new EnemyActor(typeId, spriteDef, this);
       }
       case ActorType.RescueTargetNpc:
       case ActorType.CaptureTrigger:
@@ -190,20 +190,20 @@ export class GameScreen extends Canvas {
       case ActorType.GatedTrigger:
       case ActorType.TreasureChestProp:
       case ActorType.GrabAnchorZone: {
-        return new EffectActor(n, d2, this);
+        return new EffectActor(typeId, spriteDef, this);
       }
       case ActorType.AmmoSupplyPickup:
       case ActorType.HealthPickup:
       case ActorType.LevelExitGate: {
-        return new PickupActor(n, d2, this);
+        return new PickupActor(typeId, spriteDef, this);
       }
       case ActorType.AtvVehicleBoss:
       case ActorType.ScriptedFuseTrigger:
       case ActorType.DivingHazard: {
-        return new BossActor(n, d2, this);
+        return new BossActor(typeId, spriteDef, this);
       }
     }
-    return new ActorBase(n, d2);
+    return new ActorBase(typeId, spriteDef);
   }
 
   /**
