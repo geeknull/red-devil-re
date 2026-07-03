@@ -18,6 +18,18 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  packages/behavior-net:
+    dependencies:
+      '@red-devil/game1':
+        specifier: workspace:*
+        version: link:../game1
+      '@red-devil/game2':
+        specifier: workspace:*
+        version: link:../game2
+      '@red-devil/j2me-shim':
+        specifier: workspace:*
+        version: link:../j2me-shim
+
   packages/game1:
     dependencies:
       '@red-devil/j2me-shim':
