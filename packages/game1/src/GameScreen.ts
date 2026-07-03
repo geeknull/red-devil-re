@@ -278,31 +278,7 @@ export class GameScreen extends Canvas {
         }
         case GameState.About:
         case GameState.Help: {
-          if (this.heldKeyAction !== 0) {
-            this.state = GameState.MainMenu;
-            this.inTaskSelectMenu = false;
-            this.stateTimer = 0;
-            this.clearInputQueue();
-            GameScreen.currentText = null;
-            // System.gc();
-            break;
-          }
-          if (this.stateTimer === 0) {
-            let var8_17: number;
-            if (this.state === GameState.Help) {
-              this.loadTextFromBin(0);
-              var8_17 = 3;
-            } else {
-              this.loadTextFromBin(1);
-              var8_17 = 25;
-            }
-            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-            var1_1.setFont(Font.getFont(0, 1, 8)); // SYSTEM/BOLD/SMALL
-            var1_1.setColor(65280);
-            this.drawWrappedText(var1_1, 20, var8_17, 14);
-            ++this.stateTimer;
-          }
-          this.drawReturnHint(var1_1);
+          this.paintHelpAbout(var1_1);
           break;
         }
         case GameState.CaptureCutscene: {
@@ -1050,6 +1026,39 @@ export class GameScreen extends Canvas {
         ++var7_15;
       }
     }
+  }
+
+  /**
+   * state=3 ABOUT / state=6 HELP：帮助与关于文本页（两 state 共用本方法，由 `this.state` 区分文本源）。
+   * 有按键则清理并回主菜单；首帧按 Help/About 载入对应文本并换行绘制；每帧绘制「返回」提示。
+   * 跳出 `switch(state)` 的 break 改 return（对应 CFR a.java paint case 3/6；行为网未覆盖 state 3/6，靠 CFR 对照）。
+   */
+  private paintHelpAbout(graphics: Graphics): void {
+    if (this.heldKeyAction !== 0) {
+      this.state = GameState.MainMenu;
+      this.inTaskSelectMenu = false;
+      this.stateTimer = 0;
+      this.clearInputQueue();
+      GameScreen.currentText = null;
+      // System.gc();
+      return;
+    }
+    if (this.stateTimer === 0) {
+      let var8_17: number;
+      if (this.state === GameState.Help) {
+        this.loadTextFromBin(0);
+        var8_17 = 3;
+      } else {
+        this.loadTextFromBin(1);
+        var8_17 = 25;
+      }
+      GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+      graphics.setFont(Font.getFont(0, 1, 8)); // SYSTEM/BOLD/SMALL
+      graphics.setColor(65280);
+      this.drawWrappedText(graphics, 20, var8_17, 14);
+      ++this.stateTimer;
+    }
+    this.drawReturnHint(graphics);
   }
 
   /**
