@@ -1408,20 +1408,20 @@ export class GameScreen extends Canvas {
    * @param n 要加载的关卡 ID
    */
   // a(int) → a_I（关卡分步加载，按 w 推进）
-  loadLevelStep(n: number): void {
+  loadLevelStep(levelIndex: number): void {
     this.levelLoaded = false;
     switch (this.stateTimer) {
       case 0: {
         // System.gc();
-        this.isCutsceneEntry = n !== 4;
+        this.isCutsceneEntry = levelIndex !== 4;
         this.stateTimer = 1;
         return;
       }
       case 1: {
         if (!this.levelResourcesReady) {
-          this.levelLoader = LevelLoader.loadLevel(this, n)!; // a_TaI 返回 j|null，原版直接赋给可空字段 g
+          this.levelLoader = LevelLoader.loadLevel(this, levelIndex)!; // a_TaI 返回 j|null，原版直接赋给可空字段 g
         } else {
-          LevelLoader.tileMap!.reloadColumnData(n);
+          LevelLoader.tileMap!.reloadColumnData(levelIndex);
         }
         this.stateTimer = 2;
         return;
@@ -1438,10 +1438,10 @@ export class GameScreen extends Canvas {
         if (LevelLoader.spriteDefPool[21] == null) {
           LevelLoader.retainSpriteDef(21);
           this.projectilePools[0] = new Array<ProjectileActor | null>(10).fill(null);
-          let n2 = 0;
-          while (n2 < 10) {
-            this.projectilePools[0]![n2] = new ProjectileActor(ActorType.GuidedMissileProjectile, LevelLoader.spriteDefPool[21]!, this);
-            ++n2;
+          let poolIndex = 0;
+          while (poolIndex < 10) {
+            this.projectilePools[0]![poolIndex] = new ProjectileActor(ActorType.GuidedMissileProjectile, LevelLoader.spriteDefPool[21]!, this);
+            ++poolIndex;
           }
         }
         this.stateTimer = 4;
@@ -1453,10 +1453,10 @@ export class GameScreen extends Canvas {
         }
         if (this.projectilePools[1] == null) {
           this.projectilePools[1] = new Array<ProjectileActor | null>(3).fill(null);
-          let n3 = 0;
-          while (n3 < 3) {
-            this.projectilePools[1]![n3] = new ProjectileActor(ActorType.PlayerBounceShot, LevelLoader.spriteDefPool[10]!, this);
-            ++n3;
+          let poolIndex = 0;
+          while (poolIndex < 3) {
+            this.projectilePools[1]![poolIndex] = new ProjectileActor(ActorType.PlayerBounceShot, LevelLoader.spriteDefPool[10]!, this);
+            ++poolIndex;
           }
         }
         this.stateTimer = 5;
@@ -1466,10 +1466,10 @@ export class GameScreen extends Canvas {
         if (LevelLoader.spriteDefPool[20] == null) {
           LevelLoader.retainSpriteDef(20);
           this.projectilePools[2] = new Array<ProjectileActor | null>(6).fill(null);
-          let n4 = 0;
-          while (n4 < 6) {
-            this.projectilePools[2]![n4] = new ProjectileActor(ActorType.FallingBombProjectile, LevelLoader.spriteDefPool[20]!, this);
-            ++n4;
+          let poolIndex = 0;
+          while (poolIndex < 6) {
+            this.projectilePools[2]![poolIndex] = new ProjectileActor(ActorType.FallingBombProjectile, LevelLoader.spriteDefPool[20]!, this);
+            ++poolIndex;
           }
         }
         this.stateTimer = 6;
@@ -1479,10 +1479,10 @@ export class GameScreen extends Canvas {
         if (LevelLoader.spriteDefPool[15] == null) {
           LevelLoader.retainSpriteDef(15);
           this.projectilePools[3] = new Array<ProjectileActor | null>(2).fill(null);
-          let n5 = 0;
-          while (n5 < 2) {
-            this.projectilePools[3]![n5] = new ProjectileActor(ActorType.GrenadeProjectile, LevelLoader.spriteDefPool[15]!, this);
-            ++n5;
+          let poolIndex = 0;
+          while (poolIndex < 2) {
+            this.projectilePools[3]![poolIndex] = new ProjectileActor(ActorType.GrenadeProjectile, LevelLoader.spriteDefPool[15]!, this);
+            ++poolIndex;
           }
         }
         if (this.levelIndex === 2 || this.levelIndex === 4) {
@@ -1495,10 +1495,10 @@ export class GameScreen extends Canvas {
         if (LevelLoader.spriteDefPool[16] == null) {
           LevelLoader.retainSpriteDef(16);
           this.projectilePools[4] = new Array<ProjectileActor | null>(10).fill(null);
-          let n6 = 0;
-          while (n6 < 10) {
-            this.projectilePools[4]![n6] = new ProjectileActor(ActorType.ExplosionEffect, LevelLoader.spriteDefPool[16]!, this);
-            ++n6;
+          let poolIndex = 0;
+          while (poolIndex < 10) {
+            this.projectilePools[4]![poolIndex] = new ProjectileActor(ActorType.ExplosionEffect, LevelLoader.spriteDefPool[16]!, this);
+            ++poolIndex;
           }
         }
         this.stateTimer = 8;
@@ -1515,17 +1515,17 @@ export class GameScreen extends Canvas {
               this.enemyGrid = new Array<(EnemyActor | null)[] | null>(2).fill(null);
               LevelLoader.retainSpriteDef(2);
               this.enemyGrid[0] = new Array<EnemyActor | null>(3).fill(null);
-              let n7 = 0;
-              while (n7 < 3) {
-                this.enemyGrid[0]![n7] = new EnemyActor(ActorType.MeleeBomberEnemy, LevelLoader.spriteDefPool[2]!, this);
-                ++n7;
+              let bomberSlot = 0;
+              while (bomberSlot < 3) {
+                this.enemyGrid[0]![bomberSlot] = new EnemyActor(ActorType.MeleeBomberEnemy, LevelLoader.spriteDefPool[2]!, this);
+                ++bomberSlot;
               }
               LevelLoader.retainSpriteDef(1);
               this.enemyGrid[1] = new Array<EnemyActor | null>(3).fill(null);
-              let n8 = 0;
-              while (n8 < 3) {
-                this.enemyGrid[1]![n8] = new EnemyActor(ActorType.ReconScoutEnemy, LevelLoader.spriteDefPool[1]!, this);
-                ++n8;
+              let scoutSlot = 0;
+              while (scoutSlot < 3) {
+                this.enemyGrid[1]![scoutSlot] = new EnemyActor(ActorType.ReconScoutEnemy, LevelLoader.spriteDefPool[1]!, this);
+                ++scoutSlot;
               }
             }
             if (this.levelIndex !== 4 || this.boss != null) break;
