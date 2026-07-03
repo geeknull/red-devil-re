@@ -6,6 +6,9 @@ build/
 .vite/
 packages/*/dist/
 
+# 行为测试网失配 dump（运行时垃圾，非交付物）
+packages/behavior-net/golden/*.actual.json
+
 # 浏览器自动化快照（运行时垃圾）
 .playwright-mcp/
 
