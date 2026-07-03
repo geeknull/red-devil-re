@@ -261,79 +261,7 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.Ending: {
-          GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-          if (this.stateTimer === 0) {
-            LevelLoader.retainSpriteDef(18);
-            this.stateTimer = 10;
-            break;
-          }
-          if (this.creditScrollX > 240) {
-            if (this.stateTimer > 0) {
-              this.stateTimer = 0;
-            }
-            var1_1.setColor(0xff0000);
-            var1_1.setFont(Font.getFont(0, 1, 16)); // SYSTEM/BOLD/LARGE
-            var1_1.drawString("剧终", 88, 100, 17);
-            if (this.stateTimer-- >= -60) break;
-            this.state = GameState.MainMenu;
-            this.stateTimer = 0;
-            this.clearInputQueue();
-            this.menuSelection = 0;
-            this.inTaskSelectMenu = false;
-            this.levelResourcesReady = true;
-            break;
-          }
-          {
-            let var5_10 = 0;
-            let var6_12 = 0;
-            let var7_14 = 0;
-            let var8_16 = 0;
-            let var9_19 = 0;
-            let var10_20 = 0;
-            while (var10_20 < 4) {
-              switch (var10_20) {
-                case 0: {
-                  var5_10 = 0;
-                  var8_16 = 146;
-                  var7_14 = this.creditScrollX - 15;
-                  this.creditScrollX += 6;
-                  if (var7_14 > 3 && var7_14 < 40) {
-                    var6_12 = 1;
-                    var9_19 = 8;
-                    break;
-                  }
-                  var6_12 = 0;
-                  var9_19 = 3;
-                  break;
-                }
-                case 1: {
-                  var5_10 = 18;
-                  var7_14 = this.creditScrollX2 - 15;
-                  var8_16 = 146;
-                  this.creditScrollX2 += 6;
-                  if (this.creditScrollX < 6 || this.creditScrollX > 25) {
-                    var6_12 = INT_MIN;
-                    var9_19 = 4;
-                    break;
-                  }
-                  var6_12 = -2147483646;
-                  var9_19 = 2;
-                  break;
-                }
-                case 2:
-                case 3: {
-                  var5_10 = 8;
-                  var6_12 = 0;
-                  var7_14 = var10_20 === 2 ? this.creditScrollX : this.creditScrollX2;
-                  var8_16 = 176;
-                  var9_19 = 3;
-                }
-              }
-              this.drawBriefingAnim(var1_1, var5_10, var6_12, var7_14, var8_16, this.stateTimer % var9_19);
-              ++var10_20;
-            }
-            ++this.stateTimer;
-          }
+          this.paintEnding(var1_1);
           break;
         }
         case GameState.MissionComplete: {
@@ -1009,6 +937,88 @@ export class GameScreen extends Canvas {
       graphics.drawLine(120 - var4_8, 164 + this.menuSelection * 20, 120 - var4_8 + this.cursorWidth, 164 + this.menuSelection * 20);
     }
     this.animateCursorExpand();
+  }
+
+  /**
+   * state=15 CREDITS（片尾/剧终）：通关关卡7后滚动字幕。首帧载入字幕精灵；`creditScrollX>240`
+   * 后显示「剧终」并倒计时回主菜单；否则每帧用内层 `switch(var10_20)`(0-3) 计算 4 组字幕帧参数
+   * 并 `drawBriefingAnim` 绘制。内层 switch 的 break 保留；跳出 `switch(state)` 的 break 改 return。
+   * INT_MIN/-2147483646 为帧翻转位常量，逐字保留（对应 CFR a.java paint case 15；行为网未覆盖 state 15）。
+   */
+  private paintEnding(graphics: Graphics): void {
+    GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+    if (this.stateTimer === 0) {
+      LevelLoader.retainSpriteDef(18);
+      this.stateTimer = 10;
+      return;
+    }
+    if (this.creditScrollX > 240) {
+      if (this.stateTimer > 0) {
+        this.stateTimer = 0;
+      }
+      graphics.setColor(0xff0000);
+      graphics.setFont(Font.getFont(0, 1, 16)); // SYSTEM/BOLD/LARGE
+      graphics.drawString("剧终", 88, 100, 17);
+      if (this.stateTimer-- >= -60) return;
+      this.state = GameState.MainMenu;
+      this.stateTimer = 0;
+      this.clearInputQueue();
+      this.menuSelection = 0;
+      this.inTaskSelectMenu = false;
+      this.levelResourcesReady = true;
+      return;
+    }
+    {
+      let var5_10 = 0;
+      let var6_12 = 0;
+      let var7_14 = 0;
+      let var8_16 = 0;
+      let var9_19 = 0;
+      let var10_20 = 0;
+      while (var10_20 < 4) {
+        switch (var10_20) {
+          case 0: {
+            var5_10 = 0;
+            var8_16 = 146;
+            var7_14 = this.creditScrollX - 15;
+            this.creditScrollX += 6;
+            if (var7_14 > 3 && var7_14 < 40) {
+              var6_12 = 1;
+              var9_19 = 8;
+              break;
+            }
+            var6_12 = 0;
+            var9_19 = 3;
+            break;
+          }
+          case 1: {
+            var5_10 = 18;
+            var7_14 = this.creditScrollX2 - 15;
+            var8_16 = 146;
+            this.creditScrollX2 += 6;
+            if (this.creditScrollX < 6 || this.creditScrollX > 25) {
+              var6_12 = INT_MIN;
+              var9_19 = 4;
+              break;
+            }
+            var6_12 = -2147483646;
+            var9_19 = 2;
+            break;
+          }
+          case 2:
+          case 3: {
+            var5_10 = 8;
+            var6_12 = 0;
+            var7_14 = var10_20 === 2 ? this.creditScrollX : this.creditScrollX2;
+            var8_16 = 176;
+            var9_19 = 3;
+          }
+        }
+        this.drawBriefingAnim(graphics, var5_10, var6_12, var7_14, var8_16, this.stateTimer % var9_19);
+        ++var10_20;
+      }
+      ++this.stateTimer;
+    }
   }
 
   /**
