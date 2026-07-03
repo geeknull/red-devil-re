@@ -952,49 +952,46 @@ export class GameScreen extends Canvas {
    */
   // a() → a_
   updateWorld(): void {
-    let n: number;
-    let n2 = 0;
-    let n3 = 0;
-    let n4 = 0;
-    const nArray = new Int32Array(10);
-    n2 = 0;
-    while (n2 < this.drawQueueCount) {
-      this.drawQueue[n2] = null;
-      ++n2;
+    const pickupIds = new Int32Array(10);
+    let pickupCount = 0;
+    let i = 0;
+    while (i < this.drawQueueCount) {
+      this.drawQueue[i] = null;
+      ++i;
     }
     this.drawQueueCount = 0;
-    n2 = 0;
-    const gfg = this.levelLoader.blockActorIndices[this.levelLoader.currentBlock]!; // f[g] 为当前活动单位 id 行（原 Java byte[]，此路径非空）
-    while (n2 < gfg.length) {
-      n = gfg[n2];
+    i = 0;
+    const activeIdRow = this.levelLoader.blockActorIndices[this.levelLoader.currentBlock]!; // f[g] 为当前活动单位 id 行（原 Java byte[]，此路径非空）
+    while (i < activeIdRow.length) {
+      const actorId = activeIdRow[i];
       // typeId 在 ActorBase 中为 protected（原 Java 为包内可见）；GameScreen 非 ActorBase 子类，经结构视图读取保持等价。
-      const en = LevelLoader.activeActors[n] as unknown as ({ active: boolean; typeId: number } | null);
-      if (n !== 0 && en != null && en.active && en.typeId !== ActorType.Player) {
-        if (this.isPickupType(en.typeId)) {
-          nArray[n4++] = n;
+      const actor = LevelLoader.activeActors[actorId] as unknown as ({ active: boolean; typeId: number } | null);
+      if (actorId !== 0 && actor != null && actor.active && actor.typeId !== ActorType.Player) {
+        if (this.isPickupType(actor.typeId)) {
+          pickupIds[pickupCount++] = actorId;
         } else {
-          this.drawQueue[this.drawQueueCount++] = LevelLoader.activeActors[n];
+          this.drawQueue[this.drawQueueCount++] = LevelLoader.activeActors[actorId];
         }
       }
-      ++n2;
+      ++i;
     }
     if (this.levelIndex !== 4) {
       this.drawQueue[this.drawQueueCount++] = this.player;
     }
     if (this.enemyAliveCount > 0) {
-      n2 = 0;
-      while (n2 < 2) {
-        n3 = 0;
-        while (n3 < 3) {
-          if (this.enemyGrid![n2]![n3]!.active) {
-            if (this.enemyGrid![n2]![n3]!.trailEffect != null && this.enemyGrid![n2]![n3]!.trailEffect!.active) {
-              this.drawQueue[this.drawQueueCount++] = this.enemyGrid![n2]![n3]!.trailEffect;
+      i = 0;
+      while (i < 2) {
+        let j = 0;
+        while (j < 3) {
+          if (this.enemyGrid![i]![j]!.active) {
+            if (this.enemyGrid![i]![j]!.trailEffect != null && this.enemyGrid![i]![j]!.trailEffect!.active) {
+              this.drawQueue[this.drawQueueCount++] = this.enemyGrid![i]![j]!.trailEffect;
             }
-            this.drawQueue[this.drawQueueCount++] = this.enemyGrid![n2]![n3];
+            this.drawQueue[this.drawQueueCount++] = this.enemyGrid![i]![j];
           }
-          ++n3;
+          ++j;
         }
-        ++n2;
+        ++i;
       }
       if (this.levelIndex === 4 && this.boss != null) {
         if (this.boss.active) {
@@ -1008,41 +1005,41 @@ export class GameScreen extends Canvas {
     if (this.levelIndex === 4) {
       this.drawQueue[this.drawQueueCount++] = this.player;
     }
-    n2 = 0;
-    while (n2 < n4) {
-      this.drawQueue[this.drawQueueCount++] = LevelLoader.activeActors[nArray[n2]];
-      ++n2;
+    i = 0;
+    while (i < pickupCount) {
+      this.drawQueue[this.drawQueueCount++] = LevelLoader.activeActors[pickupIds[i]];
+      ++i;
     }
-    n3 = 0;
-    while (n3 < 5) {
-      if (this.projectilePools[n3] != null) {
-        n2 = 0;
-        while (n2 < this.projectilePools[n3]!.length) {
-          if (this.projectilePools[n3]![n2]!.active) {
-            this.drawQueue[this.drawQueueCount++] = this.projectilePools[n3]![n2];
+    let poolIdx = 0;
+    while (poolIdx < 5) {
+      if (this.projectilePools[poolIdx] != null) {
+        i = 0;
+        while (i < this.projectilePools[poolIdx]!.length) {
+          if (this.projectilePools[poolIdx]![i]!.active) {
+            this.drawQueue[this.drawQueueCount++] = this.projectilePools[poolIdx]![i];
           }
-          ++n2;
+          ++i;
         }
       }
-      ++n3;
+      ++poolIdx;
     }
-    n2 = 0;
-    while (n2 < this.drawQueueCount) {
-      this.drawQueue[n2]!.stepPhysics();
-      ++n2;
+    i = 0;
+    while (i < this.drawQueueCount) {
+      this.drawQueue[i]!.stepPhysics();
+      ++i;
     }
-    n2 = 0;
-    while (n2 < this.drawQueueCount) {
-      this.drawQueue[n2]!.update();
-      ++n2;
+    i = 0;
+    while (i < this.drawQueueCount) {
+      this.drawQueue[i]!.update();
+      ++i;
     }
     this.updateCamera();
-    n = this.cameraX >> 10;
-    const n5 = this.cameraY >> 10;
+    const cameraPxX = this.cameraX >> 10;
+    const cameraPxY = this.cameraY >> 10;
     if (this.levelIndex !== 4) {
-      this.levelLoader.streamScreenTransitionTo(n, n5);
+      this.levelLoader.streamScreenTransitionTo(cameraPxX, cameraPxY);
     }
-    this.tileMap.setViewportOrigin(n, n5);
+    this.tileMap.setViewportOrigin(cameraPxX, cameraPxY);
   }
 
   /**
@@ -1054,14 +1051,13 @@ export class GameScreen extends Canvas {
    */
   // a(Graphics) → a_G
   renderWorld(graphics: Graphics): void {
-    let n: number;
-    const n2 = this.cameraX >> 10;
-    const n3 = this.cameraY >> 10;
+    const cameraPxX = this.cameraX >> 10;
+    const cameraPxY = this.cameraY >> 10;
     this.tileMap.draw(graphics);
-    let n4 = 0;
-    while (n4 < this.drawQueueCount) {
-      this.drawQueue[n4]!.paint(graphics, n2, n3);
-      ++n4;
+    let drawIdx = 0;
+    while (drawIdx < this.drawQueueCount) {
+      this.drawQueue[drawIdx]!.paint(graphics, cameraPxX, cameraPxY);
+      ++drawIdx;
     }
     graphics.setClip(0, 176, 176, 32);
     graphics.drawImage(this.hudImage!, 0, 176, 20);
@@ -1086,41 +1082,43 @@ export class GameScreen extends Canvas {
     if (this.state === GameState.Playing && this.showIndicator && this.hudBlinkCounter % 2 === 0) {
       this.drawNumber(graphics, this.indicatorValue, 150, 162, this.levelIndex === 7, false);
     }
-    let n5 = 0;
+    let reserveAmmo = 0;
     graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
     graphics.setColor(66, 214, 198);
     switch (this.player.weaponIndex) {
       case 0: {
-        n5 = 99;
+        reserveAmmo = 99;
         break;
       }
       case 1: {
-        n5 = this.player.ammoReserveB;
+        reserveAmmo = this.player.ammoReserveB;
         break;
       }
       case 2: {
-        n5 = this.player.ammoReserveC;
+        reserveAmmo = this.player.ammoReserveC;
       }
     }
     if (this.hudBlinkCounter > 1) {
       graphics.drawRect(76 + this.player.weaponIndex * 20, 195, 16, 10);
     }
-    const n6 = this.player.magazineAmmo % 10;
-    const n7 = (this.player.magazineAmmo / 10) | 0;
+    const magazineOnesDigit = this.player.magazineAmmo % 10;
+    const magazineTensDigit = (this.player.magazineAmmo / 10) | 0;
     if (this.player.magazineAmmo !== 0 || (this.player.magazineAmmo === 0 && this.hudBlinkCounter > 1)) {
-      n = this.player.magazineAmmo === 0 ? 99 : 0;
+      // 弹匣为空时用偏移 99 把数字画到屏外（隐藏），否则偏移 0 正常显示
+      const magazineHideOffset = this.player.magazineAmmo === 0 ? 99 : 0;
       graphics.setClip(82, 184, 8, 8);
-      graphics.drawImage(this.hudImage!, 82 - n7 * 8 - n, 152, 20);
+      graphics.drawImage(this.hudImage!, 82 - magazineTensDigit * 8 - magazineHideOffset, 152, 20);
       graphics.setClip(90, 184, 8, 8);
-      graphics.drawImage(this.hudImage!, 90 - n6 * 8 - n, 152, 20);
+      graphics.drawImage(this.hudImage!, 90 - magazineOnesDigit * 8 - magazineHideOffset, 152, 20);
     }
     graphics.setClip(100, 184, 8, 8);
     graphics.drawImage(this.hudImage!, 20, 152, 20);
-    n = n5 % 10;
+    const reserveOnesDigit = reserveAmmo % 10;
+    const reserveTensDigit = (reserveAmmo / 10) | 0;
     graphics.setClip(110, 184, 8, 8);
-    graphics.drawImage(this.hudImage!, 110 - (n5 = (n5 / 10) | 0) * 8, 152, 20);
+    graphics.drawImage(this.hudImage!, 110 - reserveTensDigit * 8, 152, 20);
     graphics.setClip(118, 184, 8, 8);
-    graphics.drawImage(this.hudImage!, 118 - n * 8, 152, 20);
+    graphics.drawImage(this.hudImage!, 118 - reserveOnesDigit * 8, 152, 20);
     if (this.hudBlinkCounter > 1) {
       graphics.setClip(5, 196, 8, 8);
       graphics.drawImage(this.hudImage!, -84, 164, 20);
@@ -1131,16 +1129,16 @@ export class GameScreen extends Canvas {
     if (this.levelIndex < 3) {
       graphics.setClip(0, 0, 176, 176);
       graphics.setColor(0xffffff);
-      let n8 = 0;
-      while (n8 < 4) {
-        const n9 = GameMIDlet.nextRandomMod(176);
-        const n10 = GameMIDlet.nextRandomMod(176);
-        if (n8 % 2 === 0) {
-          graphics.drawLine(n9, n10, n9 - 5, n10 + 11);
+      let particleIdx = 0;
+      while (particleIdx < 4) {
+        const particleX = GameMIDlet.nextRandomMod(176);
+        const particleY = GameMIDlet.nextRandomMod(176);
+        if (particleIdx % 2 === 0) {
+          graphics.drawLine(particleX, particleY, particleX - 5, particleY + 11);
         } else {
-          graphics.drawLine(n9, n10, n9 - 3, n10 + 6);
+          graphics.drawLine(particleX, particleY, particleX - 3, particleY + 6);
         }
-        ++n8;
+        ++particleIdx;
       }
     }
   }
@@ -1586,72 +1584,72 @@ export class GameScreen extends Canvas {
   }
 
   // h(int) → h_I（键码 → 游戏动作位）
-  private keyCodeToAction(n: number): number {
-    let n2 = 0;
-    switch (n) {
+  private keyCodeToAction(keyCode: number): number {
+    let actionMask = 0;
+    switch (keyCode) {
       case -1:
       case 1: {
-        n2 = 4;
+        actionMask = 4;
         break;
       }
       case -2:
       case 6: {
-        n2 = 8;
+        actionMask = 8;
         break;
       }
       case -3:
       case 2: {
-        n2 = 1;
+        actionMask = 1;
         break;
       }
       case -4:
       case 5: {
-        n2 = 2;
+        actionMask = 2;
         break;
       }
       case -6:
       case -5: {
         if (this.state === GameState.Playing) break;
-        n2 = 16;
+        actionMask = 16;
         break;
       }
       case -7: {
-        n2 = 4096;
+        actionMask = 4096;
         break;
       }
       case 42:
       case 48:
       case 55:
       case 56: {
-        n2 = 16;
+        actionMask = 16;
         break;
       }
       case 35:
       case 57: {
         if (this.state === GameState.Playing) {
-          n2 = 32;
+          actionMask = 32;
           break;
         }
-        n2 = 16;
+        actionMask = 16;
         break;
       }
       case 51:
       case 54: {
         if (this.state === GameState.Playing) {
-          n2 = 2048;
+          actionMask = 2048;
           break;
         }
-        n2 = 16;
+        actionMask = 16;
         break;
       }
       case 49:
       case 50:
       case 52:
       case 53: {
-        n2 = this.state === GameState.Playing ? 1024 : 16;
+        actionMask = this.state === GameState.Playing ? 1024 : 16;
       }
     }
-    return n2;
+    return actionMask;
   }
 
   /**
@@ -1660,9 +1658,9 @@ export class GameScreen extends Canvas {
    * 其余按键经 `keyCodeToAction()` 转成动作位存入 `heldKeyAction` 并压入输入环形队列。
    * @param n 平台键码（含 Nokia 软键负值）
    */
-  keyPressed(n: number): void {
-    let n2: number;
-    if (n === -6 || n === -5) {
+  keyPressed(keyCode: number): void {
+    let action: number;
+    if (keyCode === -6 || keyCode === -5) {
       if (this.state === GameState.Playing) {
         this.clearInputQueue();
         this.menuSelection = 0;
@@ -1673,7 +1671,7 @@ export class GameScreen extends Canvas {
         this.enqueueInputAction(16, false);
         return;
       }
-    } else if (n === -7) {
+    } else if (keyCode === -7) {
       if (this.state === GameState.Playing) {
         this.clearInputQueue();
         this.state = GameState.MissionBriefing;
@@ -1685,8 +1683,8 @@ export class GameScreen extends Canvas {
         return;
       }
     }
-    this.heldKeyAction = n2 = this.keyCodeToAction(n);
-    this.enqueueInputAction(n2, false);
+    this.heldKeyAction = action = this.keyCodeToAction(keyCode);
+    this.enqueueInputAction(action, false);
   }
 
   /** 框架按键释放回调（对应 CFR `keyReleased(int)`）：清空当前持有动作 `heldKeyAction`（忽略具体键码）。 */
@@ -1702,55 +1700,55 @@ export class GameScreen extends Canvas {
    * @returns 取到并初始化的投射物，池满则 null
    */
   // a(int,int,int,int,int,int) → a_IIIIII（从对象池取一个 tjge.l 并初始化）
-  spawnProjectile(n: number, n2: number, n3: number, n4: number, n5: number, n6: number): ProjectileActor | null {
-    let n7 = 0;
-    let bl = false;
-    switch (n) {
+  spawnProjectile(typeId: number, frame: number, drawParam: number, posX: number, posY: number, mode: number): ProjectileActor | null {
+    let poolIndex = 0;
+    let loopAnim = false;
+    switch (typeId) {
       case ActorType.GuidedMissileProjectile: {
-        n7 = 0;
+        poolIndex = 0;
         break;
       }
       case ActorType.PlayerBounceShot: {
-        n7 = 1;
+        poolIndex = 1;
         break;
       }
       case ActorType.FallingBombProjectile: {
-        n7 = 2;
-        bl = true;
+        poolIndex = 2;
+        loopAnim = true;
         break;
       }
       case ActorType.GrenadeProjectile: {
-        n7 = 3;
-        bl = true;
+        poolIndex = 3;
+        loopAnim = true;
         break;
       }
       case ActorType.ExplosionEffect: {
-        n7 = 4;
+        poolIndex = 4;
         break;
       }
       default: {
         return null;
       }
     }
-    let n8 = 0;
-    while (n8 < this.projectilePools[n7]!.length) {
-      if (!this.projectilePools[n7]![n8]!.active) {
-        const li = this.projectilePools[n7]![n8]!;
-        li.posX = n4;
-        li.posY = n5;
-        li.launchOriginX = n4;
-        li.setFrame(n2);
-        li.active = true;
+    let slotIdx = 0;
+    while (slotIdx < this.projectilePools[poolIndex]!.length) {
+      if (!this.projectilePools[poolIndex]![slotIdx]!.active) {
+        const proj = this.projectilePools[poolIndex]![slotIdx]!;
+        proj.posX = posX;
+        proj.posY = posY;
+        proj.launchOriginX = posX;
+        proj.setFrame(frame);
+        proj.active = true;
         // loopAnimation 在 ActorBase 中为 protected（原 Java 包内可见）；经结构视图写入保持等价。
-        (li as unknown as { loopAnimation: boolean }).loopAnimation = bl;
-        li.frameCounter = 0;
-        li.targetVelX = this.levelIndex === 4 ? this.cameraVelX : 0;
-        li.targetVelY = 0;
-        li.mode = n6;
-        li.drawParam = n3;
-        return this.projectilePools[n7]![n8];
+        (proj as unknown as { loopAnimation: boolean }).loopAnimation = loopAnim;
+        proj.frameCounter = 0;
+        proj.targetVelX = this.levelIndex === 4 ? this.cameraVelX : 0;
+        proj.targetVelY = 0;
+        proj.mode = mode;
+        proj.drawParam = drawParam;
+        return this.projectilePools[poolIndex]![slotIdx];
       }
-      ++n8;
+      ++slotIdx;
     }
     return null;
   }
@@ -1762,24 +1760,24 @@ export class GameScreen extends Canvas {
    */
   // e() → e_（卸载当前关卡资源）
   releaseLevel(): void {
-    let n = 0;
-    while (n < this.drawQueueCount) {
-      this.drawQueue[n] = null;
-      ++n;
+    let i = 0;
+    while (i < this.drawQueueCount) {
+      this.drawQueue[i] = null;
+      ++i;
     }
     if (this.enemyGrid != null) {
-      let n2 = 0;
-      while (n2 < this.enemyGrid.length) {
-        if (this.enemyGrid[n2] != null) {
-          let n3 = 0;
-          while (n3 < this.enemyGrid[n2]!.length) {
-            this.enemyGrid[n2]![n3]!.trailEffect = null;
-            this.enemyGrid[n2]![n3] = null;
-            ++n3;
+      let gridRow = 0;
+      while (gridRow < this.enemyGrid.length) {
+        if (this.enemyGrid[gridRow] != null) {
+          let gridCol = 0;
+          while (gridCol < this.enemyGrid[gridRow]!.length) {
+            this.enemyGrid[gridRow]![gridCol]!.trailEffect = null;
+            this.enemyGrid[gridRow]![gridCol] = null;
+            ++gridCol;
           }
         }
-        this.enemyGrid[n2] = null;
-        ++n2;
+        this.enemyGrid[gridRow] = null;
+        ++gridRow;
       }
       this.enemyGrid = null;
     }
@@ -1795,8 +1793,8 @@ export class GameScreen extends Canvas {
   }
 
   // b(int) → b_I（判断类型 id 是否属于“后置绘制”单位）
-  isPickupType(n: number): boolean {
-    switch (n) {
+  isPickupType(typeId: number): boolean {
+    switch (typeId) {
       case ActorType.AmmoSupplyPickup:
       case ActorType.AtvVehicleBoss:
       case ActorType.HealthPickup:
@@ -1814,89 +1812,89 @@ export class GameScreen extends Canvas {
    * @returns 是否已凑满请求的敌兵数量
    */
   // b(int,int,int,int,int,int) → b_IIIIII（生成一批敌兵 tjge.h）
-  spawnEnemyWave(n: number, n2: number, n3: number, n4: number, n5: number, n6: number): boolean {
-    if (n2 > 3 || n2 === 0) {
+  spawnEnemyWave(enemyType: number, requestCount: number, baseX: number, baseY: number, frame: number, spawnMode: number): boolean {
+    if (requestCount > 3 || requestCount === 0) {
       return false;
     }
-    let n7 = 0;
-    let n8 = 0;
+    let stackOffsetY = 0;
+    let spawnedCount = 0;
     if (this.enemyAliveCount < 0) {
       this.enemyAliveCount = 0;
     }
-    const n9 = n === 2 ? 0 : 1;
-    let n10 = 0;
-    while (n10 < 3) {
-      if (!this.enemyGrid![n9]![n10]!.active) {
-        const h2 = this.enemyGrid![n9]![n10]!;
-        h2.setFrame(n5);
-        h2.active = true;
+    const gridRow = enemyType === 2 ? 0 : 1;
+    let gridCol = 0;
+    while (gridCol < 3) {
+      if (!this.enemyGrid![gridRow]![gridCol]!.active) {
+        const enemy = this.enemyGrid![gridRow]![gridCol]!;
+        enemy.setFrame(frame);
+        enemy.active = true;
         // loopAnimation 在 ActorBase 中为 protected（原 Java 包内可见）；经结构视图写入保持等价。
-        (h2 as unknown as { loopAnimation: boolean }).loopAnimation = true;
-        h2.aiming = false;
-        h2.target = this.player;
-        h2.timerB = 0;
-        h2.lives = 1;
-        h2.rhythmThreshold = 5;
-        h2.hurtBlinkTimer = 0;
-        h2.hitPoints = 0;
-        h2.fromSpawner = true;
-        switch (n6) {
+        (enemy as unknown as { loopAnimation: boolean }).loopAnimation = true;
+        enemy.aiming = false;
+        enemy.target = this.player;
+        enemy.timerB = 0;
+        enemy.lives = 1;
+        enemy.rhythmThreshold = 5;
+        enemy.hurtBlinkTimer = 0;
+        enemy.hitPoints = 0;
+        enemy.fromSpawner = true;
+        switch (spawnMode) {
           case 0: {
-            h2.isPatroller = false;
-            h2.patrolRange = 0;
-            let n11 = GameMIDlet.nextRandomMod(160);
-            h2.posX = this.cameraX + px(5) + (n11 <<= 10);
-            if (h2.posX > this.cameraX + px(88)) {
-              h2.targetVelX = px(7);
+            enemy.isPatroller = false;
+            enemy.patrolRange = 0;
+            let randOffsetX = GameMIDlet.nextRandomMod(160);
+            enemy.posX = this.cameraX + px(5) + (randOffsetX <<= 10);
+            if (enemy.posX > this.cameraX + px(88)) {
+              enemy.targetVelX = px(7);
             } else {
-              h2.targetVelX = px(9);
-              h2.setFrame(n5 | INT_MIN); // Integer.MIN_VALUE
+              enemy.targetVelX = px(9);
+              enemy.setFrame(frame | INT_MIN); // Integer.MIN_VALUE
             }
-            h2.targetVelY = px(1);
-            h2.posY = n4 - n7;
-            n7 += px(20);
-            h2.timerA = 0;
-            h2.aiState = 0;
-            if (h2.trailEffect == null) {
-              h2.trailEffect = new EffectActor(ActorType.ParachuteTrailEffect, LevelLoader.spriteDefPool[6]!, this);
+            enemy.targetVelY = px(1);
+            enemy.posY = baseY - stackOffsetY;
+            stackOffsetY += px(20);
+            enemy.timerA = 0;
+            enemy.aiState = 0;
+            if (enemy.trailEffect == null) {
+              enemy.trailEffect = new EffectActor(ActorType.ParachuteTrailEffect, LevelLoader.spriteDefPool[6]!, this);
             }
-            h2.trailEffect.active = true;
-            h2.trailEffect.posX = h2.posX;
-            h2.trailEffect.posY = h2.posY - px(30);
-            h2.trailEffect.setFrame(0);
+            enemy.trailEffect.active = true;
+            enemy.trailEffect.posX = enemy.posX;
+            enemy.trailEffect.posY = enemy.posY - px(30);
+            enemy.trailEffect.setFrame(0);
             break;
           }
           case 1: {
-            h2.posY = n4;
-            h2.targetVelX = 0;
-            h2.targetVelY = 0;
-            h2.isPatroller = true;
-            h2.attackRangeUpper = px(40);
-            h2.attackRangeLower = px(-40);
-            h2.aiState = 7;
-            h2.posX = n3 + px(20);
-            h2.patrolDir = 0;
-            h2.patrolRange = 100;
-            h2.patrolLeftBound = this.cameraX + px(60);
-            h2.timerA = n8 << 3;
-            h2.patrolRightBound = n3 - px(50) + n8 * px(20);
-            if (n8 > 0) {
-              h2.hitPoints = 1;
+            enemy.posY = baseY;
+            enemy.targetVelX = 0;
+            enemy.targetVelY = 0;
+            enemy.isPatroller = true;
+            enemy.attackRangeUpper = px(40);
+            enemy.attackRangeLower = px(-40);
+            enemy.aiState = 7;
+            enemy.posX = baseX + px(20);
+            enemy.patrolDir = 0;
+            enemy.patrolRange = 100;
+            enemy.patrolLeftBound = this.cameraX + px(60);
+            enemy.timerA = spawnedCount << 3;
+            enemy.patrolRightBound = baseX - px(50) + spawnedCount * px(20);
+            if (spawnedCount > 0) {
+              enemy.hitPoints = 1;
             }
-            if (n !== 2) break;
-            h2.attackRangeUpper = px(120);
-            h2.patrolRightBound = n3 - px(30);
-            h2.patrolRange = 0;
+            if (enemyType !== 2) break;
+            enemy.attackRangeUpper = px(120);
+            enemy.patrolRightBound = baseX - px(30);
+            enemy.patrolRange = 0;
           }
         }
         ++this.enemyAliveCount;
-        h2.drawParam = h2.hitPoints;
-        h2.lives = h2.hitPoints + 1;
-        if (++n8 === n2) {
+        enemy.drawParam = enemy.hitPoints;
+        enemy.lives = enemy.hitPoints + 1;
+        if (++spawnedCount === requestCount) {
           return true;
         }
       }
-      ++n10;
+      ++gridCol;
     }
     return false;
   }
@@ -1908,40 +1906,40 @@ export class GameScreen extends Canvas {
    * @returns Boss 或随从缺失时 false，否则 true
    */
   // a(int,int) → a_II（生成 Boss 的同伴 tjge.h）
-  spawnBossAttack(n: number, n2: number): boolean {
+  spawnBossAttack(bossX: number, bossVelX: number): boolean {
     if (this.boss == null || this.boss.minion == null) {
       return false;
     }
     this.boss.active = true;
     this.boss.disabled = false;
     this.boss.visible = true;
-    this.boss.posX = n;
+    this.boss.posX = bossX;
     this.boss.posY = this.player.linkedBoss!.posY - px(3);
-    this.boss.targetVelX = n2;
+    this.boss.targetVelX = bossVelX;
     this.boss.setFrame(0);
-    const h2 = this.boss.minion;
+    const minion = this.boss.minion;
     this.boss.minion.active = true;
-    h2.attackRangeUpper = px(40);
-    h2.attackRangeLower = px(-40);
-    if (n > this.player.posX) {
-      h2.posX = this.boss.posX + px(23);
-      h2.setFrame(2);
+    minion.attackRangeUpper = px(40);
+    minion.attackRangeLower = px(-40);
+    if (bossX > this.player.posX) {
+      minion.posX = this.boss.posX + px(23);
+      minion.setFrame(2);
     } else {
-      h2.posX = this.boss.posX - px(23);
-      h2.setFrame(-2147483646);
+      minion.posX = this.boss.posX - px(23);
+      minion.setFrame(-2147483646);
     }
-    h2.posY = this.player.posY - px(2);
-    h2.targetVelX = this.boss.targetVelX;
-    h2.targetVelY = 0;
-    h2.patrolRange = 0;
-    h2.lives = 2;
-    h2.drawParam = 1;
-    h2.hitPoints = 1;
-    h2.aiState = 0;
-    h2.target = this.player;
-    h2.rhythmThreshold = 8;
-    h2.hurtBlinkTimer = 0;
-    h2.isPatroller = true;
+    minion.posY = this.player.posY - px(2);
+    minion.targetVelX = this.boss.targetVelX;
+    minion.targetVelY = 0;
+    minion.patrolRange = 0;
+    minion.lives = 2;
+    minion.drawParam = 1;
+    minion.hitPoints = 1;
+    minion.aiState = 0;
+    minion.target = this.player;
+    minion.rhythmThreshold = 8;
+    minion.hurtBlinkTimer = 0;
+    minion.isPatroller = true;
     this.enemyAliveCount = this.enemyAliveCount < 0 ? 1 : ++this.enemyAliveCount;
     return true;
   }
@@ -1951,16 +1949,16 @@ export class GameScreen extends Canvas {
     if (GameScreen.inputWriteIndex === GameScreen.inputReadIndex) {
       return 0;
     }
-    const n = GameScreen.inputQueue[GameScreen.inputReadIndex];
+    const action = GameScreen.inputQueue[GameScreen.inputReadIndex];
     if (++GameScreen.inputReadIndex === GameScreen.inputQueueCap) {
       GameScreen.inputReadIndex = 0;
     }
-    return n;
+    return action;
   }
 
   // a(int,boolean) → a_IZ（向输入环形队列压入一个动作）
-  private enqueueInputAction(n: number, bl: boolean): void {
-    GameScreen.inputQueue[GameScreen.inputWriteIndex] = bl ? n | INT_MIN : n; // Integer.MIN_VALUE
+  private enqueueInputAction(action: number, bl: boolean): void {
+    GameScreen.inputQueue[GameScreen.inputWriteIndex] = bl ? action | INT_MIN : action; // Integer.MIN_VALUE
     if (++GameScreen.inputWriteIndex >= GameScreen.inputQueueCap) {
       GameScreen.inputWriteIndex = 0;
     }
@@ -1977,31 +1975,31 @@ export class GameScreen extends Canvas {
 
   // i() → i_（关卡4：投放炸弹兵）
   private spawnAirdropWave(): void {
-    let n: number;
-    let n2: number;
-    const n3 = this.airdropWaveCount % 2 === 0 ? 2 : 1;
-    const n4 = n3;
-    void n4;
+    let spawnVelX: number;
+    let spawnX: number;
+    const enemyCount = this.airdropWaveCount % 2 === 0 ? 2 : 1;
+    const unusedCopy = enemyCount; // 死代码守卫：原 CFR 存在的空副本，保留赋值+void 以维持位级一致
+    void unusedCopy;
     if (this.player.posX < this.cameraX + px(88)) {
-      n2 = this.cameraX + px(206);
-      n = px(2);
+      spawnX = this.cameraX + px(206);
+      spawnVelX = px(2);
     } else {
-      n2 = this.cameraX - px(30);
-      n = this.cameraVelX + px(6);
+      spawnX = this.cameraX - px(30);
+      spawnVelX = this.cameraVelX + px(6);
     }
-    if (this.spawnEnemyWave(n3, 3, this.cameraX, 0, 0, 0) && this.spawnBossAttack(n2, n)) {
+    if (this.spawnEnemyWave(enemyCount, 3, this.cameraX, 0, 0, 0) && this.spawnBossAttack(spawnX, spawnVelX)) {
       ++this.airdropWaveCount;
     }
   }
 
   // a(Graphics,int) → a_GI（全屏纯色 RGB4444 渐变填充，过场用）
-  fillScreenColor(graphics: Graphics, n: number): void {
-    let s = (n << 16) >> 16; // (short)n
-    s = (s << 12) << 16 >> 16; // (short)(s << 12)
-    let n2 = 0;
-    while (n2 < this.pixelBuffer.length) {
-      this.pixelBuffer[n2] = s;
-      ++n2;
+  fillScreenColor(graphics: Graphics, colorShort: number): void {
+    let pixel = (colorShort << 16) >> 16; // (short)n
+    pixel = (pixel << 12) << 16 >> 16; // (short)(s << 12)
+    let i = 0;
+    while (i < this.pixelBuffer.length) {
+      this.pixelBuffer[i] = pixel;
+      ++i;
     }
     graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
     this.blitPixelBuffer(graphics);
@@ -2011,10 +2009,10 @@ export class GameScreen extends Canvas {
   blitPixelBuffer(graphics: Graphics): void {
     // this.K = DirectUtils.getDirectGraphics(graphics);
     this.directGraphics = graphics;
-    let n = 0;
-    while (n < 13) {
-      this.drawPixels(graphics, this.pixelBuffer, 0, 176, 0, 16 * n, 176, 16);
-      ++n;
+    let segIdx = 0;
+    while (segIdx < 13) {
+      this.drawPixels(graphics, this.pixelBuffer, 0, 176, 0, 16 * segIdx, 176, 16);
+      ++segIdx;
     }
   }
 
@@ -2022,17 +2020,17 @@ export class GameScreen extends Canvas {
    * 存档读写（对应 CFR a.java `c(int)`）。3 字节存档 `saveData`=[最高关, 当前关, 音效开关]。
    * `n===0` 写盘（保存进度/设置），`n===1` 读盘到 `saveData`（无记录时清零进度）。
    * 偏差：shim 无 RMS，用 localStorage 键 "TGS_CT" 复刻，控制流与原版一致。
-   * @param n 0=保存，1=读取
+   * @param mode 0=保存，1=读取
    */
   // c(int) → c_I（存档 RecordStore 读写；shim 无 RMS，用 localStorage 复刻 3 字节）
-  accessSaveData(n: number): void {
+  accessSaveData(mode: number): void {
     try {
       // RecordStore.openRecordStore("TGS_CT", true) → localStorage 键
       const key = "TGS_CT";
       const stored = GameScreen.rmsLoad(key);
       if (stored != null) {
         // 已有记录（hasNextElement / nextRecordId 后处理首条）
-        switch (n) {
+        switch (mode) {
           case 0: {
             // setRecord(id, Q, 0, 3)
             GameScreen.rmsSave(key, GameScreen.saveData.subarray(0, 3));
@@ -2045,7 +2043,7 @@ export class GameScreen extends Canvas {
           }
         }
       } else {
-        switch (n) {
+        switch (mode) {
           case 0: {
             // addRecord(Q, 0, 3)
             GameScreen.rmsSave(key, GameScreen.saveData.subarray(0, 3));
@@ -2087,47 +2085,47 @@ export class GameScreen extends Canvas {
   }
 
   // b(Graphics,int,int,int,int,int) → b_GIIIII（绘制 d 精灵某帧并判定动画终止）
-  private drawBriefingAnim(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number): boolean {
-    const s = LevelLoader.spriteDefPool[n]!.getSequenceFrameCount(n2 & SEQUENCE_MASK); // short
-    if (n5 >= s) {
+  private drawBriefingAnim(graphics: Graphics, spriteDefIndex: number, frameId: number, x: number, y: number, frameIndex: number): boolean {
+    const frameCount = LevelLoader.spriteDefPool[spriteDefIndex]!.getSequenceFrameCount(frameId & SEQUENCE_MASK); // short
+    if (frameIndex >= frameCount) {
       this.animFrameIndex = 0;
-      n5 = 0;
+      frameIndex = 0;
     }
-    LevelLoader.spriteDefPool[n]!.paintSequenceFrame(graphics, n3, n4, n2, n5, 0, 0);
-    return n5 >= s - 1;
+    LevelLoader.spriteDefPool[spriteDefIndex]!.paintSequenceFrame(graphics, x, y, frameId, frameIndex, 0, 0);
+    return frameIndex >= frameCount - 1;
   }
 
   // j() → j_（复位子弹/敌兵的存活标志）
   private resetSpawnPools(): void {
-    let n: number;
-    let n2: number;
+    let j: number;
+    let i: number;
     if (this.projectilePools != null) {
-      n2 = 0;
-      while (n2 < 5) {
-        if (this.projectilePools[n2] != null) {
-          n = 0;
-          while (n < this.projectilePools[n2]!.length) {
-            this.projectilePools[n2]![n]!.active = false;
-            ++n;
+      i = 0;
+      while (i < 5) {
+        if (this.projectilePools[i] != null) {
+          j = 0;
+          while (j < this.projectilePools[i]!.length) {
+            this.projectilePools[i]![j]!.active = false;
+            ++j;
           }
         }
-        ++n2;
+        ++i;
       }
     }
     if (this.enemyGrid != null) {
-      n2 = 0;
-      while (n2 < this.enemyGrid.length) {
-        if (this.enemyGrid[n2] != null) {
-          n = 0;
-          while (n < this.enemyGrid[n2]!.length) {
-            if (this.enemyGrid[n2]![n]!.trailEffect != null) {
-              this.enemyGrid[n2]![n]!.trailEffect!.active = false;
+      i = 0;
+      while (i < this.enemyGrid.length) {
+        if (this.enemyGrid[i] != null) {
+          j = 0;
+          while (j < this.enemyGrid[i]!.length) {
+            if (this.enemyGrid[i]![j]!.trailEffect != null) {
+              this.enemyGrid[i]![j]!.trailEffect!.active = false;
             }
-            this.enemyGrid[n2]![n]!.active = false;
-            ++n;
+            this.enemyGrid[i]![j]!.active = false;
+            ++j;
           }
         }
-        ++n2;
+        ++i;
       }
     }
   }
@@ -2211,8 +2209,8 @@ export class GameScreen extends Canvas {
   }
 
   // d(int) → d_I（静态：类型 id 是否为可加载精灵）
-  static isScrollLevel(n: number): boolean {
-    switch (n) {
+  static isScrollLevel(typeId: number): boolean {
+    switch (typeId) {
       case 1:
       case 2:
       case 8:
@@ -2238,30 +2236,29 @@ export class GameScreen extends Canvas {
   }
 
   // a(Graphics,int,int,int,boolean,boolean) → a_GIIIZZ（数字 HUD 绘制，4 位）
-  drawNumber(graphics: Graphics, n: number, n2: number, n3: number, bl: boolean, bl2: boolean): void {
-    let n4: number;
-    let n5 = 1000;
-    let n6 = 0;
-    let n7 = 0;
-    n4 = bl ? 99 : 0;
+  drawNumber(graphics: Graphics, value: number, x: number, y: number, bl: boolean, bl2: boolean): void {
+    let placeDivisor = 1000;
+    let xAdvance = 0;
+    let digit = 0;
+    const glyphOffset = bl ? 99 : 0;
     if (bl2) {
-      graphics.setClip(n2 - 10, n3, 8, 8);
-      graphics.drawImage(this.hudImage!, n2 - 12 - 178, n3 - 32, 20);
+      graphics.setClip(x - 10, y, 8, 8);
+      graphics.drawImage(this.hudImage!, x - 12 - 178, y - 32, 20);
     }
-    if (n < 0) {
-      n = 0;
+    if (value < 0) {
+      value = 0;
     }
-    let n9 = 0;
-    while (n9 < 4) {
-      n7 = (n / n5) | 0;
-      n %= n5;
-      if (n7 !== 0 || (n7 === 0 && n6 !== 0) || n9 === 3) {
-        graphics.setClip(n2 + n6, n3, 8, 8);
-        graphics.drawImage(this.hudImage!, n2 + n6 - n7 * 8 - n4, n3 - 32, 20);
-        n6 += 8;
+    let place = 0;
+    while (place < 4) {
+      digit = (value / placeDivisor) | 0;
+      value %= placeDivisor;
+      if (digit !== 0 || (digit === 0 && xAdvance !== 0) || place === 3) {
+        graphics.setClip(x + xAdvance, y, 8, 8);
+        graphics.drawImage(this.hudImage!, x + xAdvance - digit * 8 - glyphOffset, y - 32, 20);
+        xAdvance += 8;
       }
-      n5 = (n5 / 10) | 0;
-      ++n9;
+      placeDivisor = (placeDivisor / 10) | 0;
+      ++place;
     }
   }
 
@@ -2273,13 +2270,13 @@ export class GameScreen extends Canvas {
   }
 
   // e(int) → e_I（随机散布爆炸特效 + 播音效）
-  spawnExplosionScatter(n: number): void {
-    let n2 = 0;
-    while (n2 < 2) {
-      let n3 = GameMIDlet.nextRandomMod(n);
-      let n4 = GameMIDlet.nextRandomMod(160);
-      GameScreen.instance.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.cameraX + (n3 <<= 10), this.cameraY + (n4 <<= 10), 2);
-      ++n2;
+  spawnExplosionScatter(xRange: number): void {
+    let i = 0;
+    while (i < 2) {
+      let randX = GameMIDlet.nextRandomMod(xRange);
+      let randY = GameMIDlet.nextRandomMod(160);
+      GameScreen.instance.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.cameraX + (randX <<= 10), this.cameraY + (randY <<= 10), 2);
+      ++i;
     }
     GameScreen.playSound(5, 1, 220);
   }
@@ -2332,25 +2329,25 @@ export class GameScreen extends Canvas {
    */
   // f(int) → f_I（静态：从 image.bin 取第 n 张图）
   // 偏差：原 Image.createImage(byte[],0,len) → getCachedImage("/res/image.bin", n)（按索引取预解码图）。
-  static loadImageFromBin(n: number): Image | null {
-    const string = "/res/image.bin";
+  static loadImageFromBin(index: number): Image | null {
+    const archivePath = "/res/image.bin";
     let image: Image | null = null;
-    const inputStream = getResourceAsStream(string)!;
+    const inputStream = getResourceAsStream(archivePath)!;
     try {
-      const n2 = GameMIDlet.readI32Le(inputStream);
-      const nArray = new Int32Array(n2);
-      let n3 = 0;
-      while (n3 < n2) {
-        nArray[n3] = GameMIDlet.readI32Le(inputStream);
-        ++n3;
+      const count = GameMIDlet.readI32Le(inputStream);
+      const offsets = new Int32Array(count);
+      let i = 0;
+      while (i < count) {
+        offsets[i] = GameMIDlet.readI32Le(inputStream);
+        ++i;
       }
-      const n4 = nArray[n + 1] - nArray[n];
-      const byArray = new Int8Array(n4);
-      inputStream.skip(nArray[n]);
-      inputStream.read(byArray);
+      const byteLen = offsets[index + 1] - offsets[index];
+      const rawBytes = new Int8Array(byteLen);
+      inputStream.skip(offsets[index]);
+      inputStream.read(rawBytes);
       // image = Image.createImage(byArray, 0, n4);
-      image = getCachedImage<Image>(string, n);
-      void byArray;
+      image = getCachedImage<Image>(archivePath, index);
+      void rawBytes;
       inputStream.close();
       // System.gc();
     } catch (exception) {}
@@ -2410,8 +2407,8 @@ export class GameScreen extends Canvas {
    * @param n 音效索引；@param n3 增益
    */
   // a(int,int,int) → a_III（静态：播放音效 n，增益 n3；仅当音效开关 Q[2]==1）
-  static playSound(n: number, _n2: number, n3: number): void {
-    if (GameScreen.sounds == null || GameScreen.sounds[n] == null) {
+  static playSound(soundIndex: number, _n2: number, gain: number): void {
+    if (GameScreen.sounds == null || GameScreen.sounds[soundIndex] == null) {
       return;
     }
     try {
@@ -2419,9 +2416,9 @@ export class GameScreen extends Canvas {
         if (GameScreen.currentSoundIndex >= 0 && GameScreen.sounds[GameScreen.currentSoundIndex]!.getState() === 0) {
           return;
         }
-        GameScreen.currentSoundIndex = n;
-        GameScreen.sounds[n]!.setGain(n3);
-        GameScreen.sounds[n]!.play(1);
+        GameScreen.currentSoundIndex = soundIndex;
+        GameScreen.sounds[soundIndex]!.setGain(gain);
+        GameScreen.sounds[soundIndex]!.play(1);
       }
       return;
     } catch (exception) {
@@ -2430,26 +2427,26 @@ export class GameScreen extends Canvas {
   }
 
   // g(int) → g_I（从 x.bin 取第 n 段文本到 U）
-  loadTextFromBin(n: number): void {
-    const string = "/res/x.bin";
+  loadTextFromBin(entryIndex: number): void {
+    const archivePath = "/res/x.bin";
     try {
-      const inputStream = getResourceAsStream(string)!;
-      const n2 = GameMIDlet.readI32Le(inputStream);
-      const nArray = new Int32Array(n2);
-      let n3 = 0;
-      while (n3 < n2) {
-        nArray[n3] = GameMIDlet.readI32Le(inputStream);
-        ++n3;
+      const inputStream = getResourceAsStream(archivePath)!;
+      const count = GameMIDlet.readI32Le(inputStream);
+      const offsets = new Int32Array(count);
+      let i = 0;
+      while (i < count) {
+        offsets[i] = GameMIDlet.readI32Le(inputStream);
+        ++i;
       }
-      const n4 = ((nArray[n + 1] - nArray[n]) / 2) | 0;
-      inputStream.skip(nArray[n] + 2);
-      const cArray = new Array<number>(n4 - 1);
-      n3 = 0;
-      while (n3 < n4 - 1) {
-        cArray[n3] = GameMIDlet.readU16Le(inputStream) & 0xffff; // (char)
-        ++n3;
+      const charCount = ((offsets[entryIndex + 1] - offsets[entryIndex]) / 2) | 0;
+      inputStream.skip(offsets[entryIndex] + 2);
+      const chars = new Array<number>(charCount - 1);
+      i = 0;
+      while (i < charCount - 1) {
+        chars[i] = GameMIDlet.readU16Le(inputStream) & 0xffff; // (char)
+        ++i;
       }
-      GameScreen.currentText = String.fromCharCode(...cArray);
+      GameScreen.currentText = String.fromCharCode(...chars);
       inputStream.close();
       // System.gc();
       return;
@@ -2459,34 +2456,34 @@ export class GameScreen extends Canvas {
   }
 
   // a(Graphics,int,int,int) → a_GIII（多行文本绘制，回车 \r 分行）
-  drawWrappedText(graphics: Graphics, n: number, n2: number, n3: number): void {
-    let n4 = 0;
-    let n5 = 0;
+  drawWrappedText(graphics: Graphics, x: number, y: number, lineHeight: number): void {
+    let lineStart = 0;
+    let crIndex = 0;
     do {
-      if ((n5 = GameScreen.currentText!.indexOf("\r", n4)) === -1) {
-        graphics.drawString(GameScreen.currentText!.substring(n4), n, n2, 20);
+      if ((crIndex = GameScreen.currentText!.indexOf("\r", lineStart)) === -1) {
+        graphics.drawString(GameScreen.currentText!.substring(lineStart), x, y, 20);
       } else {
-        graphics.drawString(GameScreen.currentText!.substring(n4, n5), n, n2, 20);
+        graphics.drawString(GameScreen.currentText!.substring(lineStart, crIndex), x, y, 20);
       }
-      n2 += n3;
-      n4 = n5 + 2;
-    } while (n5 >= 0);
+      y += lineHeight;
+      lineStart = crIndex + 2;
+    } while (crIndex >= 0);
   }
 
   // b(Graphics,int,int,int) → b_GIII（取 U 的第 n 行绘制）
-  drawTextLine(graphics: Graphics, n: number, n2: number, n3: number): void {
-    let n4 = 0;
-    let n5 = 0;
+  drawTextLine(graphics: Graphics, lineIndex: number, x: number, y: number): void {
+    let lineStart = 0;
+    let crIndex = 0;
     while (true) {
-      n5 = GameScreen.currentText!.indexOf("\r", n4);
-      if (n-- <= 0) break;
-      n4 = n5 + 2;
+      crIndex = GameScreen.currentText!.indexOf("\r", lineStart);
+      if (lineIndex-- <= 0) break;
+      lineStart = crIndex + 2;
     }
-    if (n5 === -1) {
-      graphics.drawString(GameScreen.currentText!.substring(n4), n2, n3, 20);
+    if (crIndex === -1) {
+      graphics.drawString(GameScreen.currentText!.substring(lineStart), x, y, 20);
       return;
     }
-    graphics.drawString(GameScreen.currentText!.substring(n4, n5), n2, n3, 20);
+    graphics.drawString(GameScreen.currentText!.substring(lineStart, crIndex), x, y, 20);
   }
 
   /**
