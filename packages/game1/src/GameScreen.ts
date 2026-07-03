@@ -1949,16 +1949,16 @@ export class GameScreen extends Canvas {
     if (GameScreen.inputWriteIndex === GameScreen.inputReadIndex) {
       return 0;
     }
-    const n = GameScreen.inputQueue[GameScreen.inputReadIndex];
+    const action = GameScreen.inputQueue[GameScreen.inputReadIndex];
     if (++GameScreen.inputReadIndex === GameScreen.inputQueueCap) {
       GameScreen.inputReadIndex = 0;
     }
-    return n;
+    return action;
   }
 
   // a(int,boolean) → a_IZ（向输入环形队列压入一个动作）
-  private enqueueInputAction(n: number, bl: boolean): void {
-    GameScreen.inputQueue[GameScreen.inputWriteIndex] = bl ? n | INT_MIN : n; // Integer.MIN_VALUE
+  private enqueueInputAction(action: number, bl: boolean): void {
+    GameScreen.inputQueue[GameScreen.inputWriteIndex] = bl ? action | INT_MIN : action; // Integer.MIN_VALUE
     if (++GameScreen.inputWriteIndex >= GameScreen.inputQueueCap) {
       GameScreen.inputWriteIndex = 0;
     }
@@ -1975,31 +1975,31 @@ export class GameScreen extends Canvas {
 
   // i() → i_（关卡4：投放炸弹兵）
   private spawnAirdropWave(): void {
-    let n: number;
-    let n2: number;
-    const n3 = this.airdropWaveCount % 2 === 0 ? 2 : 1;
-    const n4 = n3;
-    void n4;
+    let spawnVelX: number;
+    let spawnX: number;
+    const enemyCount = this.airdropWaveCount % 2 === 0 ? 2 : 1;
+    const unusedCopy = enemyCount; // 死代码守卫：原 CFR 存在的空副本，保留赋值+void 以维持位级一致
+    void unusedCopy;
     if (this.player.posX < this.cameraX + px(88)) {
-      n2 = this.cameraX + px(206);
-      n = px(2);
+      spawnX = this.cameraX + px(206);
+      spawnVelX = px(2);
     } else {
-      n2 = this.cameraX - px(30);
-      n = this.cameraVelX + px(6);
+      spawnX = this.cameraX - px(30);
+      spawnVelX = this.cameraVelX + px(6);
     }
-    if (this.spawnEnemyWave(n3, 3, this.cameraX, 0, 0, 0) && this.spawnBossAttack(n2, n)) {
+    if (this.spawnEnemyWave(enemyCount, 3, this.cameraX, 0, 0, 0) && this.spawnBossAttack(spawnX, spawnVelX)) {
       ++this.airdropWaveCount;
     }
   }
 
   // a(Graphics,int) → a_GI（全屏纯色 RGB4444 渐变填充，过场用）
-  fillScreenColor(graphics: Graphics, n: number): void {
-    let s = (n << 16) >> 16; // (short)n
-    s = (s << 12) << 16 >> 16; // (short)(s << 12)
-    let n2 = 0;
-    while (n2 < this.pixelBuffer.length) {
-      this.pixelBuffer[n2] = s;
-      ++n2;
+  fillScreenColor(graphics: Graphics, colorShort: number): void {
+    let pixel = (colorShort << 16) >> 16; // (short)n
+    pixel = (pixel << 12) << 16 >> 16; // (short)(s << 12)
+    let i = 0;
+    while (i < this.pixelBuffer.length) {
+      this.pixelBuffer[i] = pixel;
+      ++i;
     }
     graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
     this.blitPixelBuffer(graphics);
@@ -2009,10 +2009,10 @@ export class GameScreen extends Canvas {
   blitPixelBuffer(graphics: Graphics): void {
     // this.K = DirectUtils.getDirectGraphics(graphics);
     this.directGraphics = graphics;
-    let n = 0;
-    while (n < 13) {
-      this.drawPixels(graphics, this.pixelBuffer, 0, 176, 0, 16 * n, 176, 16);
-      ++n;
+    let segIdx = 0;
+    while (segIdx < 13) {
+      this.drawPixels(graphics, this.pixelBuffer, 0, 176, 0, 16 * segIdx, 176, 16);
+      ++segIdx;
     }
   }
 
@@ -2020,17 +2020,17 @@ export class GameScreen extends Canvas {
    * 存档读写（对应 CFR a.java `c(int)`）。3 字节存档 `saveData`=[最高关, 当前关, 音效开关]。
    * `n===0` 写盘（保存进度/设置），`n===1` 读盘到 `saveData`（无记录时清零进度）。
    * 偏差：shim 无 RMS，用 localStorage 键 "TGS_CT" 复刻，控制流与原版一致。
-   * @param n 0=保存，1=读取
+   * @param mode 0=保存，1=读取
    */
   // c(int) → c_I（存档 RecordStore 读写；shim 无 RMS，用 localStorage 复刻 3 字节）
-  accessSaveData(n: number): void {
+  accessSaveData(mode: number): void {
     try {
       // RecordStore.openRecordStore("TGS_CT", true) → localStorage 键
       const key = "TGS_CT";
       const stored = GameScreen.rmsLoad(key);
       if (stored != null) {
         // 已有记录（hasNextElement / nextRecordId 后处理首条）
-        switch (n) {
+        switch (mode) {
           case 0: {
             // setRecord(id, Q, 0, 3)
             GameScreen.rmsSave(key, GameScreen.saveData.subarray(0, 3));
@@ -2043,7 +2043,7 @@ export class GameScreen extends Canvas {
           }
         }
       } else {
-        switch (n) {
+        switch (mode) {
           case 0: {
             // addRecord(Q, 0, 3)
             GameScreen.rmsSave(key, GameScreen.saveData.subarray(0, 3));
