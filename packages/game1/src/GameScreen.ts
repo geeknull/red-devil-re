@@ -2085,47 +2085,47 @@ export class GameScreen extends Canvas {
   }
 
   // b(Graphics,int,int,int,int,int) → b_GIIIII（绘制 d 精灵某帧并判定动画终止）
-  private drawBriefingAnim(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number): boolean {
-    const s = LevelLoader.spriteDefPool[n]!.getSequenceFrameCount(n2 & SEQUENCE_MASK); // short
-    if (n5 >= s) {
+  private drawBriefingAnim(graphics: Graphics, spriteDefIndex: number, frameId: number, x: number, y: number, frameIndex: number): boolean {
+    const frameCount = LevelLoader.spriteDefPool[spriteDefIndex]!.getSequenceFrameCount(frameId & SEQUENCE_MASK); // short
+    if (frameIndex >= frameCount) {
       this.animFrameIndex = 0;
-      n5 = 0;
+      frameIndex = 0;
     }
-    LevelLoader.spriteDefPool[n]!.paintSequenceFrame(graphics, n3, n4, n2, n5, 0, 0);
-    return n5 >= s - 1;
+    LevelLoader.spriteDefPool[spriteDefIndex]!.paintSequenceFrame(graphics, x, y, frameId, frameIndex, 0, 0);
+    return frameIndex >= frameCount - 1;
   }
 
   // j() → j_（复位子弹/敌兵的存活标志）
   private resetSpawnPools(): void {
-    let n: number;
-    let n2: number;
+    let j: number;
+    let i: number;
     if (this.projectilePools != null) {
-      n2 = 0;
-      while (n2 < 5) {
-        if (this.projectilePools[n2] != null) {
-          n = 0;
-          while (n < this.projectilePools[n2]!.length) {
-            this.projectilePools[n2]![n]!.active = false;
-            ++n;
+      i = 0;
+      while (i < 5) {
+        if (this.projectilePools[i] != null) {
+          j = 0;
+          while (j < this.projectilePools[i]!.length) {
+            this.projectilePools[i]![j]!.active = false;
+            ++j;
           }
         }
-        ++n2;
+        ++i;
       }
     }
     if (this.enemyGrid != null) {
-      n2 = 0;
-      while (n2 < this.enemyGrid.length) {
-        if (this.enemyGrid[n2] != null) {
-          n = 0;
-          while (n < this.enemyGrid[n2]!.length) {
-            if (this.enemyGrid[n2]![n]!.trailEffect != null) {
-              this.enemyGrid[n2]![n]!.trailEffect!.active = false;
+      i = 0;
+      while (i < this.enemyGrid.length) {
+        if (this.enemyGrid[i] != null) {
+          j = 0;
+          while (j < this.enemyGrid[i]!.length) {
+            if (this.enemyGrid[i]![j]!.trailEffect != null) {
+              this.enemyGrid[i]![j]!.trailEffect!.active = false;
             }
-            this.enemyGrid[n2]![n]!.active = false;
-            ++n;
+            this.enemyGrid[i]![j]!.active = false;
+            ++j;
           }
         }
-        ++n2;
+        ++i;
       }
     }
   }
@@ -2270,13 +2270,13 @@ export class GameScreen extends Canvas {
   }
 
   // e(int) → e_I（随机散布爆炸特效 + 播音效）
-  spawnExplosionScatter(n: number): void {
-    let n2 = 0;
-    while (n2 < 2) {
-      let n3 = GameMIDlet.nextRandomMod(n);
-      let n4 = GameMIDlet.nextRandomMod(160);
-      GameScreen.instance.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.cameraX + (n3 <<= 10), this.cameraY + (n4 <<= 10), 2);
-      ++n2;
+  spawnExplosionScatter(xRange: number): void {
+    let i = 0;
+    while (i < 2) {
+      let randX = GameMIDlet.nextRandomMod(xRange);
+      let randY = GameMIDlet.nextRandomMod(160);
+      GameScreen.instance.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.cameraX + (randX <<= 10), this.cameraY + (randY <<= 10), 2);
+      ++i;
     }
     GameScreen.playSound(5, 1, 220);
   }
@@ -2456,34 +2456,34 @@ export class GameScreen extends Canvas {
   }
 
   // a(Graphics,int,int,int) → a_GIII（多行文本绘制，回车 \r 分行）
-  drawWrappedText(graphics: Graphics, n: number, n2: number, n3: number): void {
-    let n4 = 0;
-    let n5 = 0;
+  drawWrappedText(graphics: Graphics, x: number, y: number, lineHeight: number): void {
+    let lineStart = 0;
+    let crIndex = 0;
     do {
-      if ((n5 = GameScreen.currentText!.indexOf("\r", n4)) === -1) {
-        graphics.drawString(GameScreen.currentText!.substring(n4), n, n2, 20);
+      if ((crIndex = GameScreen.currentText!.indexOf("\r", lineStart)) === -1) {
+        graphics.drawString(GameScreen.currentText!.substring(lineStart), x, y, 20);
       } else {
-        graphics.drawString(GameScreen.currentText!.substring(n4, n5), n, n2, 20);
+        graphics.drawString(GameScreen.currentText!.substring(lineStart, crIndex), x, y, 20);
       }
-      n2 += n3;
-      n4 = n5 + 2;
-    } while (n5 >= 0);
+      y += lineHeight;
+      lineStart = crIndex + 2;
+    } while (crIndex >= 0);
   }
 
   // b(Graphics,int,int,int) → b_GIII（取 U 的第 n 行绘制）
-  drawTextLine(graphics: Graphics, n: number, n2: number, n3: number): void {
-    let n4 = 0;
-    let n5 = 0;
+  drawTextLine(graphics: Graphics, lineIndex: number, x: number, y: number): void {
+    let lineStart = 0;
+    let crIndex = 0;
     while (true) {
-      n5 = GameScreen.currentText!.indexOf("\r", n4);
-      if (n-- <= 0) break;
-      n4 = n5 + 2;
+      crIndex = GameScreen.currentText!.indexOf("\r", lineStart);
+      if (lineIndex-- <= 0) break;
+      lineStart = crIndex + 2;
     }
-    if (n5 === -1) {
-      graphics.drawString(GameScreen.currentText!.substring(n4), n2, n3, 20);
+    if (crIndex === -1) {
+      graphics.drawString(GameScreen.currentText!.substring(lineStart), x, y, 20);
       return;
     }
-    graphics.drawString(GameScreen.currentText!.substring(n4, n5), n2, n3, 20);
+    graphics.drawString(GameScreen.currentText!.substring(lineStart, crIndex), x, y, 20);
   }
 
   /**
