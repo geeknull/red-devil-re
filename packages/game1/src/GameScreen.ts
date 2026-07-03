@@ -406,22 +406,7 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.LevelLoading: {
-          this.loadLevelStep(this.levelIndex);
-          if (this.levelLoaded) {
-            this.stateTimer = 0;
-            this.state = GameState.MissionBriefing;
-            break;
-          }
-          GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-          var1_1.setColor(0xff0000);
-          var1_1.drawString("载入中", 65, 192, 20);
-          {
-            let var2_4 = 0;
-            while (var2_4 < this.stateTimer) {
-              var1_1.drawString(".", 110 + var2_4 * 3, 192, 20);
-              ++var2_4;
-            }
-          }
+          this.paintLevelLoading(var1_1);
           break;
         }
         case GameState.MissionBriefing: {
@@ -940,6 +925,28 @@ export class GameScreen extends Canvas {
       }
     } catch (v1) {}
     this.painting = false;
+  }
+
+  /**
+   * state=2 LEVEL_LOADING：调用 `loadLevelStep` 分步载入关卡资源；
+   * 载入完成后 `stateTimer` 归零并转入任务简报，否则绘制「载入中...」进度点
+   * （由 paint 的 `switch(state)` 分派，对应 CFR a.java paint case 2）。
+   */
+  private paintLevelLoading(graphics: Graphics): void {
+    this.loadLevelStep(this.levelIndex);
+    if (this.levelLoaded) {
+      this.stateTimer = 0;
+      this.state = GameState.MissionBriefing;
+      return;
+    }
+    GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+    graphics.setColor(0xff0000);
+    graphics.drawString("载入中", 65, 192, 20);
+    let var2_4 = 0;
+    while (var2_4 < this.stateTimer) {
+      graphics.drawString(".", 110 + var2_4 * 3, 192, 20);
+      ++var2_4;
+    }
   }
 
   /**
