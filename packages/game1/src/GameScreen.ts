@@ -273,85 +273,7 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.Paused: {
-          let var5_11 = 0;
-          if (this.stateTimer === 0) {
-            var5_11 = 0;
-            while (var5_11 < this.pixelBuffer.length) {
-              this.pixelBuffer[var5_11] = 24603;
-              ++var5_11;
-            }
-            ++this.stateTimer;
-          }
-          if ((var5_11 = this.pollInputAction()) === 4) {
-            if (--this.menuSelection < 0) {
-              this.menuSelection = 3;
-            }
-          } else if (var5_11 === 8) {
-            if (++this.menuSelection > 3) {
-              this.menuSelection = 0;
-            }
-          } else if (var5_11 === 16) {
-            switch (this.menuSelection) {
-              case 0: {
-                this.heldKeyAction = 0;
-                this.state = GameState.Playing;
-                break;
-              }
-              case 1: {
-                GameScreen.saveData[2] = GameScreen.saveData[2] === 0 ? 1 : 0;
-                break;
-              }
-              case 2: {
-                this.levelResourcesReady = true;
-                this.clearInputQueue();
-                this.menuVisibleMax = 0;
-                this.hudBlinkCounter = 0;
-                this.menuSelection = 0;
-                this.inTaskSelectMenu = false;
-                this.state = GameState.MainMenu;
-                break;
-              }
-              case 3: {
-                this.accessSaveData(0);
-                this.painting = false;
-                this.midlet.notifyDestroyed();
-                return;
-              }
-            }
-            this.stateTimer = 0;
-            GameScreen.playSound(3, 1, 100);
-            if (this.menuSelection !== 1) break;
-          }
-          this.renderWorld(var1_1);
-          var1_1.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
-          var1_1.setColor(240, 176, 0);
-          var1_1.drawRect(44, 45, 88, 78);
-          // this.K = DirectUtils.getDirectGraphics(var1_1);
-          this.directGraphics = var1_1;
-          this.drawPixels(var1_1, this.pixelBuffer, 0, 87, 45, 46, 87, 39);
-          this.drawPixels(var1_1, this.pixelBuffer, 0, 87, 45, 85, 87, 38);
-          {
-            let var6_13 = 0;
-            let var7_15 = 0;
-            while (var7_15 < 4) {
-              if (this.menuSelection === var7_15) {
-                var1_1.setColor(0xffffff);
-              } else {
-                var1_1.setColor(96, 192, 255);
-              }
-              if (var7_15 === 0) {
-                var6_13 = 8;
-              } else if (var7_15 === 1) {
-                var6_13 = GameScreen.saveData[2] === 1 ? 3 : 7;
-              } else if (var7_15 === 2) {
-                var6_13 = 9;
-              } else if (var7_15 === 3) {
-                var6_13 = 6;
-              }
-              var1_1.drawString(GameMIDlet.menuTexts[var6_13], 56, 56 + var7_15 * 16, 20);
-              ++var7_15;
-            }
-          }
+          this.paintPaused(var1_1);
           break;
         }
         case GameState.About:
@@ -1039,6 +961,95 @@ export class GameScreen extends Canvas {
       return;
     }
     this.stateTimer = 20;
+  }
+
+  /**
+   * state=13 PAUSE_MENU：暂停菜单（半透明遮罩叠在游戏画面上）。首帧用 24603(0x601B RGB4444)
+   * 填充遮罩缓冲；轮询输入上/下(4/8)移动、确认(16)按 `menuSelection` 分派（0=继续/1=声音/2=回主菜单/3=退出）。
+   * 内层 `switch(menuSelection)` 的 break 保留；case3 退出项的 `return` 保留（`painting=false` 已先置位，
+   * 由 helper 返回等价于原地返回）；跳出 `switch(state)` 的 break（含 `menuSelection!==1` 守卫）改 return。
+   * 随后 renderWorld + drawPixels 叠遮罩 + 绘菜单项（对应 CFR a.java paint case 13；行为网未覆盖 state 13）。
+   */
+  private paintPaused(graphics: Graphics): void {
+    let var5_11 = 0;
+    if (this.stateTimer === 0) {
+      var5_11 = 0;
+      while (var5_11 < this.pixelBuffer.length) {
+        this.pixelBuffer[var5_11] = 24603;
+        ++var5_11;
+      }
+      ++this.stateTimer;
+    }
+    if ((var5_11 = this.pollInputAction()) === 4) {
+      if (--this.menuSelection < 0) {
+        this.menuSelection = 3;
+      }
+    } else if (var5_11 === 8) {
+      if (++this.menuSelection > 3) {
+        this.menuSelection = 0;
+      }
+    } else if (var5_11 === 16) {
+      switch (this.menuSelection) {
+        case 0: {
+          this.heldKeyAction = 0;
+          this.state = GameState.Playing;
+          break;
+        }
+        case 1: {
+          GameScreen.saveData[2] = GameScreen.saveData[2] === 0 ? 1 : 0;
+          break;
+        }
+        case 2: {
+          this.levelResourcesReady = true;
+          this.clearInputQueue();
+          this.menuVisibleMax = 0;
+          this.hudBlinkCounter = 0;
+          this.menuSelection = 0;
+          this.inTaskSelectMenu = false;
+          this.state = GameState.MainMenu;
+          break;
+        }
+        case 3: {
+          this.accessSaveData(0);
+          this.painting = false;
+          this.midlet.notifyDestroyed();
+          return;
+        }
+      }
+      this.stateTimer = 0;
+      GameScreen.playSound(3, 1, 100);
+      if (this.menuSelection !== 1) return;
+    }
+    this.renderWorld(graphics);
+    graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
+    graphics.setColor(240, 176, 0);
+    graphics.drawRect(44, 45, 88, 78);
+    // this.K = DirectUtils.getDirectGraphics(var1_1);
+    this.directGraphics = graphics;
+    this.drawPixels(graphics, this.pixelBuffer, 0, 87, 45, 46, 87, 39);
+    this.drawPixels(graphics, this.pixelBuffer, 0, 87, 45, 85, 87, 38);
+    {
+      let var6_13 = 0;
+      let var7_15 = 0;
+      while (var7_15 < 4) {
+        if (this.menuSelection === var7_15) {
+          graphics.setColor(0xffffff);
+        } else {
+          graphics.setColor(96, 192, 255);
+        }
+        if (var7_15 === 0) {
+          var6_13 = 8;
+        } else if (var7_15 === 1) {
+          var6_13 = GameScreen.saveData[2] === 1 ? 3 : 7;
+        } else if (var7_15 === 2) {
+          var6_13 = 9;
+        } else if (var7_15 === 3) {
+          var6_13 = 6;
+        }
+        graphics.drawString(GameMIDlet.menuTexts[var6_13], 56, 56 + var7_15 * 16, 20);
+        ++var7_15;
+      }
+    }
   }
 
   /**
