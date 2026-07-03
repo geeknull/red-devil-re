@@ -257,77 +257,7 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.MissionFailed: {
-          if (this.stateTimer === 0) {
-            this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
-            var1_1.setColor(65280);
-            var1_1.drawString(
-              "任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1) + "失败",
-              (GameScreen.screenWidth / 2) | 0,
-              35,
-              17
-            );
-            var1_1.drawString("击毙敌人: " + this.killCount, 36, 74, 20);
-            var1_1.drawString("所用时间: " + GameScreen.formatTime(this.levelStartMs), 36, 105, 20);
-            this.drawBriefingAnim(var1_1, 0, 16, 40, 175, 0);
-            this.cursorWidth = 60;
-            ++this.stateTimer;
-            this.clearInputQueue();
-          } else {
-            const var3_6 = this.pollInputAction();
-            if (var3_6 === 4) {
-              this.resetCursorAnim();
-              if (--this.menuSelection < 0) {
-                this.menuSelection = 1;
-              }
-            } else if (var3_6 === 8) {
-              this.resetCursorAnim();
-              if (++this.menuSelection > 1) {
-                this.menuSelection = 0;
-              }
-            } else if (var3_6 === 16) {
-              switch (this.menuSelection) {
-                case 0: {
-                  this.player.fullAmmoInit();
-                  this.state = GameState.LevelLoading;
-                  break;
-                }
-                case 1: {
-                  this.inTaskSelectMenu = false;
-                  this.state = GameState.MainMenu;
-                }
-              }
-              this.stateTimer = 0;
-              this.clearInputQueue();
-              this.menuVisibleMax = 0;
-              this.hudBlinkCounter = 0;
-              this.menuSelection = 0;
-              this.levelResourcesReady = true;
-              break;
-            }
-          }
-          GameScreen.fillRectClipped(var1_1, 70, 150, 106, 58, 0);
-          {
-            let var3_6 = 0;
-            while (var3_6 < 2) {
-              if (var3_6 === this.menuSelection && this.hudBlinkCounter === 0) {
-                var1_1.setColor(0xffffff);
-              } else {
-                var1_1.setColor(65280);
-              }
-              if (var3_6 === 0) {
-                var1_1.drawString(GameMIDlet.menuTexts[1], 120, 150, 17);
-              } else {
-                var1_1.drawString(GameMIDlet.menuTexts[9], 120, 170, 17);
-              }
-              ++var3_6;
-            }
-          }
-          var1_1.setColor(65280);
-          {
-            const var4_8 = this.cursorWidth >>> 1;
-            var1_1.drawLine(120 - var4_8, 164 + this.menuSelection * 20, 120 - var4_8 + this.cursorWidth, 164 + this.menuSelection * 20);
-          }
-          this.animateCursorExpand();
+          this.paintMissionFailed(var1_1);
           break;
         }
         case GameState.Ending: {
@@ -999,6 +929,86 @@ export class GameScreen extends Canvas {
     }
     this.updateWorld();
     this.renderWorld(graphics);
+  }
+
+  /**
+   * state=18 MISSION_FAILED：任务失败结算页。首帧结算用时/击杀并绘制失败动画；之后轮询输入，
+   * 上/下(4/8)切换「重试/返回主菜单」两项，确认(16)按 `menuSelection` 分派（0=重载关卡、1=回主菜单）。
+   * 内层 `switch(menuSelection)` 的 break 跳出该子 switch（保留 break）；仅确认分支尾部跳出
+   * `switch(state)` 的 break 改为 return（对应 CFR a.java paint case 18；行为网未覆盖 state 18，靠 CFR 对照）。
+   */
+  private paintMissionFailed(graphics: Graphics): void {
+    if (this.stateTimer === 0) {
+      this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
+      graphics.setColor(65280);
+      graphics.drawString(
+        "任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1) + "失败",
+        (GameScreen.screenWidth / 2) | 0,
+        35,
+        17
+      );
+      graphics.drawString("击毙敌人: " + this.killCount, 36, 74, 20);
+      graphics.drawString("所用时间: " + GameScreen.formatTime(this.levelStartMs), 36, 105, 20);
+      this.drawBriefingAnim(graphics, 0, 16, 40, 175, 0);
+      this.cursorWidth = 60;
+      ++this.stateTimer;
+      this.clearInputQueue();
+    } else {
+      const var3_6 = this.pollInputAction();
+      if (var3_6 === 4) {
+        this.resetCursorAnim();
+        if (--this.menuSelection < 0) {
+          this.menuSelection = 1;
+        }
+      } else if (var3_6 === 8) {
+        this.resetCursorAnim();
+        if (++this.menuSelection > 1) {
+          this.menuSelection = 0;
+        }
+      } else if (var3_6 === 16) {
+        switch (this.menuSelection) {
+          case 0: {
+            this.player.fullAmmoInit();
+            this.state = GameState.LevelLoading;
+            break;
+          }
+          case 1: {
+            this.inTaskSelectMenu = false;
+            this.state = GameState.MainMenu;
+          }
+        }
+        this.stateTimer = 0;
+        this.clearInputQueue();
+        this.menuVisibleMax = 0;
+        this.hudBlinkCounter = 0;
+        this.menuSelection = 0;
+        this.levelResourcesReady = true;
+        return;
+      }
+    }
+    GameScreen.fillRectClipped(graphics, 70, 150, 106, 58, 0);
+    {
+      let var3_6 = 0;
+      while (var3_6 < 2) {
+        if (var3_6 === this.menuSelection && this.hudBlinkCounter === 0) {
+          graphics.setColor(0xffffff);
+        } else {
+          graphics.setColor(65280);
+        }
+        if (var3_6 === 0) {
+          graphics.drawString(GameMIDlet.menuTexts[1], 120, 150, 17);
+        } else {
+          graphics.drawString(GameMIDlet.menuTexts[9], 120, 170, 17);
+        }
+        ++var3_6;
+      }
+    }
+    graphics.setColor(65280);
+    {
+      const var4_8 = this.cursorWidth >>> 1;
+      graphics.drawLine(120 - var4_8, 164 + this.menuSelection * 20, 120 - var4_8 + this.cursorWidth, 164 + this.menuSelection * 20);
+    }
+    this.animateCursorExpand();
   }
 
   /**
