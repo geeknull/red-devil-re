@@ -1,0 +1,12 @@
+{
+  "name": "@red-devil/behavior-net",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "行为测试网：结构重构前的位级行为回归网（headless 逐帧驱动 + 绘制调用日志/状态双快照）",
+  "dependencies": {
+    "@red-devil/j2me-shim": "workspace:*",
+    "@red-devil/game1": "workspace:*",
+    "@red-devil/game2": "workspace:*"
+  }
+}

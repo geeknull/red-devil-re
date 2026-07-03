@@ -7,7 +7,9 @@
   "scripts": {
     "verify:rng": "node --experimental-strip-types packages/j2me-shim/test/random.verify.ts",
     "test:shim": "node --experimental-strip-types packages/j2me-shim/test/run-all.ts",
-    "dev": "pnpm --filter @red-devil/web dev"
+    "dev": "pnpm --filter @red-devil/web dev",
+    "test:behavior": "node --experimental-transform-types packages/behavior-net/run.ts",
+    "bless:behavior": "node --experimental-transform-types packages/behavior-net/bless.ts"
   },
   "engines": {
     "node": ">=24"
