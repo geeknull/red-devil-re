@@ -1054,14 +1054,13 @@ export class GameScreen extends Canvas {
    */
   // a(Graphics) → a_G
   renderWorld(graphics: Graphics): void {
-    let n: number;
-    const n2 = this.cameraX >> 10;
-    const n3 = this.cameraY >> 10;
+    const cameraPxX = this.cameraX >> 10;
+    const cameraPxY = this.cameraY >> 10;
     this.tileMap.draw(graphics);
-    let n4 = 0;
-    while (n4 < this.drawQueueCount) {
-      this.drawQueue[n4]!.paint(graphics, n2, n3);
-      ++n4;
+    let drawIdx = 0;
+    while (drawIdx < this.drawQueueCount) {
+      this.drawQueue[drawIdx]!.paint(graphics, cameraPxX, cameraPxY);
+      ++drawIdx;
     }
     graphics.setClip(0, 176, 176, 32);
     graphics.drawImage(this.hudImage!, 0, 176, 20);
@@ -1086,41 +1085,43 @@ export class GameScreen extends Canvas {
     if (this.state === GameState.Playing && this.showIndicator && this.hudBlinkCounter % 2 === 0) {
       this.drawNumber(graphics, this.indicatorValue, 150, 162, this.levelIndex === 7, false);
     }
-    let n5 = 0;
+    let reserveAmmo = 0;
     graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
     graphics.setColor(66, 214, 198);
     switch (this.player.weaponIndex) {
       case 0: {
-        n5 = 99;
+        reserveAmmo = 99;
         break;
       }
       case 1: {
-        n5 = this.player.ammoReserveB;
+        reserveAmmo = this.player.ammoReserveB;
         break;
       }
       case 2: {
-        n5 = this.player.ammoReserveC;
+        reserveAmmo = this.player.ammoReserveC;
       }
     }
     if (this.hudBlinkCounter > 1) {
       graphics.drawRect(76 + this.player.weaponIndex * 20, 195, 16, 10);
     }
-    const n6 = this.player.magazineAmmo % 10;
-    const n7 = (this.player.magazineAmmo / 10) | 0;
+    const magazineOnesDigit = this.player.magazineAmmo % 10;
+    const magazineTensDigit = (this.player.magazineAmmo / 10) | 0;
     if (this.player.magazineAmmo !== 0 || (this.player.magazineAmmo === 0 && this.hudBlinkCounter > 1)) {
-      n = this.player.magazineAmmo === 0 ? 99 : 0;
+      // 弹匣为空时用偏移 99 把数字画到屏外（隐藏），否则偏移 0 正常显示
+      const magazineHideOffset = this.player.magazineAmmo === 0 ? 99 : 0;
       graphics.setClip(82, 184, 8, 8);
-      graphics.drawImage(this.hudImage!, 82 - n7 * 8 - n, 152, 20);
+      graphics.drawImage(this.hudImage!, 82 - magazineTensDigit * 8 - magazineHideOffset, 152, 20);
       graphics.setClip(90, 184, 8, 8);
-      graphics.drawImage(this.hudImage!, 90 - n6 * 8 - n, 152, 20);
+      graphics.drawImage(this.hudImage!, 90 - magazineOnesDigit * 8 - magazineHideOffset, 152, 20);
     }
     graphics.setClip(100, 184, 8, 8);
     graphics.drawImage(this.hudImage!, 20, 152, 20);
-    n = n5 % 10;
+    const reserveOnesDigit = reserveAmmo % 10;
+    const reserveTensDigit = (reserveAmmo / 10) | 0;
     graphics.setClip(110, 184, 8, 8);
-    graphics.drawImage(this.hudImage!, 110 - (n5 = (n5 / 10) | 0) * 8, 152, 20);
+    graphics.drawImage(this.hudImage!, 110 - reserveTensDigit * 8, 152, 20);
     graphics.setClip(118, 184, 8, 8);
-    graphics.drawImage(this.hudImage!, 118 - n * 8, 152, 20);
+    graphics.drawImage(this.hudImage!, 118 - reserveOnesDigit * 8, 152, 20);
     if (this.hudBlinkCounter > 1) {
       graphics.setClip(5, 196, 8, 8);
       graphics.drawImage(this.hudImage!, -84, 164, 20);
@@ -1131,16 +1132,16 @@ export class GameScreen extends Canvas {
     if (this.levelIndex < 3) {
       graphics.setClip(0, 0, 176, 176);
       graphics.setColor(0xffffff);
-      let n8 = 0;
-      while (n8 < 4) {
-        const n9 = GameMIDlet.nextRandomMod(176);
-        const n10 = GameMIDlet.nextRandomMod(176);
-        if (n8 % 2 === 0) {
-          graphics.drawLine(n9, n10, n9 - 5, n10 + 11);
+      let particleIdx = 0;
+      while (particleIdx < 4) {
+        const particleX = GameMIDlet.nextRandomMod(176);
+        const particleY = GameMIDlet.nextRandomMod(176);
+        if (particleIdx % 2 === 0) {
+          graphics.drawLine(particleX, particleY, particleX - 5, particleY + 11);
         } else {
-          graphics.drawLine(n9, n10, n9 - 3, n10 + 6);
+          graphics.drawLine(particleX, particleY, particleX - 3, particleY + 6);
         }
-        ++n8;
+        ++particleIdx;
       }
     }
   }
