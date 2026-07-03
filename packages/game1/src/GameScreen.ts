@@ -1188,11 +1188,11 @@ export class GameScreen extends Canvas {
    */
   // c() → c_
   updateCamera(): void {
-    const n = GameScreen.playHeight << 10;
-    let n2 = this.tileMap.getPixelWidth();
-    let n3 = this.tileMap.getPixelHeight();
-    n2 <<= 10;
-    n3 <<= 10;
+    const viewHeightFx = GameScreen.playHeight << 10;
+    let mapWidthFx = this.tileMap.getPixelWidth();
+    let mapHeightFx = this.tileMap.getPixelHeight();
+    mapWidthFx <<= 10;
+    mapHeightFx <<= 10;
     if (this.isCutsceneEntry) {
       this.cameraVelX = 0;
       return;
@@ -1213,17 +1213,17 @@ export class GameScreen extends Canvas {
             this.enemyAliveCount = 0;
           }
           if (this.enemyAliveCount === 0 && this.reinforceBudget > 0) {
-            let n4 = px(416);
-            GameScreen.instance.spawnEnemyWave(2, 1, GameScreen.instance.cameraX + GameScreen.viewWidthFx, n4, 1, 1);
-            n4 = px(496);
-            GameScreen.instance.spawnEnemyWave(1, 2, GameScreen.instance.cameraX + GameScreen.viewWidthFx, n4, 1, 1);
+            let spawnY = px(416);
+            GameScreen.instance.spawnEnemyWave(2, 1, GameScreen.instance.cameraX + GameScreen.viewWidthFx, spawnY, 1, 1);
+            spawnY = px(496);
+            GameScreen.instance.spawnEnemyWave(1, 2, GameScreen.instance.cameraX + GameScreen.viewWidthFx, spawnY, 1, 1);
             --this.reinforceBudget;
           }
           this.indicatorValue = this.enemyAliveCount + this.reinforceBudget * 3;
           break;
         }
-        const n5 = this.cameraX >> 14;
-        if ((n5 !== 43 && n5 !== 44) || this.cameraY >> 14 !== 22) break;
+        const cameraTileX = this.cameraX >> 14;
+        if ((cameraTileX !== 43 && cameraTileX !== 44) || this.cameraY >> 14 !== 22) break;
         this.scriptFlagL = true;
         this.showIndicator = true;
         this.reinforceBudget = 4;
@@ -1236,8 +1236,8 @@ export class GameScreen extends Canvas {
       case 2: {
         if (this.state !== GameState.LevelScroll) break;
         this.cameraX += this.cameraVelX;
-        if (this.cameraX > n2 - GameScreen.viewWidthFx) {
-          this.cameraX = n2 - GameScreen.viewWidthFx;
+        if (this.cameraX > mapWidthFx - GameScreen.viewWidthFx) {
+          this.cameraX = mapWidthFx - GameScreen.viewWidthFx;
           this.cameraVelX = 0;
           this.stateTimer = 0;
           this.scriptFlagL = true;
@@ -1256,13 +1256,13 @@ export class GameScreen extends Canvas {
       }
       case 3: {
         if (this.scriptFlagL || this.scriptStageAc !== 0) break;
-        const n6 = this.cameraX >> 14;
-        const n7 = this.cameraY >> 14;
-        const n8 = this.player.posX >> 14;
-        const n9 = this.player.posY >> 14;
-        if (n8 <= 66 || n9 <= 0 || n6 !== 68) break;
+        const cameraTileX = this.cameraX >> 14;
+        const cameraTileY = this.cameraY >> 14;
+        const playerTileX = this.player.posX >> 14;
+        const playerTileY = this.player.posY >> 14;
+        if (playerTileX <= 66 || playerTileY <= 0 || cameraTileX !== 68) break;
         this.cameraVelX = 0;
-        if (n7 === 5) {
+        if (cameraTileY === 5) {
           this.scriptFlagL = true;
           this.cameraVelY = 0;
           this.cameraVelX = 0;
@@ -1314,29 +1314,29 @@ export class GameScreen extends Canvas {
       }
       case 7: {
         if (this.state === GameState.Playing || this.state === GameState.GoalCutscene) {
-          const n10 = this.cameraX >> 10;
-          const n11 = this.player.posX >> 10;
-          const n12 = n11 - this.bossTriggerX;
-          if (n12 < 176) {
-            this.cameraVelY = n12 > 50 ? (this.indicatorToggle ? -1536 : 1536) : this.indicatorToggle ? px(-2) : px(2);
+          const cameraPxX = this.cameraX >> 10;
+          const playerPxX = this.player.posX >> 10;
+          const bossDistPx = playerPxX - this.bossTriggerX;
+          if (bossDistPx < 176) {
+            this.cameraVelY = bossDistPx > 50 ? (this.indicatorToggle ? -1536 : 1536) : this.indicatorToggle ? px(-2) : px(2);
             this.indicatorToggle = !this.indicatorToggle;
           }
           if (this.bossTriggerX === 0) {
             this.bossTriggerX = 30;
           }
           this.bossTriggerX += 2;
-          let n12b = n12;
-          if (n12b < 0) {
-            n12b = 0;
+          let bossDistClamped = bossDistPx;
+          if (bossDistClamped < 0) {
+            bossDistClamped = 0;
           }
-          this.indicatorValue = n12b;
+          this.indicatorValue = bossDistClamped;
           this.showIndicator = true;
-          if (this.bossTriggerX <= n10) break;
-          let n13 = this.bossTriggerX - n10;
-          if (n13 > 172) {
-            this.bossTriggerX = n10 + 172;
+          if (this.bossTriggerX <= cameraPxX) break;
+          let scatterRange = this.bossTriggerX - cameraPxX;
+          if (scatterRange > 172) {
+            this.bossTriggerX = cameraPxX + 172;
           }
-          this.spawnExplosionScatter(n13);
+          this.spawnExplosionScatter(scatterRange);
           break;
         }
         if (this.state !== GameState.LevelScroll) break;
@@ -1366,21 +1366,21 @@ export class GameScreen extends Canvas {
         this.cameraX = this.player.posX - ((GameScreen.viewWidthFx * 4 / 5) | 0);
       }
       if (this.cameraVelY > 0) {
-        if (this.cameraY > this.player.posY - ((n / 3) | 0)) {
-          this.cameraY = this.player.posY - ((n / 3) | 0);
+        if (this.cameraY > this.player.posY - ((viewHeightFx / 3) | 0)) {
+          this.cameraY = this.player.posY - ((viewHeightFx / 3) | 0);
         }
-      } else if (this.cameraVelY < 0 && this.cameraY < this.player.posY - ((n * 3 / 4) | 0)) {
-        this.cameraY = this.player.posY - ((n * 3 / 4) | 0);
+      } else if (this.cameraVelY < 0 && this.cameraY < this.player.posY - ((viewHeightFx * 3 / 4) | 0)) {
+        this.cameraY = this.player.posY - ((viewHeightFx * 3 / 4) | 0);
       }
     }
-    if (this.cameraX > n2 - GameScreen.viewWidthFx) {
-      this.cameraX = n2 - GameScreen.viewWidthFx;
+    if (this.cameraX > mapWidthFx - GameScreen.viewWidthFx) {
+      this.cameraX = mapWidthFx - GameScreen.viewWidthFx;
     }
     if (this.cameraX < 0) {
       this.cameraX = 0;
     }
-    if (this.cameraY > n3 - n + (this.levelIndex === 7 ? px(2) : 0)) {
-      this.cameraY = n3 - n;
+    if (this.cameraY > mapHeightFx - viewHeightFx + (this.levelIndex === 7 ? px(2) : 0)) {
+      this.cameraY = mapHeightFx - viewHeightFx;
     }
     if (this.cameraY < 0) {
       this.cameraY = 0;
