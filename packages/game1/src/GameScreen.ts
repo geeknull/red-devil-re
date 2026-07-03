@@ -1700,55 +1700,55 @@ export class GameScreen extends Canvas {
    * @returns 取到并初始化的投射物，池满则 null
    */
   // a(int,int,int,int,int,int) → a_IIIIII（从对象池取一个 tjge.l 并初始化）
-  spawnProjectile(n: number, n2: number, n3: number, n4: number, n5: number, n6: number): ProjectileActor | null {
-    let n7 = 0;
-    let bl = false;
-    switch (n) {
+  spawnProjectile(typeId: number, frame: number, drawParam: number, posX: number, posY: number, mode: number): ProjectileActor | null {
+    let poolIndex = 0;
+    let loopAnim = false;
+    switch (typeId) {
       case ActorType.GuidedMissileProjectile: {
-        n7 = 0;
+        poolIndex = 0;
         break;
       }
       case ActorType.PlayerBounceShot: {
-        n7 = 1;
+        poolIndex = 1;
         break;
       }
       case ActorType.FallingBombProjectile: {
-        n7 = 2;
-        bl = true;
+        poolIndex = 2;
+        loopAnim = true;
         break;
       }
       case ActorType.GrenadeProjectile: {
-        n7 = 3;
-        bl = true;
+        poolIndex = 3;
+        loopAnim = true;
         break;
       }
       case ActorType.ExplosionEffect: {
-        n7 = 4;
+        poolIndex = 4;
         break;
       }
       default: {
         return null;
       }
     }
-    let n8 = 0;
-    while (n8 < this.projectilePools[n7]!.length) {
-      if (!this.projectilePools[n7]![n8]!.active) {
-        const li = this.projectilePools[n7]![n8]!;
-        li.posX = n4;
-        li.posY = n5;
-        li.launchOriginX = n4;
-        li.setFrame(n2);
-        li.active = true;
+    let slotIdx = 0;
+    while (slotIdx < this.projectilePools[poolIndex]!.length) {
+      if (!this.projectilePools[poolIndex]![slotIdx]!.active) {
+        const proj = this.projectilePools[poolIndex]![slotIdx]!;
+        proj.posX = posX;
+        proj.posY = posY;
+        proj.launchOriginX = posX;
+        proj.setFrame(frame);
+        proj.active = true;
         // loopAnimation 在 ActorBase 中为 protected（原 Java 包内可见）；经结构视图写入保持等价。
-        (li as unknown as { loopAnimation: boolean }).loopAnimation = bl;
-        li.frameCounter = 0;
-        li.targetVelX = this.levelIndex === 4 ? this.cameraVelX : 0;
-        li.targetVelY = 0;
-        li.mode = n6;
-        li.drawParam = n3;
-        return this.projectilePools[n7]![n8];
+        (proj as unknown as { loopAnimation: boolean }).loopAnimation = loopAnim;
+        proj.frameCounter = 0;
+        proj.targetVelX = this.levelIndex === 4 ? this.cameraVelX : 0;
+        proj.targetVelY = 0;
+        proj.mode = mode;
+        proj.drawParam = drawParam;
+        return this.projectilePools[poolIndex]![slotIdx];
       }
-      ++n8;
+      ++slotIdx;
     }
     return null;
   }
@@ -1760,24 +1760,24 @@ export class GameScreen extends Canvas {
    */
   // e() → e_（卸载当前关卡资源）
   releaseLevel(): void {
-    let n = 0;
-    while (n < this.drawQueueCount) {
-      this.drawQueue[n] = null;
-      ++n;
+    let i = 0;
+    while (i < this.drawQueueCount) {
+      this.drawQueue[i] = null;
+      ++i;
     }
     if (this.enemyGrid != null) {
-      let n2 = 0;
-      while (n2 < this.enemyGrid.length) {
-        if (this.enemyGrid[n2] != null) {
-          let n3 = 0;
-          while (n3 < this.enemyGrid[n2]!.length) {
-            this.enemyGrid[n2]![n3]!.trailEffect = null;
-            this.enemyGrid[n2]![n3] = null;
-            ++n3;
+      let gridRow = 0;
+      while (gridRow < this.enemyGrid.length) {
+        if (this.enemyGrid[gridRow] != null) {
+          let gridCol = 0;
+          while (gridCol < this.enemyGrid[gridRow]!.length) {
+            this.enemyGrid[gridRow]![gridCol]!.trailEffect = null;
+            this.enemyGrid[gridRow]![gridCol] = null;
+            ++gridCol;
           }
         }
-        this.enemyGrid[n2] = null;
-        ++n2;
+        this.enemyGrid[gridRow] = null;
+        ++gridRow;
       }
       this.enemyGrid = null;
     }
@@ -1793,8 +1793,8 @@ export class GameScreen extends Canvas {
   }
 
   // b(int) → b_I（判断类型 id 是否属于“后置绘制”单位）
-  isPickupType(n: number): boolean {
-    switch (n) {
+  isPickupType(typeId: number): boolean {
+    switch (typeId) {
       case ActorType.AmmoSupplyPickup:
       case ActorType.AtvVehicleBoss:
       case ActorType.HealthPickup:
@@ -1812,89 +1812,89 @@ export class GameScreen extends Canvas {
    * @returns 是否已凑满请求的敌兵数量
    */
   // b(int,int,int,int,int,int) → b_IIIIII（生成一批敌兵 tjge.h）
-  spawnEnemyWave(n: number, n2: number, n3: number, n4: number, n5: number, n6: number): boolean {
-    if (n2 > 3 || n2 === 0) {
+  spawnEnemyWave(enemyType: number, requestCount: number, baseX: number, baseY: number, frame: number, spawnMode: number): boolean {
+    if (requestCount > 3 || requestCount === 0) {
       return false;
     }
-    let n7 = 0;
-    let n8 = 0;
+    let stackOffsetY = 0;
+    let spawnedCount = 0;
     if (this.enemyAliveCount < 0) {
       this.enemyAliveCount = 0;
     }
-    const n9 = n === 2 ? 0 : 1;
-    let n10 = 0;
-    while (n10 < 3) {
-      if (!this.enemyGrid![n9]![n10]!.active) {
-        const h2 = this.enemyGrid![n9]![n10]!;
-        h2.setFrame(n5);
-        h2.active = true;
+    const gridRow = enemyType === 2 ? 0 : 1;
+    let gridCol = 0;
+    while (gridCol < 3) {
+      if (!this.enemyGrid![gridRow]![gridCol]!.active) {
+        const enemy = this.enemyGrid![gridRow]![gridCol]!;
+        enemy.setFrame(frame);
+        enemy.active = true;
         // loopAnimation 在 ActorBase 中为 protected（原 Java 包内可见）；经结构视图写入保持等价。
-        (h2 as unknown as { loopAnimation: boolean }).loopAnimation = true;
-        h2.aiming = false;
-        h2.target = this.player;
-        h2.timerB = 0;
-        h2.lives = 1;
-        h2.rhythmThreshold = 5;
-        h2.hurtBlinkTimer = 0;
-        h2.hitPoints = 0;
-        h2.fromSpawner = true;
-        switch (n6) {
+        (enemy as unknown as { loopAnimation: boolean }).loopAnimation = true;
+        enemy.aiming = false;
+        enemy.target = this.player;
+        enemy.timerB = 0;
+        enemy.lives = 1;
+        enemy.rhythmThreshold = 5;
+        enemy.hurtBlinkTimer = 0;
+        enemy.hitPoints = 0;
+        enemy.fromSpawner = true;
+        switch (spawnMode) {
           case 0: {
-            h2.isPatroller = false;
-            h2.patrolRange = 0;
-            let n11 = GameMIDlet.nextRandomMod(160);
-            h2.posX = this.cameraX + px(5) + (n11 <<= 10);
-            if (h2.posX > this.cameraX + px(88)) {
-              h2.targetVelX = px(7);
+            enemy.isPatroller = false;
+            enemy.patrolRange = 0;
+            let randOffsetX = GameMIDlet.nextRandomMod(160);
+            enemy.posX = this.cameraX + px(5) + (randOffsetX <<= 10);
+            if (enemy.posX > this.cameraX + px(88)) {
+              enemy.targetVelX = px(7);
             } else {
-              h2.targetVelX = px(9);
-              h2.setFrame(n5 | INT_MIN); // Integer.MIN_VALUE
+              enemy.targetVelX = px(9);
+              enemy.setFrame(frame | INT_MIN); // Integer.MIN_VALUE
             }
-            h2.targetVelY = px(1);
-            h2.posY = n4 - n7;
-            n7 += px(20);
-            h2.timerA = 0;
-            h2.aiState = 0;
-            if (h2.trailEffect == null) {
-              h2.trailEffect = new EffectActor(ActorType.ParachuteTrailEffect, LevelLoader.spriteDefPool[6]!, this);
+            enemy.targetVelY = px(1);
+            enemy.posY = baseY - stackOffsetY;
+            stackOffsetY += px(20);
+            enemy.timerA = 0;
+            enemy.aiState = 0;
+            if (enemy.trailEffect == null) {
+              enemy.trailEffect = new EffectActor(ActorType.ParachuteTrailEffect, LevelLoader.spriteDefPool[6]!, this);
             }
-            h2.trailEffect.active = true;
-            h2.trailEffect.posX = h2.posX;
-            h2.trailEffect.posY = h2.posY - px(30);
-            h2.trailEffect.setFrame(0);
+            enemy.trailEffect.active = true;
+            enemy.trailEffect.posX = enemy.posX;
+            enemy.trailEffect.posY = enemy.posY - px(30);
+            enemy.trailEffect.setFrame(0);
             break;
           }
           case 1: {
-            h2.posY = n4;
-            h2.targetVelX = 0;
-            h2.targetVelY = 0;
-            h2.isPatroller = true;
-            h2.attackRangeUpper = px(40);
-            h2.attackRangeLower = px(-40);
-            h2.aiState = 7;
-            h2.posX = n3 + px(20);
-            h2.patrolDir = 0;
-            h2.patrolRange = 100;
-            h2.patrolLeftBound = this.cameraX + px(60);
-            h2.timerA = n8 << 3;
-            h2.patrolRightBound = n3 - px(50) + n8 * px(20);
-            if (n8 > 0) {
-              h2.hitPoints = 1;
+            enemy.posY = baseY;
+            enemy.targetVelX = 0;
+            enemy.targetVelY = 0;
+            enemy.isPatroller = true;
+            enemy.attackRangeUpper = px(40);
+            enemy.attackRangeLower = px(-40);
+            enemy.aiState = 7;
+            enemy.posX = baseX + px(20);
+            enemy.patrolDir = 0;
+            enemy.patrolRange = 100;
+            enemy.patrolLeftBound = this.cameraX + px(60);
+            enemy.timerA = spawnedCount << 3;
+            enemy.patrolRightBound = baseX - px(50) + spawnedCount * px(20);
+            if (spawnedCount > 0) {
+              enemy.hitPoints = 1;
             }
-            if (n !== 2) break;
-            h2.attackRangeUpper = px(120);
-            h2.patrolRightBound = n3 - px(30);
-            h2.patrolRange = 0;
+            if (enemyType !== 2) break;
+            enemy.attackRangeUpper = px(120);
+            enemy.patrolRightBound = baseX - px(30);
+            enemy.patrolRange = 0;
           }
         }
         ++this.enemyAliveCount;
-        h2.drawParam = h2.hitPoints;
-        h2.lives = h2.hitPoints + 1;
-        if (++n8 === n2) {
+        enemy.drawParam = enemy.hitPoints;
+        enemy.lives = enemy.hitPoints + 1;
+        if (++spawnedCount === requestCount) {
           return true;
         }
       }
-      ++n10;
+      ++gridCol;
     }
     return false;
   }
@@ -1906,40 +1906,40 @@ export class GameScreen extends Canvas {
    * @returns Boss 或随从缺失时 false，否则 true
    */
   // a(int,int) → a_II（生成 Boss 的同伴 tjge.h）
-  spawnBossAttack(n: number, n2: number): boolean {
+  spawnBossAttack(bossX: number, bossVelX: number): boolean {
     if (this.boss == null || this.boss.minion == null) {
       return false;
     }
     this.boss.active = true;
     this.boss.disabled = false;
     this.boss.visible = true;
-    this.boss.posX = n;
+    this.boss.posX = bossX;
     this.boss.posY = this.player.linkedBoss!.posY - px(3);
-    this.boss.targetVelX = n2;
+    this.boss.targetVelX = bossVelX;
     this.boss.setFrame(0);
-    const h2 = this.boss.minion;
+    const minion = this.boss.minion;
     this.boss.minion.active = true;
-    h2.attackRangeUpper = px(40);
-    h2.attackRangeLower = px(-40);
-    if (n > this.player.posX) {
-      h2.posX = this.boss.posX + px(23);
-      h2.setFrame(2);
+    minion.attackRangeUpper = px(40);
+    minion.attackRangeLower = px(-40);
+    if (bossX > this.player.posX) {
+      minion.posX = this.boss.posX + px(23);
+      minion.setFrame(2);
     } else {
-      h2.posX = this.boss.posX - px(23);
-      h2.setFrame(-2147483646);
+      minion.posX = this.boss.posX - px(23);
+      minion.setFrame(-2147483646);
     }
-    h2.posY = this.player.posY - px(2);
-    h2.targetVelX = this.boss.targetVelX;
-    h2.targetVelY = 0;
-    h2.patrolRange = 0;
-    h2.lives = 2;
-    h2.drawParam = 1;
-    h2.hitPoints = 1;
-    h2.aiState = 0;
-    h2.target = this.player;
-    h2.rhythmThreshold = 8;
-    h2.hurtBlinkTimer = 0;
-    h2.isPatroller = true;
+    minion.posY = this.player.posY - px(2);
+    minion.targetVelX = this.boss.targetVelX;
+    minion.targetVelY = 0;
+    minion.patrolRange = 0;
+    minion.lives = 2;
+    minion.drawParam = 1;
+    minion.hitPoints = 1;
+    minion.aiState = 0;
+    minion.target = this.player;
+    minion.rhythmThreshold = 8;
+    minion.hurtBlinkTimer = 0;
+    minion.isPatroller = true;
     this.enemyAliveCount = this.enemyAliveCount < 0 ? 1 : ++this.enemyAliveCount;
     return true;
   }
