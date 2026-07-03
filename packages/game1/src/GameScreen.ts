@@ -269,68 +269,7 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.GoalCutscene: {
-          if (this.stateTimer === 0) {
-            this.player.setFrame(1);
-            this.player.targetVelX = GameScreen.instance.levelIndex === 4 ? this.cameraVelX : 0;
-            this.player.accelX = 0;
-            this.player.targetVelY = 0;
-            this.player.accelY = 0;
-          } else if (this.stateTimer === 11) {
-            switch (this.levelIndex) {
-              case 0:
-              case 6:
-              case 7: {
-                this.player.targetVelX = px(8);
-                this.player.setFrame(2);
-                break;
-              }
-              case 1:
-              case 3: {
-                ++this.stateTimer;
-                this.player.setFrame(0 | this.player.facingFlag);
-                break;
-              }
-              case 2: {
-                this.player.targetVelX = px(12);
-                this.player.startLeapRight(px(-10));
-                this.player.subState = 4;
-                ++this.stateTimer;
-                break;
-              }
-              case 4: {
-                this.player.targetVelX = px(15);
-              }
-            }
-          }
-          if ((this.levelIndex === 1 || this.levelIndex === 3) && this.stateTimer > 11) {
-            if (this.stateTimer++ > 23) {
-              this.state = GameState.MissionComplete;
-              this.heldKeyAction = 0;
-              this.stateTimer = 0;
-              break;
-            }
-            this.fillScreenColor(var1_1, this.stateTimer - 11);
-            break;
-          }
-          if (this.player.posX > this.cameraX + GameScreen.viewWidthFx + px(10)) {
-            this.player.targetVelX = 0;
-            if (this.stateTimer++ > 32) {
-              this.state = GameState.MissionComplete;
-              this.heldKeyAction = 0;
-              this.cameraVelY = 0;
-              this.stateTimer = 0;
-              break;
-            }
-            this.fillScreenColor(var1_1, this.stateTimer - 20);
-            break;
-          }
-          this.updateWorld();
-          this.renderWorld(var1_1);
-          if (this.stateTimer < 11) {
-            ++this.stateTimer;
-            break;
-          }
-          this.stateTimer = 20;
+          this.paintGoalCutscene(var1_1);
           break;
         }
         case GameState.Paused: {
@@ -1029,6 +968,77 @@ export class GameScreen extends Canvas {
       return;
     }
     this.drawBriefingAnim(graphics, 0, 0, 84, 175, this.animFrameIndex++);
+  }
+
+  /**
+   * state=19 REACH_END_CUTSCENE：抵达终点过场（走向出口）。首帧定住玩家；第 11 帧按 `levelIndex`
+   * 设定收尾动作（内层 `switch(levelIndex)`，break 保留）；关卡1/3 或玩家走出视野后淡出转
+   * MissionComplete，否则照常 `updateWorld()+renderWorld()` 推进。跳出 `switch(state)` 的 break 改 return
+   * （对应 CFR a.java paint case 19；行为网未覆盖 state 19，靠 CFR 对照）。
+   */
+  private paintGoalCutscene(graphics: Graphics): void {
+    if (this.stateTimer === 0) {
+      this.player.setFrame(1);
+      this.player.targetVelX = GameScreen.instance.levelIndex === 4 ? this.cameraVelX : 0;
+      this.player.accelX = 0;
+      this.player.targetVelY = 0;
+      this.player.accelY = 0;
+    } else if (this.stateTimer === 11) {
+      switch (this.levelIndex) {
+        case 0:
+        case 6:
+        case 7: {
+          this.player.targetVelX = px(8);
+          this.player.setFrame(2);
+          break;
+        }
+        case 1:
+        case 3: {
+          ++this.stateTimer;
+          this.player.setFrame(0 | this.player.facingFlag);
+          break;
+        }
+        case 2: {
+          this.player.targetVelX = px(12);
+          this.player.startLeapRight(px(-10));
+          this.player.subState = 4;
+          ++this.stateTimer;
+          break;
+        }
+        case 4: {
+          this.player.targetVelX = px(15);
+        }
+      }
+    }
+    if ((this.levelIndex === 1 || this.levelIndex === 3) && this.stateTimer > 11) {
+      if (this.stateTimer++ > 23) {
+        this.state = GameState.MissionComplete;
+        this.heldKeyAction = 0;
+        this.stateTimer = 0;
+        return;
+      }
+      this.fillScreenColor(graphics, this.stateTimer - 11);
+      return;
+    }
+    if (this.player.posX > this.cameraX + GameScreen.viewWidthFx + px(10)) {
+      this.player.targetVelX = 0;
+      if (this.stateTimer++ > 32) {
+        this.state = GameState.MissionComplete;
+        this.heldKeyAction = 0;
+        this.cameraVelY = 0;
+        this.stateTimer = 0;
+        return;
+      }
+      this.fillScreenColor(graphics, this.stateTimer - 20);
+      return;
+    }
+    this.updateWorld();
+    this.renderWorld(graphics);
+    if (this.stateTimer < 11) {
+      ++this.stateTimer;
+      return;
+    }
+    this.stateTimer = 20;
   }
 
   /**
