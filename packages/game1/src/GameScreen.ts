@@ -1658,9 +1658,9 @@ export class GameScreen extends Canvas {
    * 其余按键经 `keyCodeToAction()` 转成动作位存入 `heldKeyAction` 并压入输入环形队列。
    * @param n 平台键码（含 Nokia 软键负值）
    */
-  keyPressed(n: number): void {
-    let n2: number;
-    if (n === -6 || n === -5) {
+  keyPressed(keyCode: number): void {
+    let action: number;
+    if (keyCode === -6 || keyCode === -5) {
       if (this.state === GameState.Playing) {
         this.clearInputQueue();
         this.menuSelection = 0;
@@ -1671,7 +1671,7 @@ export class GameScreen extends Canvas {
         this.enqueueInputAction(16, false);
         return;
       }
-    } else if (n === -7) {
+    } else if (keyCode === -7) {
       if (this.state === GameState.Playing) {
         this.clearInputQueue();
         this.state = GameState.MissionBriefing;
@@ -1683,8 +1683,8 @@ export class GameScreen extends Canvas {
         return;
       }
     }
-    this.heldKeyAction = n2 = this.keyCodeToAction(n);
-    this.enqueueInputAction(n2, false);
+    this.heldKeyAction = action = this.keyCodeToAction(keyCode);
+    this.enqueueInputAction(action, false);
   }
 
   /** 框架按键释放回调（对应 CFR `keyReleased(int)`）：清空当前持有动作 `heldKeyAction`（忽略具体键码）。 */
@@ -2209,8 +2209,8 @@ export class GameScreen extends Canvas {
   }
 
   // d(int) → d_I（静态：类型 id 是否为可加载精灵）
-  static isScrollLevel(n: number): boolean {
-    switch (n) {
+  static isScrollLevel(typeId: number): boolean {
+    switch (typeId) {
       case 1:
       case 2:
       case 8:
@@ -2329,25 +2329,25 @@ export class GameScreen extends Canvas {
    */
   // f(int) → f_I（静态：从 image.bin 取第 n 张图）
   // 偏差：原 Image.createImage(byte[],0,len) → getCachedImage("/res/image.bin", n)（按索引取预解码图）。
-  static loadImageFromBin(n: number): Image | null {
-    const string = "/res/image.bin";
+  static loadImageFromBin(index: number): Image | null {
+    const archivePath = "/res/image.bin";
     let image: Image | null = null;
-    const inputStream = getResourceAsStream(string)!;
+    const inputStream = getResourceAsStream(archivePath)!;
     try {
-      const n2 = GameMIDlet.readI32Le(inputStream);
-      const nArray = new Int32Array(n2);
-      let n3 = 0;
-      while (n3 < n2) {
-        nArray[n3] = GameMIDlet.readI32Le(inputStream);
-        ++n3;
+      const count = GameMIDlet.readI32Le(inputStream);
+      const offsets = new Int32Array(count);
+      let i = 0;
+      while (i < count) {
+        offsets[i] = GameMIDlet.readI32Le(inputStream);
+        ++i;
       }
-      const n4 = nArray[n + 1] - nArray[n];
-      const byArray = new Int8Array(n4);
-      inputStream.skip(nArray[n]);
-      inputStream.read(byArray);
+      const byteLen = offsets[index + 1] - offsets[index];
+      const rawBytes = new Int8Array(byteLen);
+      inputStream.skip(offsets[index]);
+      inputStream.read(rawBytes);
       // image = Image.createImage(byArray, 0, n4);
-      image = getCachedImage<Image>(string, n);
-      void byArray;
+      image = getCachedImage<Image>(archivePath, index);
+      void rawBytes;
       inputStream.close();
       // System.gc();
     } catch (exception) {}
@@ -2407,8 +2407,8 @@ export class GameScreen extends Canvas {
    * @param n 音效索引；@param n3 增益
    */
   // a(int,int,int) → a_III（静态：播放音效 n，增益 n3；仅当音效开关 Q[2]==1）
-  static playSound(n: number, _n2: number, n3: number): void {
-    if (GameScreen.sounds == null || GameScreen.sounds[n] == null) {
+  static playSound(soundIndex: number, _n2: number, gain: number): void {
+    if (GameScreen.sounds == null || GameScreen.sounds[soundIndex] == null) {
       return;
     }
     try {
@@ -2416,9 +2416,9 @@ export class GameScreen extends Canvas {
         if (GameScreen.currentSoundIndex >= 0 && GameScreen.sounds[GameScreen.currentSoundIndex]!.getState() === 0) {
           return;
         }
-        GameScreen.currentSoundIndex = n;
-        GameScreen.sounds[n]!.setGain(n3);
-        GameScreen.sounds[n]!.play(1);
+        GameScreen.currentSoundIndex = soundIndex;
+        GameScreen.sounds[soundIndex]!.setGain(gain);
+        GameScreen.sounds[soundIndex]!.play(1);
       }
       return;
     } catch (exception) {
@@ -2427,26 +2427,26 @@ export class GameScreen extends Canvas {
   }
 
   // g(int) → g_I（从 x.bin 取第 n 段文本到 U）
-  loadTextFromBin(n: number): void {
-    const string = "/res/x.bin";
+  loadTextFromBin(entryIndex: number): void {
+    const archivePath = "/res/x.bin";
     try {
-      const inputStream = getResourceAsStream(string)!;
-      const n2 = GameMIDlet.readI32Le(inputStream);
-      const nArray = new Int32Array(n2);
-      let n3 = 0;
-      while (n3 < n2) {
-        nArray[n3] = GameMIDlet.readI32Le(inputStream);
-        ++n3;
+      const inputStream = getResourceAsStream(archivePath)!;
+      const count = GameMIDlet.readI32Le(inputStream);
+      const offsets = new Int32Array(count);
+      let i = 0;
+      while (i < count) {
+        offsets[i] = GameMIDlet.readI32Le(inputStream);
+        ++i;
       }
-      const n4 = ((nArray[n + 1] - nArray[n]) / 2) | 0;
-      inputStream.skip(nArray[n] + 2);
-      const cArray = new Array<number>(n4 - 1);
-      n3 = 0;
-      while (n3 < n4 - 1) {
-        cArray[n3] = GameMIDlet.readU16Le(inputStream) & 0xffff; // (char)
-        ++n3;
+      const charCount = ((offsets[entryIndex + 1] - offsets[entryIndex]) / 2) | 0;
+      inputStream.skip(offsets[entryIndex] + 2);
+      const chars = new Array<number>(charCount - 1);
+      i = 0;
+      while (i < charCount - 1) {
+        chars[i] = GameMIDlet.readU16Le(inputStream) & 0xffff; // (char)
+        ++i;
       }
-      GameScreen.currentText = String.fromCharCode(...cArray);
+      GameScreen.currentText = String.fromCharCode(...chars);
       inputStream.close();
       // System.gc();
       return;
