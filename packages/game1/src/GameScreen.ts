@@ -1587,72 +1587,72 @@ export class GameScreen extends Canvas {
   }
 
   // h(int) → h_I（键码 → 游戏动作位）
-  private keyCodeToAction(n: number): number {
-    let n2 = 0;
-    switch (n) {
+  private keyCodeToAction(keyCode: number): number {
+    let actionMask = 0;
+    switch (keyCode) {
       case -1:
       case 1: {
-        n2 = 4;
+        actionMask = 4;
         break;
       }
       case -2:
       case 6: {
-        n2 = 8;
+        actionMask = 8;
         break;
       }
       case -3:
       case 2: {
-        n2 = 1;
+        actionMask = 1;
         break;
       }
       case -4:
       case 5: {
-        n2 = 2;
+        actionMask = 2;
         break;
       }
       case -6:
       case -5: {
         if (this.state === GameState.Playing) break;
-        n2 = 16;
+        actionMask = 16;
         break;
       }
       case -7: {
-        n2 = 4096;
+        actionMask = 4096;
         break;
       }
       case 42:
       case 48:
       case 55:
       case 56: {
-        n2 = 16;
+        actionMask = 16;
         break;
       }
       case 35:
       case 57: {
         if (this.state === GameState.Playing) {
-          n2 = 32;
+          actionMask = 32;
           break;
         }
-        n2 = 16;
+        actionMask = 16;
         break;
       }
       case 51:
       case 54: {
         if (this.state === GameState.Playing) {
-          n2 = 2048;
+          actionMask = 2048;
           break;
         }
-        n2 = 16;
+        actionMask = 16;
         break;
       }
       case 49:
       case 50:
       case 52:
       case 53: {
-        n2 = this.state === GameState.Playing ? 1024 : 16;
+        actionMask = this.state === GameState.Playing ? 1024 : 16;
       }
     }
-    return n2;
+    return actionMask;
   }
 
   /**
@@ -2239,30 +2239,29 @@ export class GameScreen extends Canvas {
   }
 
   // a(Graphics,int,int,int,boolean,boolean) → a_GIIIZZ（数字 HUD 绘制，4 位）
-  drawNumber(graphics: Graphics, n: number, n2: number, n3: number, bl: boolean, bl2: boolean): void {
-    let n4: number;
-    let n5 = 1000;
-    let n6 = 0;
-    let n7 = 0;
-    n4 = bl ? 99 : 0;
+  drawNumber(graphics: Graphics, value: number, x: number, y: number, bl: boolean, bl2: boolean): void {
+    let placeDivisor = 1000;
+    let xAdvance = 0;
+    let digit = 0;
+    const glyphOffset = bl ? 99 : 0;
     if (bl2) {
-      graphics.setClip(n2 - 10, n3, 8, 8);
-      graphics.drawImage(this.hudImage!, n2 - 12 - 178, n3 - 32, 20);
+      graphics.setClip(x - 10, y, 8, 8);
+      graphics.drawImage(this.hudImage!, x - 12 - 178, y - 32, 20);
     }
-    if (n < 0) {
-      n = 0;
+    if (value < 0) {
+      value = 0;
     }
-    let n9 = 0;
-    while (n9 < 4) {
-      n7 = (n / n5) | 0;
-      n %= n5;
-      if (n7 !== 0 || (n7 === 0 && n6 !== 0) || n9 === 3) {
-        graphics.setClip(n2 + n6, n3, 8, 8);
-        graphics.drawImage(this.hudImage!, n2 + n6 - n7 * 8 - n4, n3 - 32, 20);
-        n6 += 8;
+    let place = 0;
+    while (place < 4) {
+      digit = (value / placeDivisor) | 0;
+      value %= placeDivisor;
+      if (digit !== 0 || (digit === 0 && xAdvance !== 0) || place === 3) {
+        graphics.setClip(x + xAdvance, y, 8, 8);
+        graphics.drawImage(this.hudImage!, x + xAdvance - digit * 8 - glyphOffset, y - 32, 20);
+        xAdvance += 8;
       }
-      n5 = (n5 / 10) | 0;
-      ++n9;
+      placeDivisor = (placeDivisor / 10) | 0;
+      ++place;
     }
   }
 
