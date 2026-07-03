@@ -282,32 +282,8 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.CaptureCutscene: {
-          this.fillScreenColor(var1_1, this.stateTimer++);
-          if (this.stateTimer <= 12) break;
-          this.stateTimer = 0;
-          this.player.actionFlag = false;
-          this.player.linkedEnemy = null;
-          this.menuSelection = 0;
-          this.heldKeyAction = 0;
-          if (this.player.spareO === 16 && this.player.spareP === 16) {
-            this.state = GameState.MissionComplete;
-            break;
-          }
-          if (this.player.health <= 0) {
-            this.state = GameState.MissionFailed;
-            break;
-          }
-          this.player.setFrame(0);
-          this.player.facingFlag = 0;
-          this.player.posX = this.player.spareO << 10;
-          this.player.posY = this.player.spareP << 10;
-          {
-            const var8_18 = GameScreen.playHeight << 10;
-            GameScreen.instance.cameraX = this.player.posX - ((GameScreen.viewWidthFx / 5) | 0);
-            GameScreen.instance.cameraY = this.player.posY - ((var8_18 * 3 / 4) | 0);
-          }
-          this.tileMap.invalidateBuffer();
-          this.state = GameState.Playing;
+          // 最后一个 case：自然 switch-exit（CFR a.java:828-853），不加末尾 break
+          this.paintCaptureCutscene(var1_1);
         }
       }
     } catch (v1) {}
@@ -1059,6 +1035,41 @@ export class GameScreen extends Canvas {
       ++this.stateTimer;
     }
     this.drawReturnHint(graphics);
+  }
+
+  /**
+   * state=20 CAPTURE_CUTSCENE：抓捕过场（红帽被擒/擒敌的定格淡入淡出）。前 12 帧淡入（fillScreenColor）；
+   * 之后据玩家 spareO/spareP 与血量决定转 MissionComplete/MissionFailed，或复位玩家坐标（`<<10` 定点）、
+   * 重定相机后转 Playing。跳出 `switch(state)` 的 break 改 return；末尾无 break 复刻原版末 case 自然退出
+   * （对应 CFR a.java paint case 20；行为网未覆盖 state 20，靠 CFR 对照）。
+   */
+  private paintCaptureCutscene(graphics: Graphics): void {
+    this.fillScreenColor(graphics, this.stateTimer++);
+    if (this.stateTimer <= 12) return;
+    this.stateTimer = 0;
+    this.player.actionFlag = false;
+    this.player.linkedEnemy = null;
+    this.menuSelection = 0;
+    this.heldKeyAction = 0;
+    if (this.player.spareO === 16 && this.player.spareP === 16) {
+      this.state = GameState.MissionComplete;
+      return;
+    }
+    if (this.player.health <= 0) {
+      this.state = GameState.MissionFailed;
+      return;
+    }
+    this.player.setFrame(0);
+    this.player.facingFlag = 0;
+    this.player.posX = this.player.spareO << 10;
+    this.player.posY = this.player.spareP << 10;
+    {
+      const var8_18 = GameScreen.playHeight << 10;
+      GameScreen.instance.cameraX = this.player.posX - ((GameScreen.viewWidthFx / 5) | 0);
+      GameScreen.instance.cameraY = this.player.posY - ((var8_18 * 3 / 4) | 0);
+    }
+    this.tileMap.invalidateBuffer();
+    this.state = GameState.Playing;
   }
 
   /**
