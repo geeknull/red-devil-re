@@ -454,19 +454,7 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.LevelEnter: {
-          if (this.stateTimer++ !== 5) {
-            // lbl248
-            if (this.stateTimer > 16) {
-              this.player.setFrame(0);
-              this.state = this.levelIndex === 7 ? GameState.LevelScroll : GameState.Playing;
-              this.heldKeyAction = 0;
-              this.isCutsceneEntry = false;
-              this.stateTimer = 0;
-            }
-          } else {
-            this.player.targetVelX = 0;
-            this.player.setFrame(1);
-          }
+          this.paintLevelEnter();
           // fall through to case 10（CFR：lbl254 落入 case 10）
           this.updateWorld();
           this.renderWorld(var1_1);
@@ -956,6 +944,29 @@ export class GameScreen extends Canvas {
     this.cameraX = 0;
     this.player.posX = px(-80);
     this.state = GameState.Playing;
+  }
+
+  /**
+   * state=14 LEVEL_ENTER：过场入场动画帧推进（stateTimer===5 时玩家停步、否则走入）；
+   * stateTimer>16 结束入场——关卡7 转卷动过场、否则转 Playing。
+   * ⚠️ 本方法只处理入场逻辑：调用方在其后**必须继续** `updateWorld()+renderWorld()`——
+   * 这是 CFR a.java case14 落入 case10（lbl254 GOTO，"5 sources"验证）的忠实复刻，
+   * 切勿在此提前返回、亦不可让调用方跳过世界更新（对应 CFR a.java paint case 14）。
+   */
+  private paintLevelEnter(): void {
+    if (this.stateTimer++ !== 5) {
+      // lbl248
+      if (this.stateTimer > 16) {
+        this.player.setFrame(0);
+        this.state = this.levelIndex === 7 ? GameState.LevelScroll : GameState.Playing;
+        this.heldKeyAction = 0;
+        this.isCutsceneEntry = false;
+        this.stateTimer = 0;
+      }
+    } else {
+      this.player.targetVelX = 0;
+      this.player.setFrame(1);
+    }
   }
 
   /**
