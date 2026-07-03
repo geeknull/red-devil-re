@@ -410,49 +410,7 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.MissionBriefing: {
-          if (this.heldKeyAction !== 0) {
-            this.stateTimer = 71;
-          }
-          if (this.stateTimer === 0) {
-            this.loadTextFromBin(2);
-          }
-          if (this.stateTimer++ <= 70) {
-            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-            this.drawBriefingScreen(var1_1, this.stateTimer);
-            break;
-          }
-          if (this.stateTimer <= 70) break;
-          GameScreen.currentText = null;
-          // System.gc();
-          this.stateTimer = 0;
-          this.heldKeyAction = 0;
-          if (!this.levelLoaded) {
-            this.state = GameState.Playing;
-            break;
-          }
-          this.levelLoaded = false;
-          this.killCount = 0;
-          this.levelStartMs = Date.now(); // System.currentTimeMillis()
-          if (this.hudImage == null) {
-            this.hudImage = GameScreen.loadImageFromBin(3);
-          }
-          if (this.isCutsceneEntry) {
-            if (this.levelIndex === 7) {
-              this.scriptStageAc = this.cameraX = px(180);
-              this.player.posX -= px(40);
-            } else {
-              this.player.posX = 0;
-              this.cameraX = px(4);
-            }
-            this.player.targetVelX = px(8);
-            this.player.setFrame(2);
-            this.state = GameState.LevelEnter;
-            break;
-          }
-          this.cameraVelX = 0;
-          this.cameraX = 0;
-          this.player.posX = px(-80);
-          this.state = GameState.Playing;
+          this.paintMissionBriefing(var1_1);
           break;
         }
         case GameState.LevelScroll: {
@@ -947,6 +905,57 @@ export class GameScreen extends Canvas {
       graphics.drawString(".", 110 + var2_4 * 3, 192, 20);
       ++var2_4;
     }
+  }
+
+  /**
+   * state=22 MISSION_BRIEFING：任务简报界面。首帧载入简报文本，前 71 帧由 `drawBriefingScreen`
+   * 逐帧绘制；按键或计时超时后清理文本并进入关卡——过场入场关（isCutsceneEntry）走 LevelEnter
+   * 入场动画，否则复位相机/玩家后直接 Playing（对应 CFR a.java paint case 22）。
+   */
+  private paintMissionBriefing(graphics: Graphics): void {
+    if (this.heldKeyAction !== 0) {
+      this.stateTimer = 71;
+    }
+    if (this.stateTimer === 0) {
+      this.loadTextFromBin(2);
+    }
+    if (this.stateTimer++ <= 70) {
+      GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+      this.drawBriefingScreen(graphics, this.stateTimer);
+      return;
+    }
+    if (this.stateTimer <= 70) return;
+    GameScreen.currentText = null;
+    // System.gc();
+    this.stateTimer = 0;
+    this.heldKeyAction = 0;
+    if (!this.levelLoaded) {
+      this.state = GameState.Playing;
+      return;
+    }
+    this.levelLoaded = false;
+    this.killCount = 0;
+    this.levelStartMs = Date.now(); // System.currentTimeMillis()
+    if (this.hudImage == null) {
+      this.hudImage = GameScreen.loadImageFromBin(3);
+    }
+    if (this.isCutsceneEntry) {
+      if (this.levelIndex === 7) {
+        this.scriptStageAc = this.cameraX = px(180);
+        this.player.posX -= px(40);
+      } else {
+        this.player.posX = 0;
+        this.cameraX = px(4);
+      }
+      this.player.targetVelX = px(8);
+      this.player.setFrame(2);
+      this.state = GameState.LevelEnter;
+      return;
+    }
+    this.cameraVelX = 0;
+    this.cameraX = 0;
+    this.player.posX = px(-80);
+    this.state = GameState.Playing;
   }
 
   /**
