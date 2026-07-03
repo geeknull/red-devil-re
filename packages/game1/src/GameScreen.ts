@@ -229,130 +229,7 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.MainMenu: {
-          GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-          var1_1.drawImage(this.menuImage!, 18, 9, 20);
-          LevelLoader.spriteDefPool[8]!.paintSequenceFrame(var1_1, 128, 190, INT_MIN, this.frameCounter % 3, 0, 0);
-          LevelLoader.spriteDefPool[0]!.paintSequenceFrame(var1_1, 153, 159, INT_MIN, this.frameCounter % 3, 0, 0);
-          var1_1.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
-          if (this.menuActive) {
-            const var2_3 = this.pollInputAction();
-            if (var2_3 === 4) {
-              if (!this.inTaskSelectMenu) {
-                this.resetCursorAnim();
-                if (--this.menuSelection < 0) {
-                  this.menuSelection = 6;
-                }
-                this.menuVisibleMax = this.menuSelection;
-              } else if (--this.taskSelectIndex < 0) {
-                this.taskSelectIndex = GameScreen.saveData[0];
-              }
-            } else if (var2_3 === 8) {
-              if (!this.inTaskSelectMenu) {
-                this.resetCursorAnim();
-                if (++this.menuSelection > 6) {
-                  this.menuSelection = 0;
-                }
-                this.menuVisibleMax = this.menuSelection;
-              } else if (++this.taskSelectIndex > GameScreen.saveData[0]) {
-                this.taskSelectIndex = 0;
-              }
-            } else if (var2_3 === 16) {
-              this.stateTimer = 0;
-              if (this.inTaskSelectMenu) {
-                if (this.levelResourcesReady && this.levelIndex !== this.taskSelectIndex) {
-                  this.releaseLevel();
-                }
-                this.levelIndex = this.taskSelectIndex;
-                GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
-                GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-                this.state = GameState.LevelLoading;
-                break;
-              }
-              switch (this.menuSelection) {
-                case 0: {
-                  GameScreen.saveData[0] = 0;
-                  GameScreen.saveData[1] = 0;
-                  this.levelIndex = 0;
-                  this.player.fullAmmoInit();
-                  if (this.levelResourcesReady) {
-                    this.releaseLevel();
-                  }
-                  this.state = GameState.LevelLoading;
-                  break;
-                }
-                case 1: {
-                  this.levelIndex = GameScreen.saveData[1];
-                  this.player.fullAmmoInit();
-                  this.state = GameState.LevelLoading;
-                  break;
-                }
-                case 2: {
-                  this.inTaskSelectMenu = true;
-                  this.taskSelectIndex = 0;
-                  this.player.fullAmmoInit();
-                  break;
-                }
-                case 3: {
-                  GameScreen.saveData[2] = GameScreen.saveData[2] === 0 ? 1 : 0;
-                  break;
-                }
-                case 4:
-                case 5: {
-                  this.state = this.menuSelection === 4 ? GameState.Help : GameState.About;
-                  this.heldKeyAction = 0;
-                  break;
-                }
-                case 6: {
-                  this.accessSaveData(0);
-                  this.painting = false;
-                  this.midlet.notifyDestroyed();
-                }
-              }
-              GameScreen.playSound(3, 1, 100);
-            }
-          }
-          if (this.inTaskSelectMenu) {
-            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-            var1_1.setColor(65280);
-            var1_1.drawRect(0, 185, 175, 21);
-            var1_1.drawString("任务" + GameScreen.taskNumberChars.substring(this.taskSelectIndex, this.taskSelectIndex + 1), (GameScreen.screenWidth / 2) | 0, 190, 17);
-            break;
-          }
-          var1_1.setFont(Font.getFont(64, 1, 8)); // PROPORTIONAL/BOLD/SMALL
-          {
-            const var2_3 = this.menuActive !== false ? 6 : this.menuVisibleMax;
-            let var3_5 = 0;
-            let var4_7 = 0;
-            while (var4_7 <= var2_3) {
-              if (this.menuActive && var4_7 === this.menuSelection && this.hudBlinkCounter === 0) {
-                var1_1.setColor(0xffffff);
-              } else {
-                var1_1.setColor(65280);
-              }
-              var3_5 = var4_7 === 3 && GameScreen.saveData[2] !== 1 ? 7 : var4_7;
-              var1_1.drawString(GameMIDlet.menuTexts[var3_5], 52, 87 + var4_7 * 15, 17);
-              ++var4_7;
-            }
-            if (!this.menuActive) {
-              this.cursorWidth += 16;
-              if (this.cursorWidth > 64) {
-                if (++this.menuVisibleMax > 6) {
-                  this.menuVisibleMax = this.menuSelection;
-                  this.menuActive = true;
-                  this.clearInputQueue();
-                  this.cursorExpanding = true;
-                } else {
-                  this.cursorWidth = 0;
-                }
-              }
-            } else {
-              this.animateCursorExpand();
-              this.menuVisibleMax = this.menuSelection;
-            }
-            var1_1.setColor(65280);
-            const var5_9 = this.cursorWidth >>> 1;
-            var1_1.drawLine(52 - var5_9, 100 + this.menuVisibleMax * 15, 52 + var5_9, 100 + this.menuVisibleMax * 15);
-          }
+          this.paintMainMenu(var1_1);
           break;
         }
         case GameState.LevelLoading: {
@@ -977,6 +854,141 @@ export class GameScreen extends Canvas {
     this.inTaskSelectMenu = false;
     this.menuImage = GameScreen.loadImageFromBin(2);
     GameScreen.playSound(0, 1, 160);
+  }
+
+  /**
+   * state=4 MAIN_MENU：主菜单界面 + 导航总入口。绘制背景/角色帧后，若 `menuActive` 则轮询输入：
+   * 上/下(4/8)移动光标或任务序号；确认(16)在任务选择子界面进关卡，否则按 `menuSelection` 分派
+   * （新游戏/继续/选关/声音开关/帮助/关于/退出）。随后绘制任务选择子界面或菜单项列表 + 光标展开动画。
+   * ⚠️ 内层 `switch(menuSelection)` 的 break 是跳出该子 switch（保留 break），仅跳出 `switch(state)`
+   * 的路径改为 return；退出项(case6) 内 `painting=false`+notifyDestroyed 为原版退出序列，逐字保留
+   * （对应 CFR a.java paint case 4）。
+   */
+  private paintMainMenu(graphics: Graphics): void {
+    GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+    graphics.drawImage(this.menuImage!, 18, 9, 20);
+    LevelLoader.spriteDefPool[8]!.paintSequenceFrame(graphics, 128, 190, INT_MIN, this.frameCounter % 3, 0, 0);
+    LevelLoader.spriteDefPool[0]!.paintSequenceFrame(graphics, 153, 159, INT_MIN, this.frameCounter % 3, 0, 0);
+    graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
+    if (this.menuActive) {
+      const var2_3 = this.pollInputAction();
+      if (var2_3 === 4) {
+        if (!this.inTaskSelectMenu) {
+          this.resetCursorAnim();
+          if (--this.menuSelection < 0) {
+            this.menuSelection = 6;
+          }
+          this.menuVisibleMax = this.menuSelection;
+        } else if (--this.taskSelectIndex < 0) {
+          this.taskSelectIndex = GameScreen.saveData[0];
+        }
+      } else if (var2_3 === 8) {
+        if (!this.inTaskSelectMenu) {
+          this.resetCursorAnim();
+          if (++this.menuSelection > 6) {
+            this.menuSelection = 0;
+          }
+          this.menuVisibleMax = this.menuSelection;
+        } else if (++this.taskSelectIndex > GameScreen.saveData[0]) {
+          this.taskSelectIndex = 0;
+        }
+      } else if (var2_3 === 16) {
+        this.stateTimer = 0;
+        if (this.inTaskSelectMenu) {
+          if (this.levelResourcesReady && this.levelIndex !== this.taskSelectIndex) {
+            this.releaseLevel();
+          }
+          this.levelIndex = this.taskSelectIndex;
+          GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
+          GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+          this.state = GameState.LevelLoading;
+          return;
+        }
+        switch (this.menuSelection) {
+          case 0: {
+            GameScreen.saveData[0] = 0;
+            GameScreen.saveData[1] = 0;
+            this.levelIndex = 0;
+            this.player.fullAmmoInit();
+            if (this.levelResourcesReady) {
+              this.releaseLevel();
+            }
+            this.state = GameState.LevelLoading;
+            break;
+          }
+          case 1: {
+            this.levelIndex = GameScreen.saveData[1];
+            this.player.fullAmmoInit();
+            this.state = GameState.LevelLoading;
+            break;
+          }
+          case 2: {
+            this.inTaskSelectMenu = true;
+            this.taskSelectIndex = 0;
+            this.player.fullAmmoInit();
+            break;
+          }
+          case 3: {
+            GameScreen.saveData[2] = GameScreen.saveData[2] === 0 ? 1 : 0;
+            break;
+          }
+          case 4:
+          case 5: {
+            this.state = this.menuSelection === 4 ? GameState.Help : GameState.About;
+            this.heldKeyAction = 0;
+            break;
+          }
+          case 6: {
+            this.accessSaveData(0);
+            this.painting = false;
+            this.midlet.notifyDestroyed();
+          }
+        }
+        GameScreen.playSound(3, 1, 100);
+      }
+    }
+    if (this.inTaskSelectMenu) {
+      GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+      graphics.setColor(65280);
+      graphics.drawRect(0, 185, 175, 21);
+      graphics.drawString("任务" + GameScreen.taskNumberChars.substring(this.taskSelectIndex, this.taskSelectIndex + 1), (GameScreen.screenWidth / 2) | 0, 190, 17);
+      return;
+    }
+    graphics.setFont(Font.getFont(64, 1, 8)); // PROPORTIONAL/BOLD/SMALL
+    {
+      const var2_3 = this.menuActive !== false ? 6 : this.menuVisibleMax;
+      let var3_5 = 0;
+      let var4_7 = 0;
+      while (var4_7 <= var2_3) {
+        if (this.menuActive && var4_7 === this.menuSelection && this.hudBlinkCounter === 0) {
+          graphics.setColor(0xffffff);
+        } else {
+          graphics.setColor(65280);
+        }
+        var3_5 = var4_7 === 3 && GameScreen.saveData[2] !== 1 ? 7 : var4_7;
+        graphics.drawString(GameMIDlet.menuTexts[var3_5], 52, 87 + var4_7 * 15, 17);
+        ++var4_7;
+      }
+      if (!this.menuActive) {
+        this.cursorWidth += 16;
+        if (this.cursorWidth > 64) {
+          if (++this.menuVisibleMax > 6) {
+            this.menuVisibleMax = this.menuSelection;
+            this.menuActive = true;
+            this.clearInputQueue();
+            this.cursorExpanding = true;
+          } else {
+            this.cursorWidth = 0;
+          }
+        }
+      } else {
+        this.animateCursorExpand();
+        this.menuVisibleMax = this.menuSelection;
+      }
+      graphics.setColor(65280);
+      const var5_9 = this.cursorWidth >>> 1;
+      graphics.drawLine(52 - var5_9, 100 + this.menuVisibleMax * 15, 52 + var5_9, 100 + this.menuVisibleMax * 15);
+    }
   }
 
   /**
