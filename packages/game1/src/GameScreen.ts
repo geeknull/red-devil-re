@@ -168,19 +168,19 @@ export class GameScreen extends Canvas {
    * @param d2 该类型对应的精灵帧定义
    */
   // a(int,tjge.d) → a_ITd（精灵工厂）
-  createActor(n: number, d2: SpriteDef): ActorBase {
-    switch (n) {
+  createActor(typeId: number, spriteDef: SpriteDef): ActorBase {
+    switch (typeId) {
       case ActorType.Player: {
-        this.player = new PlayerActor(n, d2, this);
+        this.player = new PlayerActor(typeId, spriteDef, this);
         return this.player;
       }
       case ActorType.PlayerBounceShot: {
-        return new ProjectileActor(n, d2, this);
+        return new ProjectileActor(typeId, spriteDef, this);
       }
       case ActorType.ReconScoutEnemy:
       case ActorType.MeleeBomberEnemy:
       case ActorType.ScrollChaserHeavy: {
-        return new EnemyActor(n, d2, this);
+        return new EnemyActor(typeId, spriteDef, this);
       }
       case ActorType.RescueTargetNpc:
       case ActorType.CaptureTrigger:
@@ -190,20 +190,20 @@ export class GameScreen extends Canvas {
       case ActorType.GatedTrigger:
       case ActorType.TreasureChestProp:
       case ActorType.GrabAnchorZone: {
-        return new EffectActor(n, d2, this);
+        return new EffectActor(typeId, spriteDef, this);
       }
       case ActorType.AmmoSupplyPickup:
       case ActorType.HealthPickup:
       case ActorType.LevelExitGate: {
-        return new PickupActor(n, d2, this);
+        return new PickupActor(typeId, spriteDef, this);
       }
       case ActorType.AtvVehicleBoss:
       case ActorType.ScriptedFuseTrigger:
       case ActorType.DivingHazard: {
-        return new BossActor(n, d2, this);
+        return new BossActor(typeId, spriteDef, this);
       }
     }
-    return new ActorBase(n, d2);
+    return new ActorBase(typeId, spriteDef);
   }
 
   /**
@@ -225,305 +225,27 @@ export class GameScreen extends Canvas {
     try {
       switch (this.state) {
         case GameState.Logo: {
-          if (this.stateTimer++ === 0) {
-            this.hudImage = GameScreen.loadImageFromBin(8);
-            var1_1.drawImage(this.hudImage!, 29, 55, 20);
-            var1_1.setColor(238, 25, 33);
-            var1_1.setFont(Font.getFont(0, 1, 0)); // SYSTEM/BOLD/MEDIUM
-            var1_1.drawString("移动互连 无限可能", (GameScreen.screenWidth / 2) | 0, 128, 17);
-            this.hudImage = GameScreen.loadImageFromBin(7);
-            this.menuImage = GameScreen.loadImageFromBin(0);
-            this.initGameResources();
-            break;
-          }
-          if (this.stateTimer === 12) {
-            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0xffffff);
-            var1_1.drawImage(this.hudImage!, 12, 12, 20);
-            var1_1.drawImage(this.menuImage!, 88, 95, 17);
-            var1_1.setColor(155, 166, 173);
-            var1_1.drawString("新浪无线代理发行", 60, 142, 20);
-            this.menuImage = null;
-            this.hudImage = null;
-            break;
-          }
-          if (this.stateTimer === 22) {
-            this.menuImage = GameScreen.loadImageFromBin(1);
-            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-            var1_1.drawImage(this.menuImage!, 57, 80, 20);
-            var1_1.setColor(0xffffff);
-            var1_1.drawString("www.tickgame.com", 88, 120, 17);
-            break;
-          }
-          if (this.stateTimer > 32 && this.stateTimer < 42) {
-            let var2_2 = 0;
-            while (var2_2 < this.pixelBuffer.length) {
-              this.pixelBuffer[var2_2] = ((this.stateTimer - 32) << 16) >> 16; // (short)(w-32)
-              const v0 = var2_2++;
-              this.pixelBuffer[v0] = (this.pixelBuffer[v0] << 12) << 16 >> 16; // (short)(... << 12)
-            }
-            // this.K = DirectUtils.getDirectGraphics(var1_1);
-            // K.drawPixels(J, true, 0, 72, 57, 60, 72, 48, 0, 4444);
-            this.directGraphics = var1_1;
-            this.drawPixels(var1_1, this.pixelBuffer, 0, 72, 57, 60, 72, 48);
-            break;
-          }
-          if (this.stateTimer !== 42) break;
-          this.stateTimer = 0;
-          this.state = GameState.MainMenu;
-          this.menuVisibleMax = 0;
-          this.menuSelection = 0;
-          this.hudBlinkCounter = 1;
-          this.inTaskSelectMenu = false;
-          this.menuImage = GameScreen.loadImageFromBin(2);
-          GameScreen.playSound(0, 1, 160);
+          this.paintLogo(var1_1);
           break;
         }
         case GameState.MainMenu: {
-          GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-          var1_1.drawImage(this.menuImage!, 18, 9, 20);
-          LevelLoader.spriteDefPool[8]!.paintSequenceFrame(var1_1, 128, 190, INT_MIN, this.frameCounter % 3, 0, 0);
-          LevelLoader.spriteDefPool[0]!.paintSequenceFrame(var1_1, 153, 159, INT_MIN, this.frameCounter % 3, 0, 0);
-          var1_1.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
-          if (this.menuActive) {
-            const var2_3 = this.pollInputAction();
-            if (var2_3 === 4) {
-              if (!this.inTaskSelectMenu) {
-                this.resetCursorAnim();
-                if (--this.menuSelection < 0) {
-                  this.menuSelection = 6;
-                }
-                this.menuVisibleMax = this.menuSelection;
-              } else if (--this.taskSelectIndex < 0) {
-                this.taskSelectIndex = GameScreen.saveData[0];
-              }
-            } else if (var2_3 === 8) {
-              if (!this.inTaskSelectMenu) {
-                this.resetCursorAnim();
-                if (++this.menuSelection > 6) {
-                  this.menuSelection = 0;
-                }
-                this.menuVisibleMax = this.menuSelection;
-              } else if (++this.taskSelectIndex > GameScreen.saveData[0]) {
-                this.taskSelectIndex = 0;
-              }
-            } else if (var2_3 === 16) {
-              this.stateTimer = 0;
-              if (this.inTaskSelectMenu) {
-                if (this.levelResourcesReady && this.levelIndex !== this.taskSelectIndex) {
-                  this.releaseLevel();
-                }
-                this.levelIndex = this.taskSelectIndex;
-                GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
-                GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-                this.state = GameState.LevelLoading;
-                break;
-              }
-              switch (this.menuSelection) {
-                case 0: {
-                  GameScreen.saveData[0] = 0;
-                  GameScreen.saveData[1] = 0;
-                  this.levelIndex = 0;
-                  this.player.fullAmmoInit();
-                  if (this.levelResourcesReady) {
-                    this.releaseLevel();
-                  }
-                  this.state = GameState.LevelLoading;
-                  break;
-                }
-                case 1: {
-                  this.levelIndex = GameScreen.saveData[1];
-                  this.player.fullAmmoInit();
-                  this.state = GameState.LevelLoading;
-                  break;
-                }
-                case 2: {
-                  this.inTaskSelectMenu = true;
-                  this.taskSelectIndex = 0;
-                  this.player.fullAmmoInit();
-                  break;
-                }
-                case 3: {
-                  GameScreen.saveData[2] = GameScreen.saveData[2] === 0 ? 1 : 0;
-                  break;
-                }
-                case 4:
-                case 5: {
-                  this.state = this.menuSelection === 4 ? GameState.Help : GameState.About;
-                  this.heldKeyAction = 0;
-                  break;
-                }
-                case 6: {
-                  this.accessSaveData(0);
-                  this.painting = false;
-                  this.midlet.notifyDestroyed();
-                }
-              }
-              GameScreen.playSound(3, 1, 100);
-            }
-          }
-          if (this.inTaskSelectMenu) {
-            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-            var1_1.setColor(65280);
-            var1_1.drawRect(0, 185, 175, 21);
-            var1_1.drawString("任务" + GameScreen.taskNumberChars.substring(this.taskSelectIndex, this.taskSelectIndex + 1), (GameScreen.screenWidth / 2) | 0, 190, 17);
-            break;
-          }
-          var1_1.setFont(Font.getFont(64, 1, 8)); // PROPORTIONAL/BOLD/SMALL
-          {
-            const var2_3 = this.menuActive !== false ? 6 : this.menuVisibleMax;
-            let var3_5 = 0;
-            let var4_7 = 0;
-            while (var4_7 <= var2_3) {
-              if (this.menuActive && var4_7 === this.menuSelection && this.hudBlinkCounter === 0) {
-                var1_1.setColor(0xffffff);
-              } else {
-                var1_1.setColor(65280);
-              }
-              var3_5 = var4_7 === 3 && GameScreen.saveData[2] !== 1 ? 7 : var4_7;
-              var1_1.drawString(GameMIDlet.menuTexts[var3_5], 52, 87 + var4_7 * 15, 17);
-              ++var4_7;
-            }
-            if (!this.menuActive) {
-              this.cursorWidth += 16;
-              if (this.cursorWidth > 64) {
-                if (++this.menuVisibleMax > 6) {
-                  this.menuVisibleMax = this.menuSelection;
-                  this.menuActive = true;
-                  this.clearInputQueue();
-                  this.cursorExpanding = true;
-                } else {
-                  this.cursorWidth = 0;
-                }
-              }
-            } else {
-              this.animateCursorExpand();
-              this.menuVisibleMax = this.menuSelection;
-            }
-            var1_1.setColor(65280);
-            const var5_9 = this.cursorWidth >>> 1;
-            var1_1.drawLine(52 - var5_9, 100 + this.menuVisibleMax * 15, 52 + var5_9, 100 + this.menuVisibleMax * 15);
-          }
+          this.paintMainMenu(var1_1);
           break;
         }
         case GameState.LevelLoading: {
-          this.loadLevelStep(this.levelIndex);
-          if (this.levelLoaded) {
-            this.stateTimer = 0;
-            this.state = GameState.MissionBriefing;
-            break;
-          }
-          GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-          var1_1.setColor(0xff0000);
-          var1_1.drawString("载入中", 65, 192, 20);
-          {
-            let var2_4 = 0;
-            while (var2_4 < this.stateTimer) {
-              var1_1.drawString(".", 110 + var2_4 * 3, 192, 20);
-              ++var2_4;
-            }
-          }
+          this.paintLevelLoading(var1_1);
           break;
         }
         case GameState.MissionBriefing: {
-          if (this.heldKeyAction !== 0) {
-            this.stateTimer = 71;
-          }
-          if (this.stateTimer === 0) {
-            this.loadTextFromBin(2);
-          }
-          if (this.stateTimer++ <= 70) {
-            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-            this.drawBriefingScreen(var1_1, this.stateTimer);
-            break;
-          }
-          if (this.stateTimer <= 70) break;
-          GameScreen.currentText = null;
-          // System.gc();
-          this.stateTimer = 0;
-          this.heldKeyAction = 0;
-          if (!this.levelLoaded) {
-            this.state = GameState.Playing;
-            break;
-          }
-          this.levelLoaded = false;
-          this.killCount = 0;
-          this.levelStartMs = Date.now(); // System.currentTimeMillis()
-          if (this.hudImage == null) {
-            this.hudImage = GameScreen.loadImageFromBin(3);
-          }
-          if (this.isCutsceneEntry) {
-            if (this.levelIndex === 7) {
-              this.scriptStageAc = this.cameraX = px(180);
-              this.player.posX -= px(40);
-            } else {
-              this.player.posX = 0;
-              this.cameraX = px(4);
-            }
-            this.player.targetVelX = px(8);
-            this.player.setFrame(2);
-            this.state = GameState.LevelEnter;
-            break;
-          }
-          this.cameraVelX = 0;
-          this.cameraX = 0;
-          this.player.posX = px(-80);
-          this.state = GameState.Playing;
+          this.paintMissionBriefing(var1_1);
           break;
         }
         case GameState.LevelScroll: {
-          switch (this.levelIndex) {
-            case 2: {
-              if (!this.scriptFlagL) {
-                if (this.stateTimer++ <= 3) break;
-                this.cameraVelX = px(12);
-                this.cameraVelY = 0;
-                break;
-              }
-              if (this.stateTimer++ <= 9) break;
-              this.cameraVelX = px(-16);
-              break;
-            }
-            case 7: {
-              if (!this.scriptFlagL) {
-                if (this.stateTimer === 0) {
-                  this.cameraVelX = px(-8);
-                  break;
-                }
-                this.cameraVelX = px(16);
-                if (this.cameraX + this.cameraVelX <= this.scriptStageAc) break;
-                this.cameraX = this.scriptStageAc;
-                this.cameraVelX = 0;
-                this.state = GameState.Playing;
-                this.heldKeyAction = 0;
-                this.stateTimer = 0;
-                break;
-              }
-              if (this.stateTimer++ > 30) {
-                this.scriptFlagL = false;
-                this.cameraVelY = 0;
-                break;
-              }
-              this.cameraVelX = 0;
-            }
-          }
-          this.updateWorld();
-          this.renderWorld(var1_1);
+          this.paintLevelScroll(var1_1);
           break;
         }
         case GameState.LevelEnter: {
-          if (this.stateTimer++ !== 5) {
-            // lbl248
-            if (this.stateTimer > 16) {
-              this.player.setFrame(0);
-              this.state = this.levelIndex === 7 ? GameState.LevelScroll : GameState.Playing;
-              this.heldKeyAction = 0;
-              this.isCutsceneEntry = false;
-              this.stateTimer = 0;
-            }
-          } else {
-            this.player.targetVelX = 0;
-            this.player.setFrame(1);
-          }
+          this.paintLevelEnter();
           // fall through to case 10（CFR：lbl254 落入 case 10）
           this.updateWorld();
           this.renderWorld(var1_1);
@@ -535,411 +257,819 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.MissionFailed: {
-          if (this.stateTimer === 0) {
-            this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
-            var1_1.setColor(65280);
-            var1_1.drawString(
-              "任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1) + "失败",
-              (GameScreen.screenWidth / 2) | 0,
-              35,
-              17
-            );
-            var1_1.drawString("击毙敌人: " + this.killCount, 36, 74, 20);
-            var1_1.drawString("所用时间: " + GameScreen.formatTime(this.levelStartMs), 36, 105, 20);
-            this.drawBriefingAnim(var1_1, 0, 16, 40, 175, 0);
-            this.cursorWidth = 60;
-            ++this.stateTimer;
-            this.clearInputQueue();
-          } else {
-            const var3_6 = this.pollInputAction();
-            if (var3_6 === 4) {
-              this.resetCursorAnim();
-              if (--this.menuSelection < 0) {
-                this.menuSelection = 1;
-              }
-            } else if (var3_6 === 8) {
-              this.resetCursorAnim();
-              if (++this.menuSelection > 1) {
-                this.menuSelection = 0;
-              }
-            } else if (var3_6 === 16) {
-              switch (this.menuSelection) {
-                case 0: {
-                  this.player.fullAmmoInit();
-                  this.state = GameState.LevelLoading;
-                  break;
-                }
-                case 1: {
-                  this.inTaskSelectMenu = false;
-                  this.state = GameState.MainMenu;
-                }
-              }
-              this.stateTimer = 0;
-              this.clearInputQueue();
-              this.menuVisibleMax = 0;
-              this.hudBlinkCounter = 0;
-              this.menuSelection = 0;
-              this.levelResourcesReady = true;
-              break;
-            }
-          }
-          GameScreen.fillRectClipped(var1_1, 70, 150, 106, 58, 0);
-          {
-            let var3_6 = 0;
-            while (var3_6 < 2) {
-              if (var3_6 === this.menuSelection && this.hudBlinkCounter === 0) {
-                var1_1.setColor(0xffffff);
-              } else {
-                var1_1.setColor(65280);
-              }
-              if (var3_6 === 0) {
-                var1_1.drawString(GameMIDlet.menuTexts[1], 120, 150, 17);
-              } else {
-                var1_1.drawString(GameMIDlet.menuTexts[9], 120, 170, 17);
-              }
-              ++var3_6;
-            }
-          }
-          var1_1.setColor(65280);
-          {
-            const var4_8 = this.cursorWidth >>> 1;
-            var1_1.drawLine(120 - var4_8, 164 + this.menuSelection * 20, 120 - var4_8 + this.cursorWidth, 164 + this.menuSelection * 20);
-          }
-          this.animateCursorExpand();
+          this.paintMissionFailed(var1_1);
           break;
         }
         case GameState.Ending: {
-          GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-          if (this.stateTimer === 0) {
-            LevelLoader.retainSpriteDef(18);
-            this.stateTimer = 10;
-            break;
-          }
-          if (this.creditScrollX > 240) {
-            if (this.stateTimer > 0) {
-              this.stateTimer = 0;
-            }
-            var1_1.setColor(0xff0000);
-            var1_1.setFont(Font.getFont(0, 1, 16)); // SYSTEM/BOLD/LARGE
-            var1_1.drawString("剧终", 88, 100, 17);
-            if (this.stateTimer-- >= -60) break;
-            this.state = GameState.MainMenu;
-            this.stateTimer = 0;
-            this.clearInputQueue();
-            this.menuSelection = 0;
-            this.inTaskSelectMenu = false;
-            this.levelResourcesReady = true;
-            break;
-          }
-          {
-            let var5_10 = 0;
-            let var6_12 = 0;
-            let var7_14 = 0;
-            let var8_16 = 0;
-            let var9_19 = 0;
-            let var10_20 = 0;
-            while (var10_20 < 4) {
-              switch (var10_20) {
-                case 0: {
-                  var5_10 = 0;
-                  var8_16 = 146;
-                  var7_14 = this.creditScrollX - 15;
-                  this.creditScrollX += 6;
-                  if (var7_14 > 3 && var7_14 < 40) {
-                    var6_12 = 1;
-                    var9_19 = 8;
-                    break;
-                  }
-                  var6_12 = 0;
-                  var9_19 = 3;
-                  break;
-                }
-                case 1: {
-                  var5_10 = 18;
-                  var7_14 = this.creditScrollX2 - 15;
-                  var8_16 = 146;
-                  this.creditScrollX2 += 6;
-                  if (this.creditScrollX < 6 || this.creditScrollX > 25) {
-                    var6_12 = INT_MIN;
-                    var9_19 = 4;
-                    break;
-                  }
-                  var6_12 = -2147483646;
-                  var9_19 = 2;
-                  break;
-                }
-                case 2:
-                case 3: {
-                  var5_10 = 8;
-                  var6_12 = 0;
-                  var7_14 = var10_20 === 2 ? this.creditScrollX : this.creditScrollX2;
-                  var8_16 = 176;
-                  var9_19 = 3;
-                }
-              }
-              this.drawBriefingAnim(var1_1, var5_10, var6_12, var7_14, var8_16, this.stateTimer % var9_19);
-              ++var10_20;
-            }
-            ++this.stateTimer;
-          }
+          this.paintEnding(var1_1);
           break;
         }
         case GameState.MissionComplete: {
-          if (this.heldKeyAction !== 0 && this.stateTimer !== 10) {
-            this.stateTimer = 10;
-            this.animFrameIndex = 0;
-            this.clearInputQueue();
-          }
-          this.drawReturnHint(var1_1);
-          if (this.stateTimer === 0) {
-            GameScreen.playSound(2, 1, 140);
-            this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
-            var1_1.setColor(65280);
-            var1_1.drawString(
-              "任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1) + "完成",
-              (GameScreen.screenWidth / 2) | 0,
-              35,
-              17
-            );
-            var1_1.drawString("击毙敌人: " + this.killCount, 36, 74, 20);
-            var1_1.drawString("所用时间: " + GameScreen.formatTime(this.levelStartMs), 36, 105, 20);
-            this.stateTimer = 1;
-            this.animFrameIndex = 0;
-            break;
-          }
-          var1_1.setColor(0);
-          var1_1.fillRect(54, 125, 60, 50);
-          if (this.stateTimer === 10) {
-            if (!this.drawBriefingAnim(var1_1, 0, 14, 84, 175, this.animFrameIndex++)) break;
-            this.stateTimer = 0;
-            this.clearInputQueue();
-            if (this.levelIndex !== 7) {
-              ++this.levelIndex;
-              this.releaseLevel();
-              this.state = GameState.LevelLoading;
-              if (((this.levelIndex << 24) >> 24) > GameScreen.saveData[0]) {
-                GameScreen.saveData[0] = (this.levelIndex << 24) >> 24; // (byte)
-              }
-              GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
-              this.accessSaveData(0);
-            } else {
-              this.state = GameState.Ending;
-              this.creditScrollX = -176;
-              this.creditScrollX2 = -20;
-            }
-            // System.gc();
-            break;
-          }
-          this.drawBriefingAnim(var1_1, 0, 0, 84, 175, this.animFrameIndex++);
+          this.paintMissionComplete(var1_1);
           break;
         }
         case GameState.GoalCutscene: {
-          if (this.stateTimer === 0) {
-            this.player.setFrame(1);
-            this.player.targetVelX = GameScreen.instance.levelIndex === 4 ? this.cameraVelX : 0;
-            this.player.accelX = 0;
-            this.player.targetVelY = 0;
-            this.player.accelY = 0;
-          } else if (this.stateTimer === 11) {
-            switch (this.levelIndex) {
-              case 0:
-              case 6:
-              case 7: {
-                this.player.targetVelX = px(8);
-                this.player.setFrame(2);
-                break;
-              }
-              case 1:
-              case 3: {
-                ++this.stateTimer;
-                this.player.setFrame(0 | this.player.facingFlag);
-                break;
-              }
-              case 2: {
-                this.player.targetVelX = px(12);
-                this.player.startLeapRight(px(-10));
-                this.player.subState = 4;
-                ++this.stateTimer;
-                break;
-              }
-              case 4: {
-                this.player.targetVelX = px(15);
-              }
-            }
-          }
-          if ((this.levelIndex === 1 || this.levelIndex === 3) && this.stateTimer > 11) {
-            if (this.stateTimer++ > 23) {
-              this.state = GameState.MissionComplete;
-              this.heldKeyAction = 0;
-              this.stateTimer = 0;
-              break;
-            }
-            this.fillScreenColor(var1_1, this.stateTimer - 11);
-            break;
-          }
-          if (this.player.posX > this.cameraX + GameScreen.viewWidthFx + px(10)) {
-            this.player.targetVelX = 0;
-            if (this.stateTimer++ > 32) {
-              this.state = GameState.MissionComplete;
-              this.heldKeyAction = 0;
-              this.cameraVelY = 0;
-              this.stateTimer = 0;
-              break;
-            }
-            this.fillScreenColor(var1_1, this.stateTimer - 20);
-            break;
-          }
-          this.updateWorld();
-          this.renderWorld(var1_1);
-          if (this.stateTimer < 11) {
-            ++this.stateTimer;
-            break;
-          }
-          this.stateTimer = 20;
+          this.paintGoalCutscene(var1_1);
           break;
         }
         case GameState.Paused: {
-          let var5_11 = 0;
-          if (this.stateTimer === 0) {
-            var5_11 = 0;
-            while (var5_11 < this.pixelBuffer.length) {
-              this.pixelBuffer[var5_11] = 24603;
-              ++var5_11;
-            }
-            ++this.stateTimer;
-          }
-          if ((var5_11 = this.pollInputAction()) === 4) {
-            if (--this.menuSelection < 0) {
-              this.menuSelection = 3;
-            }
-          } else if (var5_11 === 8) {
-            if (++this.menuSelection > 3) {
-              this.menuSelection = 0;
-            }
-          } else if (var5_11 === 16) {
-            switch (this.menuSelection) {
-              case 0: {
-                this.heldKeyAction = 0;
-                this.state = GameState.Playing;
-                break;
-              }
-              case 1: {
-                GameScreen.saveData[2] = GameScreen.saveData[2] === 0 ? 1 : 0;
-                break;
-              }
-              case 2: {
-                this.levelResourcesReady = true;
-                this.clearInputQueue();
-                this.menuVisibleMax = 0;
-                this.hudBlinkCounter = 0;
-                this.menuSelection = 0;
-                this.inTaskSelectMenu = false;
-                this.state = GameState.MainMenu;
-                break;
-              }
-              case 3: {
-                this.accessSaveData(0);
-                this.painting = false;
-                this.midlet.notifyDestroyed();
-                return;
-              }
-            }
-            this.stateTimer = 0;
-            GameScreen.playSound(3, 1, 100);
-            if (this.menuSelection !== 1) break;
-          }
-          this.renderWorld(var1_1);
-          var1_1.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
-          var1_1.setColor(240, 176, 0);
-          var1_1.drawRect(44, 45, 88, 78);
-          // this.K = DirectUtils.getDirectGraphics(var1_1);
-          this.directGraphics = var1_1;
-          this.drawPixels(var1_1, this.pixelBuffer, 0, 87, 45, 46, 87, 39);
-          this.drawPixels(var1_1, this.pixelBuffer, 0, 87, 45, 85, 87, 38);
-          {
-            let var6_13 = 0;
-            let var7_15 = 0;
-            while (var7_15 < 4) {
-              if (this.menuSelection === var7_15) {
-                var1_1.setColor(0xffffff);
-              } else {
-                var1_1.setColor(96, 192, 255);
-              }
-              if (var7_15 === 0) {
-                var6_13 = 8;
-              } else if (var7_15 === 1) {
-                var6_13 = GameScreen.saveData[2] === 1 ? 3 : 7;
-              } else if (var7_15 === 2) {
-                var6_13 = 9;
-              } else if (var7_15 === 3) {
-                var6_13 = 6;
-              }
-              var1_1.drawString(GameMIDlet.menuTexts[var6_13], 56, 56 + var7_15 * 16, 20);
-              ++var7_15;
-            }
-          }
+          this.paintPaused(var1_1);
           break;
         }
         case GameState.About:
         case GameState.Help: {
-          if (this.heldKeyAction !== 0) {
-            this.state = GameState.MainMenu;
-            this.inTaskSelectMenu = false;
-            this.stateTimer = 0;
-            this.clearInputQueue();
-            GameScreen.currentText = null;
-            // System.gc();
-            break;
-          }
-          if (this.stateTimer === 0) {
-            let var8_17: number;
-            if (this.state === GameState.Help) {
-              this.loadTextFromBin(0);
-              var8_17 = 3;
-            } else {
-              this.loadTextFromBin(1);
-              var8_17 = 25;
-            }
-            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-            var1_1.setFont(Font.getFont(0, 1, 8)); // SYSTEM/BOLD/SMALL
-            var1_1.setColor(65280);
-            this.drawWrappedText(var1_1, 20, var8_17, 14);
-            ++this.stateTimer;
-          }
-          this.drawReturnHint(var1_1);
+          this.paintHelpAbout(var1_1);
           break;
         }
         case GameState.CaptureCutscene: {
-          this.fillScreenColor(var1_1, this.stateTimer++);
-          if (this.stateTimer <= 12) break;
-          this.stateTimer = 0;
-          this.player.actionFlag = false;
-          this.player.linkedEnemy = null;
-          this.menuSelection = 0;
-          this.heldKeyAction = 0;
-          if (this.player.spareO === 16 && this.player.spareP === 16) {
-            this.state = GameState.MissionComplete;
-            break;
-          }
-          if (this.player.health <= 0) {
-            this.state = GameState.MissionFailed;
-            break;
-          }
-          this.player.setFrame(0);
-          this.player.facingFlag = 0;
-          this.player.posX = this.player.spareO << 10;
-          this.player.posY = this.player.spareP << 10;
-          {
-            const var8_18 = GameScreen.playHeight << 10;
-            GameScreen.instance.cameraX = this.player.posX - ((GameScreen.viewWidthFx / 5) | 0);
-            GameScreen.instance.cameraY = this.player.posY - ((var8_18 * 3 / 4) | 0);
-          }
-          this.tileMap.invalidateBuffer();
-          this.state = GameState.Playing;
+          // 最后一个 case：自然 switch-exit（CFR a.java:828-853），不加末尾 break
+          this.paintCaptureCutscene(var1_1);
         }
       }
     } catch (v1) {}
     this.painting = false;
+  }
+
+  /**
+   * state=2 LEVEL_LOADING：调用 `loadLevelStep` 分步载入关卡资源；
+   * 载入完成后 `stateTimer` 归零并转入任务简报，否则绘制「载入中...」进度点
+   * （由 paint 的 `switch(state)` 分派，对应 CFR a.java paint case 2）。
+   */
+  private paintLevelLoading(graphics: Graphics): void {
+    this.loadLevelStep(this.levelIndex);
+    if (this.levelLoaded) {
+      this.stateTimer = 0;
+      this.state = GameState.MissionBriefing;
+      return;
+    }
+    GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+    graphics.setColor(0xff0000);
+    graphics.drawString("载入中", 65, 192, 20);
+    let var2_4 = 0;
+    while (var2_4 < this.stateTimer) {
+      graphics.drawString(".", 110 + var2_4 * 3, 192, 20);
+      ++var2_4;
+    }
+  }
+
+  /**
+   * state=22 MISSION_BRIEFING：任务简报界面。首帧载入简报文本，前 71 帧由 `drawBriefingScreen`
+   * 逐帧绘制；按键或计时超时后清理文本并进入关卡——过场入场关（isCutsceneEntry）走 LevelEnter
+   * 入场动画，否则复位相机/玩家后直接 Playing（对应 CFR a.java paint case 22）。
+   */
+  private paintMissionBriefing(graphics: Graphics): void {
+    if (this.heldKeyAction !== 0) {
+      this.stateTimer = 71;
+    }
+    if (this.stateTimer === 0) {
+      this.loadTextFromBin(2);
+    }
+    if (this.stateTimer++ <= 70) {
+      GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+      this.drawBriefingScreen(graphics, this.stateTimer);
+      return;
+    }
+    if (this.stateTimer <= 70) return;
+    GameScreen.currentText = null;
+    // System.gc();
+    this.stateTimer = 0;
+    this.heldKeyAction = 0;
+    if (!this.levelLoaded) {
+      this.state = GameState.Playing;
+      return;
+    }
+    this.levelLoaded = false;
+    this.killCount = 0;
+    this.levelStartMs = Date.now(); // System.currentTimeMillis()
+    if (this.hudImage == null) {
+      this.hudImage = GameScreen.loadImageFromBin(3);
+    }
+    if (this.isCutsceneEntry) {
+      if (this.levelIndex === 7) {
+        this.scriptStageAc = this.cameraX = px(180);
+        this.player.posX -= px(40);
+      } else {
+        this.player.posX = 0;
+        this.cameraX = px(4);
+      }
+      this.player.targetVelX = px(8);
+      this.player.setFrame(2);
+      this.state = GameState.LevelEnter;
+      return;
+    }
+    this.cameraVelX = 0;
+    this.cameraX = 0;
+    this.player.posX = px(-80);
+    this.state = GameState.Playing;
+  }
+
+  /**
+   * state=14 LEVEL_ENTER：过场入场动画帧推进（stateTimer===5 时玩家停步、否则走入）；
+   * stateTimer>16 结束入场——关卡7 转卷动过场、否则转 Playing。
+   * ⚠️ 本方法只处理入场逻辑：调用方在其后**必须继续** `updateWorld()+renderWorld()`——
+   * 这是 CFR a.java case14 落入 case10（lbl254 GOTO，"5 sources"验证）的忠实复刻，
+   * 切勿在此提前返回、亦不可让调用方跳过世界更新（对应 CFR a.java paint case 14）。
+   */
+  private paintLevelEnter(): void {
+    if (this.stateTimer++ !== 5) {
+      // lbl248
+      if (this.stateTimer > 16) {
+        this.player.setFrame(0);
+        this.state = this.levelIndex === 7 ? GameState.LevelScroll : GameState.Playing;
+        this.heldKeyAction = 0;
+        this.isCutsceneEntry = false;
+        this.stateTimer = 0;
+      }
+    } else {
+      this.player.targetVelX = 0;
+      this.player.setFrame(1);
+    }
+  }
+
+  /**
+   * state=1 LOGO：开机品牌 Logo 分帧序列（stateTimer 0→12→22→32-42→42）。
+   * 首帧载入资源并绘 tickgame 标语；12/22 帧切换发行/网址页；32-42 帧用像素缓冲做 RGB4444
+   * 渐变过场（`drawPixels`）；到 42 帧转主菜单。Java short 截断 `<<16>>16`、`<<12` 为原版位级复刻，
+   * 勿改（对应 CFR a.java paint case 1）。
+   */
+  private paintLogo(graphics: Graphics): void {
+    if (this.stateTimer++ === 0) {
+      this.hudImage = GameScreen.loadImageFromBin(8);
+      graphics.drawImage(this.hudImage!, 29, 55, 20);
+      graphics.setColor(238, 25, 33);
+      graphics.setFont(Font.getFont(0, 1, 0)); // SYSTEM/BOLD/MEDIUM
+      graphics.drawString("移动互连 无限可能", (GameScreen.screenWidth / 2) | 0, 128, 17);
+      this.hudImage = GameScreen.loadImageFromBin(7);
+      this.menuImage = GameScreen.loadImageFromBin(0);
+      this.initGameResources();
+      return;
+    }
+    if (this.stateTimer === 12) {
+      GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0xffffff);
+      graphics.drawImage(this.hudImage!, 12, 12, 20);
+      graphics.drawImage(this.menuImage!, 88, 95, 17);
+      graphics.setColor(155, 166, 173);
+      graphics.drawString("新浪无线代理发行", 60, 142, 20);
+      this.menuImage = null;
+      this.hudImage = null;
+      return;
+    }
+    if (this.stateTimer === 22) {
+      this.menuImage = GameScreen.loadImageFromBin(1);
+      GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+      graphics.drawImage(this.menuImage!, 57, 80, 20);
+      graphics.setColor(0xffffff);
+      graphics.drawString("www.tickgame.com", 88, 120, 17);
+      return;
+    }
+    if (this.stateTimer > 32 && this.stateTimer < 42) {
+      let var2_2 = 0;
+      while (var2_2 < this.pixelBuffer.length) {
+        this.pixelBuffer[var2_2] = ((this.stateTimer - 32) << 16) >> 16; // (short)(w-32)
+        const v0 = var2_2++;
+        this.pixelBuffer[v0] = (this.pixelBuffer[v0] << 12) << 16 >> 16; // (short)(... << 12)
+      }
+      // this.K = DirectUtils.getDirectGraphics(var1_1);
+      // K.drawPixels(J, true, 0, 72, 57, 60, 72, 48, 0, 4444);
+      this.directGraphics = graphics;
+      this.drawPixels(graphics, this.pixelBuffer, 0, 72, 57, 60, 72, 48);
+      return;
+    }
+    if (this.stateTimer !== 42) return;
+    this.stateTimer = 0;
+    this.state = GameState.MainMenu;
+    this.menuVisibleMax = 0;
+    this.menuSelection = 0;
+    this.hudBlinkCounter = 1;
+    this.inTaskSelectMenu = false;
+    this.menuImage = GameScreen.loadImageFromBin(2);
+    GameScreen.playSound(0, 1, 160);
+  }
+
+  /**
+   * state=4 MAIN_MENU：主菜单界面 + 导航总入口。绘制背景/角色帧后，若 `menuActive` 则轮询输入：
+   * 上/下(4/8)移动光标或任务序号；确认(16)在任务选择子界面进关卡，否则按 `menuSelection` 分派
+   * （新游戏/继续/选关/声音开关/帮助/关于/退出）。随后绘制任务选择子界面或菜单项列表 + 光标展开动画。
+   * ⚠️ 内层 `switch(menuSelection)` 的 break 是跳出该子 switch（保留 break），仅跳出 `switch(state)`
+   * 的路径改为 return；退出项(case6) 内 `painting=false`+notifyDestroyed 为原版退出序列，逐字保留
+   * （对应 CFR a.java paint case 4）。
+   */
+  private paintMainMenu(graphics: Graphics): void {
+    GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+    graphics.drawImage(this.menuImage!, 18, 9, 20);
+    LevelLoader.spriteDefPool[8]!.paintSequenceFrame(graphics, 128, 190, INT_MIN, this.frameCounter % 3, 0, 0);
+    LevelLoader.spriteDefPool[0]!.paintSequenceFrame(graphics, 153, 159, INT_MIN, this.frameCounter % 3, 0, 0);
+    graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
+    if (this.menuActive) {
+      const var2_3 = this.pollInputAction();
+      if (var2_3 === 4) {
+        if (!this.inTaskSelectMenu) {
+          this.resetCursorAnim();
+          if (--this.menuSelection < 0) {
+            this.menuSelection = 6;
+          }
+          this.menuVisibleMax = this.menuSelection;
+        } else if (--this.taskSelectIndex < 0) {
+          this.taskSelectIndex = GameScreen.saveData[0];
+        }
+      } else if (var2_3 === 8) {
+        if (!this.inTaskSelectMenu) {
+          this.resetCursorAnim();
+          if (++this.menuSelection > 6) {
+            this.menuSelection = 0;
+          }
+          this.menuVisibleMax = this.menuSelection;
+        } else if (++this.taskSelectIndex > GameScreen.saveData[0]) {
+          this.taskSelectIndex = 0;
+        }
+      } else if (var2_3 === 16) {
+        this.stateTimer = 0;
+        if (this.inTaskSelectMenu) {
+          if (this.levelResourcesReady && this.levelIndex !== this.taskSelectIndex) {
+            this.releaseLevel();
+          }
+          this.levelIndex = this.taskSelectIndex;
+          GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
+          GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+          this.state = GameState.LevelLoading;
+          return;
+        }
+        switch (this.menuSelection) {
+          case 0: {
+            GameScreen.saveData[0] = 0;
+            GameScreen.saveData[1] = 0;
+            this.levelIndex = 0;
+            this.player.fullAmmoInit();
+            if (this.levelResourcesReady) {
+              this.releaseLevel();
+            }
+            this.state = GameState.LevelLoading;
+            break;
+          }
+          case 1: {
+            this.levelIndex = GameScreen.saveData[1];
+            this.player.fullAmmoInit();
+            this.state = GameState.LevelLoading;
+            break;
+          }
+          case 2: {
+            this.inTaskSelectMenu = true;
+            this.taskSelectIndex = 0;
+            this.player.fullAmmoInit();
+            break;
+          }
+          case 3: {
+            GameScreen.saveData[2] = GameScreen.saveData[2] === 0 ? 1 : 0;
+            break;
+          }
+          case 4:
+          case 5: {
+            this.state = this.menuSelection === 4 ? GameState.Help : GameState.About;
+            this.heldKeyAction = 0;
+            break;
+          }
+          case 6: {
+            this.accessSaveData(0);
+            this.painting = false;
+            this.midlet.notifyDestroyed();
+          }
+        }
+        GameScreen.playSound(3, 1, 100);
+      }
+    }
+    if (this.inTaskSelectMenu) {
+      GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+      graphics.setColor(65280);
+      graphics.drawRect(0, 185, 175, 21);
+      graphics.drawString("任务" + GameScreen.taskNumberChars.substring(this.taskSelectIndex, this.taskSelectIndex + 1), (GameScreen.screenWidth / 2) | 0, 190, 17);
+      return;
+    }
+    graphics.setFont(Font.getFont(64, 1, 8)); // PROPORTIONAL/BOLD/SMALL
+    {
+      const var2_3 = this.menuActive !== false ? 6 : this.menuVisibleMax;
+      let var3_5 = 0;
+      let var4_7 = 0;
+      while (var4_7 <= var2_3) {
+        if (this.menuActive && var4_7 === this.menuSelection && this.hudBlinkCounter === 0) {
+          graphics.setColor(0xffffff);
+        } else {
+          graphics.setColor(65280);
+        }
+        var3_5 = var4_7 === 3 && GameScreen.saveData[2] !== 1 ? 7 : var4_7;
+        graphics.drawString(GameMIDlet.menuTexts[var3_5], 52, 87 + var4_7 * 15, 17);
+        ++var4_7;
+      }
+      if (!this.menuActive) {
+        this.cursorWidth += 16;
+        if (this.cursorWidth > 64) {
+          if (++this.menuVisibleMax > 6) {
+            this.menuVisibleMax = this.menuSelection;
+            this.menuActive = true;
+            this.clearInputQueue();
+            this.cursorExpanding = true;
+          } else {
+            this.cursorWidth = 0;
+          }
+        }
+      } else {
+        this.animateCursorExpand();
+        this.menuVisibleMax = this.menuSelection;
+      }
+      graphics.setColor(65280);
+      const var5_9 = this.cursorWidth >>> 1;
+      graphics.drawLine(52 - var5_9, 100 + this.menuVisibleMax * 15, 52 + var5_9, 100 + this.menuVisibleMax * 15);
+    }
+  }
+
+  /**
+   * state=21 SCROLL_CUTSCENE：关卡内相机卷动过场（仅关卡2/7 有脚本）。按 `levelIndex` 与
+   * `scriptFlagL`/`stateTimer` 驱动相机速度；关卡7 卷到 `scriptStageAc` 后转 Playing。
+   * 内层 `switch(levelIndex)` 的 break 均跳出该子 switch（保留 break），随后照常
+   * `updateWorld()+renderWorld()`（对应 CFR a.java paint case 21；行为网未覆盖 state 21，靠 CFR 对照）。
+   */
+  private paintLevelScroll(graphics: Graphics): void {
+    switch (this.levelIndex) {
+      case 2: {
+        if (!this.scriptFlagL) {
+          if (this.stateTimer++ <= 3) break;
+          this.cameraVelX = px(12);
+          this.cameraVelY = 0;
+          break;
+        }
+        if (this.stateTimer++ <= 9) break;
+        this.cameraVelX = px(-16);
+        break;
+      }
+      case 7: {
+        if (!this.scriptFlagL) {
+          if (this.stateTimer === 0) {
+            this.cameraVelX = px(-8);
+            break;
+          }
+          this.cameraVelX = px(16);
+          if (this.cameraX + this.cameraVelX <= this.scriptStageAc) break;
+          this.cameraX = this.scriptStageAc;
+          this.cameraVelX = 0;
+          this.state = GameState.Playing;
+          this.heldKeyAction = 0;
+          this.stateTimer = 0;
+          break;
+        }
+        if (this.stateTimer++ > 30) {
+          this.scriptFlagL = false;
+          this.cameraVelY = 0;
+          break;
+        }
+        this.cameraVelX = 0;
+      }
+    }
+    this.updateWorld();
+    this.renderWorld(graphics);
+  }
+
+  /**
+   * state=18 MISSION_FAILED：任务失败结算页。首帧结算用时/击杀并绘制失败动画；之后轮询输入，
+   * 上/下(4/8)切换「重试/返回主菜单」两项，确认(16)按 `menuSelection` 分派（0=重载关卡、1=回主菜单）。
+   * 内层 `switch(menuSelection)` 的 break 跳出该子 switch（保留 break）；仅确认分支尾部跳出
+   * `switch(state)` 的 break 改为 return（对应 CFR a.java paint case 18；行为网未覆盖 state 18，靠 CFR 对照）。
+   */
+  private paintMissionFailed(graphics: Graphics): void {
+    if (this.stateTimer === 0) {
+      this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
+      graphics.setColor(65280);
+      graphics.drawString(
+        "任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1) + "失败",
+        (GameScreen.screenWidth / 2) | 0,
+        35,
+        17
+      );
+      graphics.drawString("击毙敌人: " + this.killCount, 36, 74, 20);
+      graphics.drawString("所用时间: " + GameScreen.formatTime(this.levelStartMs), 36, 105, 20);
+      this.drawBriefingAnim(graphics, 0, 16, 40, 175, 0);
+      this.cursorWidth = 60;
+      ++this.stateTimer;
+      this.clearInputQueue();
+    } else {
+      const var3_6 = this.pollInputAction();
+      if (var3_6 === 4) {
+        this.resetCursorAnim();
+        if (--this.menuSelection < 0) {
+          this.menuSelection = 1;
+        }
+      } else if (var3_6 === 8) {
+        this.resetCursorAnim();
+        if (++this.menuSelection > 1) {
+          this.menuSelection = 0;
+        }
+      } else if (var3_6 === 16) {
+        switch (this.menuSelection) {
+          case 0: {
+            this.player.fullAmmoInit();
+            this.state = GameState.LevelLoading;
+            break;
+          }
+          case 1: {
+            this.inTaskSelectMenu = false;
+            this.state = GameState.MainMenu;
+          }
+        }
+        this.stateTimer = 0;
+        this.clearInputQueue();
+        this.menuVisibleMax = 0;
+        this.hudBlinkCounter = 0;
+        this.menuSelection = 0;
+        this.levelResourcesReady = true;
+        return;
+      }
+    }
+    GameScreen.fillRectClipped(graphics, 70, 150, 106, 58, 0);
+    {
+      let var3_6 = 0;
+      while (var3_6 < 2) {
+        if (var3_6 === this.menuSelection && this.hudBlinkCounter === 0) {
+          graphics.setColor(0xffffff);
+        } else {
+          graphics.setColor(65280);
+        }
+        if (var3_6 === 0) {
+          graphics.drawString(GameMIDlet.menuTexts[1], 120, 150, 17);
+        } else {
+          graphics.drawString(GameMIDlet.menuTexts[9], 120, 170, 17);
+        }
+        ++var3_6;
+      }
+    }
+    graphics.setColor(65280);
+    {
+      const var4_8 = this.cursorWidth >>> 1;
+      graphics.drawLine(120 - var4_8, 164 + this.menuSelection * 20, 120 - var4_8 + this.cursorWidth, 164 + this.menuSelection * 20);
+    }
+    this.animateCursorExpand();
+  }
+
+  /**
+   * state=15 CREDITS（片尾/剧终）：通关关卡7后滚动字幕。首帧载入字幕精灵；`creditScrollX>240`
+   * 后显示「剧终」并倒计时回主菜单；否则每帧用内层 `switch(var10_20)`(0-3) 计算 4 组字幕帧参数
+   * 并 `drawBriefingAnim` 绘制。内层 switch 的 break 保留；跳出 `switch(state)` 的 break 改 return。
+   * INT_MIN/-2147483646 为帧翻转位常量，逐字保留（对应 CFR a.java paint case 15；行为网未覆盖 state 15）。
+   */
+  private paintEnding(graphics: Graphics): void {
+    GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+    if (this.stateTimer === 0) {
+      LevelLoader.retainSpriteDef(18);
+      this.stateTimer = 10;
+      return;
+    }
+    if (this.creditScrollX > 240) {
+      if (this.stateTimer > 0) {
+        this.stateTimer = 0;
+      }
+      graphics.setColor(0xff0000);
+      graphics.setFont(Font.getFont(0, 1, 16)); // SYSTEM/BOLD/LARGE
+      graphics.drawString("剧终", 88, 100, 17);
+      if (this.stateTimer-- >= -60) return;
+      this.state = GameState.MainMenu;
+      this.stateTimer = 0;
+      this.clearInputQueue();
+      this.menuSelection = 0;
+      this.inTaskSelectMenu = false;
+      this.levelResourcesReady = true;
+      return;
+    }
+    {
+      let var5_10 = 0;
+      let var6_12 = 0;
+      let var7_14 = 0;
+      let var8_16 = 0;
+      let var9_19 = 0;
+      let var10_20 = 0;
+      while (var10_20 < 4) {
+        switch (var10_20) {
+          case 0: {
+            var5_10 = 0;
+            var8_16 = 146;
+            var7_14 = this.creditScrollX - 15;
+            this.creditScrollX += 6;
+            if (var7_14 > 3 && var7_14 < 40) {
+              var6_12 = 1;
+              var9_19 = 8;
+              break;
+            }
+            var6_12 = 0;
+            var9_19 = 3;
+            break;
+          }
+          case 1: {
+            var5_10 = 18;
+            var7_14 = this.creditScrollX2 - 15;
+            var8_16 = 146;
+            this.creditScrollX2 += 6;
+            if (this.creditScrollX < 6 || this.creditScrollX > 25) {
+              var6_12 = INT_MIN;
+              var9_19 = 4;
+              break;
+            }
+            var6_12 = -2147483646;
+            var9_19 = 2;
+            break;
+          }
+          case 2:
+          case 3: {
+            var5_10 = 8;
+            var6_12 = 0;
+            var7_14 = var10_20 === 2 ? this.creditScrollX : this.creditScrollX2;
+            var8_16 = 176;
+            var9_19 = 3;
+          }
+        }
+        this.drawBriefingAnim(graphics, var5_10, var6_12, var7_14, var8_16, this.stateTimer % var9_19);
+        ++var10_20;
+      }
+      ++this.stateTimer;
+    }
+  }
+
+  /**
+   * state=16 MISSION_COMPLETE：任务完成结算页。首帧播音并结算用时/击杀；stateTimer===10 时
+   * 播放完成动画（drawBriefingAnim 返回 true 结束），随后进下一关（关卡7 则转片尾），并写存档
+   * （最高进度/当前关，`<<24>>24` 字节截断保留）。所有 break 均跳出 `switch(state)`→改 return
+   * （对应 CFR a.java paint case 16；行为网未覆盖 state 16，靠 CFR 对照）。
+   */
+  private paintMissionComplete(graphics: Graphics): void {
+    if (this.heldKeyAction !== 0 && this.stateTimer !== 10) {
+      this.stateTimer = 10;
+      this.animFrameIndex = 0;
+      this.clearInputQueue();
+    }
+    this.drawReturnHint(graphics);
+    if (this.stateTimer === 0) {
+      GameScreen.playSound(2, 1, 140);
+      this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
+      graphics.setColor(65280);
+      graphics.drawString(
+        "任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1) + "完成",
+        (GameScreen.screenWidth / 2) | 0,
+        35,
+        17
+      );
+      graphics.drawString("击毙敌人: " + this.killCount, 36, 74, 20);
+      graphics.drawString("所用时间: " + GameScreen.formatTime(this.levelStartMs), 36, 105, 20);
+      this.stateTimer = 1;
+      this.animFrameIndex = 0;
+      return;
+    }
+    graphics.setColor(0);
+    graphics.fillRect(54, 125, 60, 50);
+    if (this.stateTimer === 10) {
+      if (!this.drawBriefingAnim(graphics, 0, 14, 84, 175, this.animFrameIndex++)) return;
+      this.stateTimer = 0;
+      this.clearInputQueue();
+      if (this.levelIndex !== 7) {
+        ++this.levelIndex;
+        this.releaseLevel();
+        this.state = GameState.LevelLoading;
+        if (((this.levelIndex << 24) >> 24) > GameScreen.saveData[0]) {
+          GameScreen.saveData[0] = (this.levelIndex << 24) >> 24; // (byte)
+        }
+        GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
+        this.accessSaveData(0);
+      } else {
+        this.state = GameState.Ending;
+        this.creditScrollX = -176;
+        this.creditScrollX2 = -20;
+      }
+      // System.gc();
+      return;
+    }
+    this.drawBriefingAnim(graphics, 0, 0, 84, 175, this.animFrameIndex++);
+  }
+
+  /**
+   * state=19 REACH_END_CUTSCENE：抵达终点过场（走向出口）。首帧定住玩家；第 11 帧按 `levelIndex`
+   * 设定收尾动作（内层 `switch(levelIndex)`，break 保留）；关卡1/3 或玩家走出视野后淡出转
+   * MissionComplete，否则照常 `updateWorld()+renderWorld()` 推进。跳出 `switch(state)` 的 break 改 return
+   * （对应 CFR a.java paint case 19；行为网未覆盖 state 19，靠 CFR 对照）。
+   */
+  private paintGoalCutscene(graphics: Graphics): void {
+    if (this.stateTimer === 0) {
+      this.player.setFrame(1);
+      this.player.targetVelX = GameScreen.instance.levelIndex === 4 ? this.cameraVelX : 0;
+      this.player.accelX = 0;
+      this.player.targetVelY = 0;
+      this.player.accelY = 0;
+    } else if (this.stateTimer === 11) {
+      switch (this.levelIndex) {
+        case 0:
+        case 6:
+        case 7: {
+          this.player.targetVelX = px(8);
+          this.player.setFrame(2);
+          break;
+        }
+        case 1:
+        case 3: {
+          ++this.stateTimer;
+          this.player.setFrame(0 | this.player.facingFlag);
+          break;
+        }
+        case 2: {
+          this.player.targetVelX = px(12);
+          this.player.startLeapRight(px(-10));
+          this.player.subState = 4;
+          ++this.stateTimer;
+          break;
+        }
+        case 4: {
+          this.player.targetVelX = px(15);
+        }
+      }
+    }
+    if ((this.levelIndex === 1 || this.levelIndex === 3) && this.stateTimer > 11) {
+      if (this.stateTimer++ > 23) {
+        this.state = GameState.MissionComplete;
+        this.heldKeyAction = 0;
+        this.stateTimer = 0;
+        return;
+      }
+      this.fillScreenColor(graphics, this.stateTimer - 11);
+      return;
+    }
+    if (this.player.posX > this.cameraX + GameScreen.viewWidthFx + px(10)) {
+      this.player.targetVelX = 0;
+      if (this.stateTimer++ > 32) {
+        this.state = GameState.MissionComplete;
+        this.heldKeyAction = 0;
+        this.cameraVelY = 0;
+        this.stateTimer = 0;
+        return;
+      }
+      this.fillScreenColor(graphics, this.stateTimer - 20);
+      return;
+    }
+    this.updateWorld();
+    this.renderWorld(graphics);
+    if (this.stateTimer < 11) {
+      ++this.stateTimer;
+      return;
+    }
+    this.stateTimer = 20;
+  }
+
+  /**
+   * state=13 PAUSE_MENU：暂停菜单（半透明遮罩叠在游戏画面上）。首帧用 24603(0x601B RGB4444)
+   * 填充遮罩缓冲；轮询输入上/下(4/8)移动、确认(16)按 `menuSelection` 分派（0=继续/1=声音/2=回主菜单/3=退出）。
+   * 内层 `switch(menuSelection)` 的 break 保留；case3 退出项的 `return` 保留（`painting=false` 已先置位，
+   * 由 helper 返回等价于原地返回）；跳出 `switch(state)` 的 break（含 `menuSelection!==1` 守卫）改 return。
+   * 随后 renderWorld + drawPixels 叠遮罩 + 绘菜单项（对应 CFR a.java paint case 13；行为网未覆盖 state 13）。
+   */
+  private paintPaused(graphics: Graphics): void {
+    let var5_11 = 0;
+    if (this.stateTimer === 0) {
+      var5_11 = 0;
+      while (var5_11 < this.pixelBuffer.length) {
+        this.pixelBuffer[var5_11] = 24603;
+        ++var5_11;
+      }
+      ++this.stateTimer;
+    }
+    if ((var5_11 = this.pollInputAction()) === 4) {
+      if (--this.menuSelection < 0) {
+        this.menuSelection = 3;
+      }
+    } else if (var5_11 === 8) {
+      if (++this.menuSelection > 3) {
+        this.menuSelection = 0;
+      }
+    } else if (var5_11 === 16) {
+      switch (this.menuSelection) {
+        case 0: {
+          this.heldKeyAction = 0;
+          this.state = GameState.Playing;
+          break;
+        }
+        case 1: {
+          GameScreen.saveData[2] = GameScreen.saveData[2] === 0 ? 1 : 0;
+          break;
+        }
+        case 2: {
+          this.levelResourcesReady = true;
+          this.clearInputQueue();
+          this.menuVisibleMax = 0;
+          this.hudBlinkCounter = 0;
+          this.menuSelection = 0;
+          this.inTaskSelectMenu = false;
+          this.state = GameState.MainMenu;
+          break;
+        }
+        case 3: {
+          this.accessSaveData(0);
+          this.painting = false;
+          this.midlet.notifyDestroyed();
+          return;
+        }
+      }
+      this.stateTimer = 0;
+      GameScreen.playSound(3, 1, 100);
+      if (this.menuSelection !== 1) return;
+    }
+    this.renderWorld(graphics);
+    graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
+    graphics.setColor(240, 176, 0);
+    graphics.drawRect(44, 45, 88, 78);
+    // this.K = DirectUtils.getDirectGraphics(var1_1);
+    this.directGraphics = graphics;
+    this.drawPixels(graphics, this.pixelBuffer, 0, 87, 45, 46, 87, 39);
+    this.drawPixels(graphics, this.pixelBuffer, 0, 87, 45, 85, 87, 38);
+    {
+      let var6_13 = 0;
+      let var7_15 = 0;
+      while (var7_15 < 4) {
+        if (this.menuSelection === var7_15) {
+          graphics.setColor(0xffffff);
+        } else {
+          graphics.setColor(96, 192, 255);
+        }
+        if (var7_15 === 0) {
+          var6_13 = 8;
+        } else if (var7_15 === 1) {
+          var6_13 = GameScreen.saveData[2] === 1 ? 3 : 7;
+        } else if (var7_15 === 2) {
+          var6_13 = 9;
+        } else if (var7_15 === 3) {
+          var6_13 = 6;
+        }
+        graphics.drawString(GameMIDlet.menuTexts[var6_13], 56, 56 + var7_15 * 16, 20);
+        ++var7_15;
+      }
+    }
+  }
+
+  /**
+   * state=3 ABOUT / state=6 HELP：帮助与关于文本页（两 state 共用本方法，由 `this.state` 区分文本源）。
+   * 有按键则清理并回主菜单；首帧按 Help/About 载入对应文本并换行绘制；每帧绘制「返回」提示。
+   * 跳出 `switch(state)` 的 break 改 return（对应 CFR a.java paint case 3/6；行为网未覆盖 state 3/6，靠 CFR 对照）。
+   */
+  private paintHelpAbout(graphics: Graphics): void {
+    if (this.heldKeyAction !== 0) {
+      this.state = GameState.MainMenu;
+      this.inTaskSelectMenu = false;
+      this.stateTimer = 0;
+      this.clearInputQueue();
+      GameScreen.currentText = null;
+      // System.gc();
+      return;
+    }
+    if (this.stateTimer === 0) {
+      let var8_17: number;
+      if (this.state === GameState.Help) {
+        this.loadTextFromBin(0);
+        var8_17 = 3;
+      } else {
+        this.loadTextFromBin(1);
+        var8_17 = 25;
+      }
+      GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+      graphics.setFont(Font.getFont(0, 1, 8)); // SYSTEM/BOLD/SMALL
+      graphics.setColor(65280);
+      this.drawWrappedText(graphics, 20, var8_17, 14);
+      ++this.stateTimer;
+    }
+    this.drawReturnHint(graphics);
+  }
+
+  /**
+   * state=20 CAPTURE_CUTSCENE：抓捕过场（红帽被擒/擒敌的定格淡入淡出）。前 12 帧淡入（fillScreenColor）；
+   * 之后据玩家 spareO/spareP 与血量决定转 MissionComplete/MissionFailed，或复位玩家坐标（`<<10` 定点）、
+   * 重定相机后转 Playing。跳出 `switch(state)` 的 break 改 return；末尾无 break 复刻原版末 case 自然退出
+   * （对应 CFR a.java paint case 20；行为网未覆盖 state 20，靠 CFR 对照）。
+   */
+  private paintCaptureCutscene(graphics: Graphics): void {
+    this.fillScreenColor(graphics, this.stateTimer++);
+    if (this.stateTimer <= 12) return;
+    this.stateTimer = 0;
+    this.player.actionFlag = false;
+    this.player.linkedEnemy = null;
+    this.menuSelection = 0;
+    this.heldKeyAction = 0;
+    if (this.player.spareO === 16 && this.player.spareP === 16) {
+      this.state = GameState.MissionComplete;
+      return;
+    }
+    if (this.player.health <= 0) {
+      this.state = GameState.MissionFailed;
+      return;
+    }
+    this.player.setFrame(0);
+    this.player.facingFlag = 0;
+    this.player.posX = this.player.spareO << 10;
+    this.player.posY = this.player.spareP << 10;
+    {
+      const var8_18 = GameScreen.playHeight << 10;
+      GameScreen.instance.cameraX = this.player.posX - ((GameScreen.viewWidthFx / 5) | 0);
+      GameScreen.instance.cameraY = this.player.posY - ((var8_18 * 3 / 4) | 0);
+    }
+    this.tileMap.invalidateBuffer();
+    this.state = GameState.Playing;
   }
 
   /**
@@ -1408,20 +1538,20 @@ export class GameScreen extends Canvas {
    * @param n 要加载的关卡 ID
    */
   // a(int) → a_I（关卡分步加载，按 w 推进）
-  loadLevelStep(n: number): void {
+  loadLevelStep(levelIndex: number): void {
     this.levelLoaded = false;
     switch (this.stateTimer) {
       case 0: {
         // System.gc();
-        this.isCutsceneEntry = n !== 4;
+        this.isCutsceneEntry = levelIndex !== 4;
         this.stateTimer = 1;
         return;
       }
       case 1: {
         if (!this.levelResourcesReady) {
-          this.levelLoader = LevelLoader.loadLevel(this, n)!; // a_TaI 返回 j|null，原版直接赋给可空字段 g
+          this.levelLoader = LevelLoader.loadLevel(this, levelIndex)!; // a_TaI 返回 j|null，原版直接赋给可空字段 g
         } else {
-          LevelLoader.tileMap!.reloadColumnData(n);
+          LevelLoader.tileMap!.reloadColumnData(levelIndex);
         }
         this.stateTimer = 2;
         return;
@@ -1438,10 +1568,10 @@ export class GameScreen extends Canvas {
         if (LevelLoader.spriteDefPool[21] == null) {
           LevelLoader.retainSpriteDef(21);
           this.projectilePools[0] = new Array<ProjectileActor | null>(10).fill(null);
-          let n2 = 0;
-          while (n2 < 10) {
-            this.projectilePools[0]![n2] = new ProjectileActor(ActorType.GuidedMissileProjectile, LevelLoader.spriteDefPool[21]!, this);
-            ++n2;
+          let poolIndex = 0;
+          while (poolIndex < 10) {
+            this.projectilePools[0]![poolIndex] = new ProjectileActor(ActorType.GuidedMissileProjectile, LevelLoader.spriteDefPool[21]!, this);
+            ++poolIndex;
           }
         }
         this.stateTimer = 4;
@@ -1453,10 +1583,10 @@ export class GameScreen extends Canvas {
         }
         if (this.projectilePools[1] == null) {
           this.projectilePools[1] = new Array<ProjectileActor | null>(3).fill(null);
-          let n3 = 0;
-          while (n3 < 3) {
-            this.projectilePools[1]![n3] = new ProjectileActor(ActorType.PlayerBounceShot, LevelLoader.spriteDefPool[10]!, this);
-            ++n3;
+          let poolIndex = 0;
+          while (poolIndex < 3) {
+            this.projectilePools[1]![poolIndex] = new ProjectileActor(ActorType.PlayerBounceShot, LevelLoader.spriteDefPool[10]!, this);
+            ++poolIndex;
           }
         }
         this.stateTimer = 5;
@@ -1466,10 +1596,10 @@ export class GameScreen extends Canvas {
         if (LevelLoader.spriteDefPool[20] == null) {
           LevelLoader.retainSpriteDef(20);
           this.projectilePools[2] = new Array<ProjectileActor | null>(6).fill(null);
-          let n4 = 0;
-          while (n4 < 6) {
-            this.projectilePools[2]![n4] = new ProjectileActor(ActorType.FallingBombProjectile, LevelLoader.spriteDefPool[20]!, this);
-            ++n4;
+          let poolIndex = 0;
+          while (poolIndex < 6) {
+            this.projectilePools[2]![poolIndex] = new ProjectileActor(ActorType.FallingBombProjectile, LevelLoader.spriteDefPool[20]!, this);
+            ++poolIndex;
           }
         }
         this.stateTimer = 6;
@@ -1479,10 +1609,10 @@ export class GameScreen extends Canvas {
         if (LevelLoader.spriteDefPool[15] == null) {
           LevelLoader.retainSpriteDef(15);
           this.projectilePools[3] = new Array<ProjectileActor | null>(2).fill(null);
-          let n5 = 0;
-          while (n5 < 2) {
-            this.projectilePools[3]![n5] = new ProjectileActor(ActorType.GrenadeProjectile, LevelLoader.spriteDefPool[15]!, this);
-            ++n5;
+          let poolIndex = 0;
+          while (poolIndex < 2) {
+            this.projectilePools[3]![poolIndex] = new ProjectileActor(ActorType.GrenadeProjectile, LevelLoader.spriteDefPool[15]!, this);
+            ++poolIndex;
           }
         }
         if (this.levelIndex === 2 || this.levelIndex === 4) {
@@ -1495,10 +1625,10 @@ export class GameScreen extends Canvas {
         if (LevelLoader.spriteDefPool[16] == null) {
           LevelLoader.retainSpriteDef(16);
           this.projectilePools[4] = new Array<ProjectileActor | null>(10).fill(null);
-          let n6 = 0;
-          while (n6 < 10) {
-            this.projectilePools[4]![n6] = new ProjectileActor(ActorType.ExplosionEffect, LevelLoader.spriteDefPool[16]!, this);
-            ++n6;
+          let poolIndex = 0;
+          while (poolIndex < 10) {
+            this.projectilePools[4]![poolIndex] = new ProjectileActor(ActorType.ExplosionEffect, LevelLoader.spriteDefPool[16]!, this);
+            ++poolIndex;
           }
         }
         this.stateTimer = 8;
@@ -1515,17 +1645,17 @@ export class GameScreen extends Canvas {
               this.enemyGrid = new Array<(EnemyActor | null)[] | null>(2).fill(null);
               LevelLoader.retainSpriteDef(2);
               this.enemyGrid[0] = new Array<EnemyActor | null>(3).fill(null);
-              let n7 = 0;
-              while (n7 < 3) {
-                this.enemyGrid[0]![n7] = new EnemyActor(ActorType.MeleeBomberEnemy, LevelLoader.spriteDefPool[2]!, this);
-                ++n7;
+              let bomberSlot = 0;
+              while (bomberSlot < 3) {
+                this.enemyGrid[0]![bomberSlot] = new EnemyActor(ActorType.MeleeBomberEnemy, LevelLoader.spriteDefPool[2]!, this);
+                ++bomberSlot;
               }
               LevelLoader.retainSpriteDef(1);
               this.enemyGrid[1] = new Array<EnemyActor | null>(3).fill(null);
-              let n8 = 0;
-              while (n8 < 3) {
-                this.enemyGrid[1]![n8] = new EnemyActor(ActorType.ReconScoutEnemy, LevelLoader.spriteDefPool[1]!, this);
-                ++n8;
+              let scoutSlot = 0;
+              while (scoutSlot < 3) {
+                this.enemyGrid[1]![scoutSlot] = new EnemyActor(ActorType.ReconScoutEnemy, LevelLoader.spriteDefPool[1]!, this);
+                ++scoutSlot;
               }
             }
             if (this.levelIndex !== 4 || this.boss != null) break;
@@ -2131,65 +2261,65 @@ export class GameScreen extends Canvas {
   }
 
   // b(Graphics,int) → b_GI（任务简报界面绘制）
-  private drawBriefingScreen(graphics: Graphics, n: number): void {
-    let n2 = 0;
-    let n3 = 0;
-    let n4 = 0;
-    let n5 = 1;
+  private drawBriefingScreen(graphics: Graphics, animTick: number): void {
+    let portraitSpriteDefIndex = 0;
+    let textLineIndex = 0;
+    let portraitY = 0;
+    let portraitFrameMod = 1;
     graphics.setColor(65280);
     switch (this.levelIndex) {
       case 2: {
-        n3 = 5;
-        n4 = 45;
-        n2 = 5;
+        textLineIndex = 5;
+        portraitY = 45;
+        portraitSpriteDefIndex = 5;
         graphics.drawString("敌人绑架了化学专家", 78, 16, 17);
         break;
       }
       case 4: {
-        n3 = 8;
-        n4 = 50;
-        n5 = 6;
-        n2 = 4;
+        textLineIndex = 8;
+        portraitY = 50;
+        portraitFrameMod = 6;
+        portraitSpriteDefIndex = 4;
         graphics.drawString("敌人制造了巨型炸弹", 78, 16, 17);
         break;
       }
       case 0: {
-        n3 = 0;
+        textLineIndex = 0;
         break;
       }
       case 1: {
-        n3 = 3;
+        textLineIndex = 3;
         break;
       }
       case 3: {
-        n3 = 7;
+        textLineIndex = 7;
         break;
       }
       case 5: {
-        n3 = 10;
+        textLineIndex = 10;
         break;
       }
       case 6: {
-        n3 = 11;
+        textLineIndex = 11;
         break;
       }
       case 7: {
-        n3 = 12;
+        textLineIndex = 12;
       }
     }
     if (this.levelIndex !== 2 && this.levelIndex !== 4) {
-      n4 = 30;
-      n5 = 3;
-      n2 = 13;
+      portraitY = 30;
+      portraitFrameMod = 3;
+      portraitSpriteDefIndex = 13;
       graphics.drawString("总部呼叫红帽", (GameScreen.screenWidth / 2) | 0, 16, 17);
     }
-    if (LevelLoader.spriteDefPool[n2] == null) {
-      LevelLoader.spriteDefPool[n2] = SpriteDef.loadFromBin(n2);
+    if (LevelLoader.spriteDefPool[portraitSpriteDefIndex] == null) {
+      LevelLoader.spriteDefPool[portraitSpriteDefIndex] = SpriteDef.loadFromBin(portraitSpriteDefIndex);
     }
-    LevelLoader.spriteDefPool[n2]!.paintSequenceFrame(graphics, 145, n4, 0, n % n5, 0, 0);
+    LevelLoader.spriteDefPool[portraitSpriteDefIndex]!.paintSequenceFrame(graphics, 145, portraitY, 0, animTick % portraitFrameMod, 0, 0);
     GameScreen.fillRectClipped(graphics, 135, 0, 25, 6, 0);
     GameScreen.fillRectClipped(graphics, 135, 34, 25, 25, 0);
-    LevelLoader.spriteDefPool[0]!.paintSequenceFrame(graphics, 25, 212, 0, n % 3, 0, 0);
+    LevelLoader.spriteDefPool[0]!.paintSequenceFrame(graphics, 25, 212, 0, animTick % 3, 0, 0);
     GameScreen.fillRectClipped(graphics, 0, 200, 50, 8, 0);
     graphics.setColor(65280);
     graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
@@ -2198,12 +2328,12 @@ export class GameScreen extends Canvas {
     graphics.drawRect(5, 171, 166, 32);
     graphics.drawString("收到", 60, 180, 20);
     graphics.drawString("任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1), 15, 52, 20);
-    this.drawTextLine(graphics, n3, 30, 72);
+    this.drawTextLine(graphics, textLineIndex, 30, 72);
     if (this.levelIndex !== 3 && this.levelIndex !== 5 && this.levelIndex !== 6) {
       graphics.drawString("注意", 15, 110, 20);
-      this.drawTextLine(graphics, n3 + 1, 30, 130);
+      this.drawTextLine(graphics, textLineIndex + 1, 30, 130);
       if (this.levelIndex < 1) {
-        this.drawTextLine(graphics, n3 + 2, 30, 150);
+        this.drawTextLine(graphics, textLineIndex + 2, 30, 150);
       }
     }
   }
