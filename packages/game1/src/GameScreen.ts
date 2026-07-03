@@ -952,49 +952,46 @@ export class GameScreen extends Canvas {
    */
   // a() → a_
   updateWorld(): void {
-    let n: number;
-    let n2 = 0;
-    let n3 = 0;
-    let n4 = 0;
-    const nArray = new Int32Array(10);
-    n2 = 0;
-    while (n2 < this.drawQueueCount) {
-      this.drawQueue[n2] = null;
-      ++n2;
+    const pickupIds = new Int32Array(10);
+    let pickupCount = 0;
+    let i = 0;
+    while (i < this.drawQueueCount) {
+      this.drawQueue[i] = null;
+      ++i;
     }
     this.drawQueueCount = 0;
-    n2 = 0;
-    const gfg = this.levelLoader.blockActorIndices[this.levelLoader.currentBlock]!; // f[g] 为当前活动单位 id 行（原 Java byte[]，此路径非空）
-    while (n2 < gfg.length) {
-      n = gfg[n2];
+    i = 0;
+    const activeIdRow = this.levelLoader.blockActorIndices[this.levelLoader.currentBlock]!; // f[g] 为当前活动单位 id 行（原 Java byte[]，此路径非空）
+    while (i < activeIdRow.length) {
+      const actorId = activeIdRow[i];
       // typeId 在 ActorBase 中为 protected（原 Java 为包内可见）；GameScreen 非 ActorBase 子类，经结构视图读取保持等价。
-      const en = LevelLoader.activeActors[n] as unknown as ({ active: boolean; typeId: number } | null);
-      if (n !== 0 && en != null && en.active && en.typeId !== ActorType.Player) {
-        if (this.isPickupType(en.typeId)) {
-          nArray[n4++] = n;
+      const actor = LevelLoader.activeActors[actorId] as unknown as ({ active: boolean; typeId: number } | null);
+      if (actorId !== 0 && actor != null && actor.active && actor.typeId !== ActorType.Player) {
+        if (this.isPickupType(actor.typeId)) {
+          pickupIds[pickupCount++] = actorId;
         } else {
-          this.drawQueue[this.drawQueueCount++] = LevelLoader.activeActors[n];
+          this.drawQueue[this.drawQueueCount++] = LevelLoader.activeActors[actorId];
         }
       }
-      ++n2;
+      ++i;
     }
     if (this.levelIndex !== 4) {
       this.drawQueue[this.drawQueueCount++] = this.player;
     }
     if (this.enemyAliveCount > 0) {
-      n2 = 0;
-      while (n2 < 2) {
-        n3 = 0;
-        while (n3 < 3) {
-          if (this.enemyGrid![n2]![n3]!.active) {
-            if (this.enemyGrid![n2]![n3]!.trailEffect != null && this.enemyGrid![n2]![n3]!.trailEffect!.active) {
-              this.drawQueue[this.drawQueueCount++] = this.enemyGrid![n2]![n3]!.trailEffect;
+      i = 0;
+      while (i < 2) {
+        let j = 0;
+        while (j < 3) {
+          if (this.enemyGrid![i]![j]!.active) {
+            if (this.enemyGrid![i]![j]!.trailEffect != null && this.enemyGrid![i]![j]!.trailEffect!.active) {
+              this.drawQueue[this.drawQueueCount++] = this.enemyGrid![i]![j]!.trailEffect;
             }
-            this.drawQueue[this.drawQueueCount++] = this.enemyGrid![n2]![n3];
+            this.drawQueue[this.drawQueueCount++] = this.enemyGrid![i]![j];
           }
-          ++n3;
+          ++j;
         }
-        ++n2;
+        ++i;
       }
       if (this.levelIndex === 4 && this.boss != null) {
         if (this.boss.active) {
@@ -1008,41 +1005,41 @@ export class GameScreen extends Canvas {
     if (this.levelIndex === 4) {
       this.drawQueue[this.drawQueueCount++] = this.player;
     }
-    n2 = 0;
-    while (n2 < n4) {
-      this.drawQueue[this.drawQueueCount++] = LevelLoader.activeActors[nArray[n2]];
-      ++n2;
+    i = 0;
+    while (i < pickupCount) {
+      this.drawQueue[this.drawQueueCount++] = LevelLoader.activeActors[pickupIds[i]];
+      ++i;
     }
-    n3 = 0;
-    while (n3 < 5) {
-      if (this.projectilePools[n3] != null) {
-        n2 = 0;
-        while (n2 < this.projectilePools[n3]!.length) {
-          if (this.projectilePools[n3]![n2]!.active) {
-            this.drawQueue[this.drawQueueCount++] = this.projectilePools[n3]![n2];
+    let poolIdx = 0;
+    while (poolIdx < 5) {
+      if (this.projectilePools[poolIdx] != null) {
+        i = 0;
+        while (i < this.projectilePools[poolIdx]!.length) {
+          if (this.projectilePools[poolIdx]![i]!.active) {
+            this.drawQueue[this.drawQueueCount++] = this.projectilePools[poolIdx]![i];
           }
-          ++n2;
+          ++i;
         }
       }
-      ++n3;
+      ++poolIdx;
     }
-    n2 = 0;
-    while (n2 < this.drawQueueCount) {
-      this.drawQueue[n2]!.stepPhysics();
-      ++n2;
+    i = 0;
+    while (i < this.drawQueueCount) {
+      this.drawQueue[i]!.stepPhysics();
+      ++i;
     }
-    n2 = 0;
-    while (n2 < this.drawQueueCount) {
-      this.drawQueue[n2]!.update();
-      ++n2;
+    i = 0;
+    while (i < this.drawQueueCount) {
+      this.drawQueue[i]!.update();
+      ++i;
     }
     this.updateCamera();
-    n = this.cameraX >> 10;
-    const n5 = this.cameraY >> 10;
+    const cameraPxX = this.cameraX >> 10;
+    const cameraPxY = this.cameraY >> 10;
     if (this.levelIndex !== 4) {
-      this.levelLoader.streamScreenTransitionTo(n, n5);
+      this.levelLoader.streamScreenTransitionTo(cameraPxX, cameraPxY);
     }
-    this.tileMap.setViewportOrigin(n, n5);
+    this.tileMap.setViewportOrigin(cameraPxX, cameraPxY);
   }
 
   /**
