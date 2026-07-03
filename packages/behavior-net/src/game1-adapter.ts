@@ -38,6 +38,7 @@ export async function createGame1Harness(seed: number): Promise<GameHarness> {
         state: s.state,
         frameCounter: s.frameCounter,
         killCount: s.killCount,
+        drawQueueCount: s.drawQueueCount, // 关卡内 actor 数（敌人/Boss/特效/道具/玩家）：actor 覆盖的可读信号
         enemyAliveCount: s.enemyAliveCount,
         levelIndex: s.levelIndex,
         menuSelection: s.menuSelection,
