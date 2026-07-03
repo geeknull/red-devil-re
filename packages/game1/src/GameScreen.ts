@@ -241,43 +241,7 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.LevelScroll: {
-          switch (this.levelIndex) {
-            case 2: {
-              if (!this.scriptFlagL) {
-                if (this.stateTimer++ <= 3) break;
-                this.cameraVelX = px(12);
-                this.cameraVelY = 0;
-                break;
-              }
-              if (this.stateTimer++ <= 9) break;
-              this.cameraVelX = px(-16);
-              break;
-            }
-            case 7: {
-              if (!this.scriptFlagL) {
-                if (this.stateTimer === 0) {
-                  this.cameraVelX = px(-8);
-                  break;
-                }
-                this.cameraVelX = px(16);
-                if (this.cameraX + this.cameraVelX <= this.scriptStageAc) break;
-                this.cameraX = this.scriptStageAc;
-                this.cameraVelX = 0;
-                this.state = GameState.Playing;
-                this.heldKeyAction = 0;
-                this.stateTimer = 0;
-                break;
-              }
-              if (this.stateTimer++ > 30) {
-                this.scriptFlagL = false;
-                this.cameraVelY = 0;
-                break;
-              }
-              this.cameraVelX = 0;
-            }
-          }
-          this.updateWorld();
-          this.renderWorld(var1_1);
+          this.paintLevelScroll(var1_1);
           break;
         }
         case GameState.LevelEnter: {
@@ -989,6 +953,52 @@ export class GameScreen extends Canvas {
       const var5_9 = this.cursorWidth >>> 1;
       graphics.drawLine(52 - var5_9, 100 + this.menuVisibleMax * 15, 52 + var5_9, 100 + this.menuVisibleMax * 15);
     }
+  }
+
+  /**
+   * state=21 SCROLL_CUTSCENE：关卡内相机卷动过场（仅关卡2/7 有脚本）。按 `levelIndex` 与
+   * `scriptFlagL`/`stateTimer` 驱动相机速度；关卡7 卷到 `scriptStageAc` 后转 Playing。
+   * 内层 `switch(levelIndex)` 的 break 均跳出该子 switch（保留 break），随后照常
+   * `updateWorld()+renderWorld()`（对应 CFR a.java paint case 21；行为网未覆盖 state 21，靠 CFR 对照）。
+   */
+  private paintLevelScroll(graphics: Graphics): void {
+    switch (this.levelIndex) {
+      case 2: {
+        if (!this.scriptFlagL) {
+          if (this.stateTimer++ <= 3) break;
+          this.cameraVelX = px(12);
+          this.cameraVelY = 0;
+          break;
+        }
+        if (this.stateTimer++ <= 9) break;
+        this.cameraVelX = px(-16);
+        break;
+      }
+      case 7: {
+        if (!this.scriptFlagL) {
+          if (this.stateTimer === 0) {
+            this.cameraVelX = px(-8);
+            break;
+          }
+          this.cameraVelX = px(16);
+          if (this.cameraX + this.cameraVelX <= this.scriptStageAc) break;
+          this.cameraX = this.scriptStageAc;
+          this.cameraVelX = 0;
+          this.state = GameState.Playing;
+          this.heldKeyAction = 0;
+          this.stateTimer = 0;
+          break;
+        }
+        if (this.stateTimer++ > 30) {
+          this.scriptFlagL = false;
+          this.cameraVelY = 0;
+          break;
+        }
+        this.cameraVelX = 0;
+      }
+    }
+    this.updateWorld();
+    this.renderWorld(graphics);
   }
 
   /**
