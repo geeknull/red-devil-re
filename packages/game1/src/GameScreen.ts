@@ -265,52 +265,7 @@ export class GameScreen extends Canvas {
           break;
         }
         case GameState.MissionComplete: {
-          if (this.heldKeyAction !== 0 && this.stateTimer !== 10) {
-            this.stateTimer = 10;
-            this.animFrameIndex = 0;
-            this.clearInputQueue();
-          }
-          this.drawReturnHint(var1_1);
-          if (this.stateTimer === 0) {
-            GameScreen.playSound(2, 1, 140);
-            this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
-            var1_1.setColor(65280);
-            var1_1.drawString(
-              "任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1) + "完成",
-              (GameScreen.screenWidth / 2) | 0,
-              35,
-              17
-            );
-            var1_1.drawString("击毙敌人: " + this.killCount, 36, 74, 20);
-            var1_1.drawString("所用时间: " + GameScreen.formatTime(this.levelStartMs), 36, 105, 20);
-            this.stateTimer = 1;
-            this.animFrameIndex = 0;
-            break;
-          }
-          var1_1.setColor(0);
-          var1_1.fillRect(54, 125, 60, 50);
-          if (this.stateTimer === 10) {
-            if (!this.drawBriefingAnim(var1_1, 0, 14, 84, 175, this.animFrameIndex++)) break;
-            this.stateTimer = 0;
-            this.clearInputQueue();
-            if (this.levelIndex !== 7) {
-              ++this.levelIndex;
-              this.releaseLevel();
-              this.state = GameState.LevelLoading;
-              if (((this.levelIndex << 24) >> 24) > GameScreen.saveData[0]) {
-                GameScreen.saveData[0] = (this.levelIndex << 24) >> 24; // (byte)
-              }
-              GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
-              this.accessSaveData(0);
-            } else {
-              this.state = GameState.Ending;
-              this.creditScrollX = -176;
-              this.creditScrollX2 = -20;
-            }
-            // System.gc();
-            break;
-          }
-          this.drawBriefingAnim(var1_1, 0, 0, 84, 175, this.animFrameIndex++);
+          this.paintMissionComplete(var1_1);
           break;
         }
         case GameState.GoalCutscene: {
@@ -1019,6 +974,61 @@ export class GameScreen extends Canvas {
       }
       ++this.stateTimer;
     }
+  }
+
+  /**
+   * state=16 MISSION_COMPLETE：任务完成结算页。首帧播音并结算用时/击杀；stateTimer===10 时
+   * 播放完成动画（drawBriefingAnim 返回 true 结束），随后进下一关（关卡7 则转片尾），并写存档
+   * （最高进度/当前关，`<<24>>24` 字节截断保留）。所有 break 均跳出 `switch(state)`→改 return
+   * （对应 CFR a.java paint case 16；行为网未覆盖 state 16，靠 CFR 对照）。
+   */
+  private paintMissionComplete(graphics: Graphics): void {
+    if (this.heldKeyAction !== 0 && this.stateTimer !== 10) {
+      this.stateTimer = 10;
+      this.animFrameIndex = 0;
+      this.clearInputQueue();
+    }
+    this.drawReturnHint(graphics);
+    if (this.stateTimer === 0) {
+      GameScreen.playSound(2, 1, 140);
+      this.levelStartMs = Date.now() - this.levelStartMs; // System.currentTimeMillis() - D
+      graphics.setColor(65280);
+      graphics.drawString(
+        "任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1) + "完成",
+        (GameScreen.screenWidth / 2) | 0,
+        35,
+        17
+      );
+      graphics.drawString("击毙敌人: " + this.killCount, 36, 74, 20);
+      graphics.drawString("所用时间: " + GameScreen.formatTime(this.levelStartMs), 36, 105, 20);
+      this.stateTimer = 1;
+      this.animFrameIndex = 0;
+      return;
+    }
+    graphics.setColor(0);
+    graphics.fillRect(54, 125, 60, 50);
+    if (this.stateTimer === 10) {
+      if (!this.drawBriefingAnim(graphics, 0, 14, 84, 175, this.animFrameIndex++)) return;
+      this.stateTimer = 0;
+      this.clearInputQueue();
+      if (this.levelIndex !== 7) {
+        ++this.levelIndex;
+        this.releaseLevel();
+        this.state = GameState.LevelLoading;
+        if (((this.levelIndex << 24) >> 24) > GameScreen.saveData[0]) {
+          GameScreen.saveData[0] = (this.levelIndex << 24) >> 24; // (byte)
+        }
+        GameScreen.saveData[1] = (this.levelIndex << 24) >> 24; // (byte)
+        this.accessSaveData(0);
+      } else {
+        this.state = GameState.Ending;
+        this.creditScrollX = -176;
+        this.creditScrollX2 = -20;
+      }
+      // System.gc();
+      return;
+    }
+    this.drawBriefingAnim(graphics, 0, 0, 84, 175, this.animFrameIndex++);
   }
 
   /**
