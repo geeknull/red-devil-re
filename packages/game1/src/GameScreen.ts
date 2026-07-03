@@ -225,57 +225,7 @@ export class GameScreen extends Canvas {
     try {
       switch (this.state) {
         case GameState.Logo: {
-          if (this.stateTimer++ === 0) {
-            this.hudImage = GameScreen.loadImageFromBin(8);
-            var1_1.drawImage(this.hudImage!, 29, 55, 20);
-            var1_1.setColor(238, 25, 33);
-            var1_1.setFont(Font.getFont(0, 1, 0)); // SYSTEM/BOLD/MEDIUM
-            var1_1.drawString("移动互连 无限可能", (GameScreen.screenWidth / 2) | 0, 128, 17);
-            this.hudImage = GameScreen.loadImageFromBin(7);
-            this.menuImage = GameScreen.loadImageFromBin(0);
-            this.initGameResources();
-            break;
-          }
-          if (this.stateTimer === 12) {
-            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0xffffff);
-            var1_1.drawImage(this.hudImage!, 12, 12, 20);
-            var1_1.drawImage(this.menuImage!, 88, 95, 17);
-            var1_1.setColor(155, 166, 173);
-            var1_1.drawString("新浪无线代理发行", 60, 142, 20);
-            this.menuImage = null;
-            this.hudImage = null;
-            break;
-          }
-          if (this.stateTimer === 22) {
-            this.menuImage = GameScreen.loadImageFromBin(1);
-            GameScreen.fillRectClipped(var1_1, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
-            var1_1.drawImage(this.menuImage!, 57, 80, 20);
-            var1_1.setColor(0xffffff);
-            var1_1.drawString("www.tickgame.com", 88, 120, 17);
-            break;
-          }
-          if (this.stateTimer > 32 && this.stateTimer < 42) {
-            let var2_2 = 0;
-            while (var2_2 < this.pixelBuffer.length) {
-              this.pixelBuffer[var2_2] = ((this.stateTimer - 32) << 16) >> 16; // (short)(w-32)
-              const v0 = var2_2++;
-              this.pixelBuffer[v0] = (this.pixelBuffer[v0] << 12) << 16 >> 16; // (short)(... << 12)
-            }
-            // this.K = DirectUtils.getDirectGraphics(var1_1);
-            // K.drawPixels(J, true, 0, 72, 57, 60, 72, 48, 0, 4444);
-            this.directGraphics = var1_1;
-            this.drawPixels(var1_1, this.pixelBuffer, 0, 72, 57, 60, 72, 48);
-            break;
-          }
-          if (this.stateTimer !== 42) break;
-          this.stateTimer = 0;
-          this.state = GameState.MainMenu;
-          this.menuVisibleMax = 0;
-          this.menuSelection = 0;
-          this.hudBlinkCounter = 1;
-          this.inTaskSelectMenu = false;
-          this.menuImage = GameScreen.loadImageFromBin(2);
-          GameScreen.playSound(0, 1, 160);
+          this.paintLogo(var1_1);
           break;
         }
         case GameState.MainMenu: {
@@ -967,6 +917,66 @@ export class GameScreen extends Canvas {
       this.player.targetVelX = 0;
       this.player.setFrame(1);
     }
+  }
+
+  /**
+   * state=1 LOGO：开机品牌 Logo 分帧序列（stateTimer 0→12→22→32-42→42）。
+   * 首帧载入资源并绘 tickgame 标语；12/22 帧切换发行/网址页；32-42 帧用像素缓冲做 RGB4444
+   * 渐变过场（`drawPixels`）；到 42 帧转主菜单。Java short 截断 `<<16>>16`、`<<12` 为原版位级复刻，
+   * 勿改（对应 CFR a.java paint case 1）。
+   */
+  private paintLogo(graphics: Graphics): void {
+    if (this.stateTimer++ === 0) {
+      this.hudImage = GameScreen.loadImageFromBin(8);
+      graphics.drawImage(this.hudImage!, 29, 55, 20);
+      graphics.setColor(238, 25, 33);
+      graphics.setFont(Font.getFont(0, 1, 0)); // SYSTEM/BOLD/MEDIUM
+      graphics.drawString("移动互连 无限可能", (GameScreen.screenWidth / 2) | 0, 128, 17);
+      this.hudImage = GameScreen.loadImageFromBin(7);
+      this.menuImage = GameScreen.loadImageFromBin(0);
+      this.initGameResources();
+      return;
+    }
+    if (this.stateTimer === 12) {
+      GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0xffffff);
+      graphics.drawImage(this.hudImage!, 12, 12, 20);
+      graphics.drawImage(this.menuImage!, 88, 95, 17);
+      graphics.setColor(155, 166, 173);
+      graphics.drawString("新浪无线代理发行", 60, 142, 20);
+      this.menuImage = null;
+      this.hudImage = null;
+      return;
+    }
+    if (this.stateTimer === 22) {
+      this.menuImage = GameScreen.loadImageFromBin(1);
+      GameScreen.fillRectClipped(graphics, 0, 0, GameScreen.screenWidth, GameScreen.screenHeight, 0);
+      graphics.drawImage(this.menuImage!, 57, 80, 20);
+      graphics.setColor(0xffffff);
+      graphics.drawString("www.tickgame.com", 88, 120, 17);
+      return;
+    }
+    if (this.stateTimer > 32 && this.stateTimer < 42) {
+      let var2_2 = 0;
+      while (var2_2 < this.pixelBuffer.length) {
+        this.pixelBuffer[var2_2] = ((this.stateTimer - 32) << 16) >> 16; // (short)(w-32)
+        const v0 = var2_2++;
+        this.pixelBuffer[v0] = (this.pixelBuffer[v0] << 12) << 16 >> 16; // (short)(... << 12)
+      }
+      // this.K = DirectUtils.getDirectGraphics(var1_1);
+      // K.drawPixels(J, true, 0, 72, 57, 60, 72, 48, 0, 4444);
+      this.directGraphics = graphics;
+      this.drawPixels(graphics, this.pixelBuffer, 0, 72, 57, 60, 72, 48);
+      return;
+    }
+    if (this.stateTimer !== 42) return;
+    this.stateTimer = 0;
+    this.state = GameState.MainMenu;
+    this.menuVisibleMax = 0;
+    this.menuSelection = 0;
+    this.hudBlinkCounter = 1;
+    this.inTaskSelectMenu = false;
+    this.menuImage = GameScreen.loadImageFromBin(2);
+    GameScreen.playSound(0, 1, 160);
   }
 
   /**
