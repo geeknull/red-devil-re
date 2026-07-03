@@ -40,4 +40,31 @@ const ctx3 = new RecordingContext(10, 10);
 ctx3.restore();
 a.eq("裸 restore 被记录且不抛", ctx3.ops[0], { op: "restore" });
 
+// 离屏画布按内容标识：同内容同身份（与分配序号 __cid 无关，防误红）、异内容异身份（防误绿）
+const offA = new RecordingContext(4, 4);
+offA.fillRect(0, 0, 1, 1);
+const offB = new RecordingContext(4, 4);
+offB.fillRect(0, 0, 1, 1);
+const offC = new RecordingContext(4, 4);
+offC.fillRect(0, 0, 2, 2);
+const main = new RecordingContext(10, 10);
+main.drawImage({ width: 4, height: 4, __ctx: offA, __cid: 100 }, 0, 0);
+main.drawImage({ width: 4, height: 4, __ctx: offB, __cid: 999 }, 0, 0);
+main.drawImage({ width: 4, height: 4, __ctx: offC, __cid: 7 }, 0, 0);
+a.eq("同内容离屏画布身份相同（与 __cid 无关）", main.ops[0].img, main.ops[1].img);
+a.ok("异内容离屏画布身份不同", main.ops[0].img !== main.ops[2].img);
+a.ok("身份是内容哈希形态 canvas@WxH#…", String(main.ops[0].img).startsWith("canvas@4x4#"));
+
+// putImageData 捕获像素内容（game1 换色管线出口）
+const px1 = new RecordingContext(2, 2);
+const idA = px1.createImageData(2, 2);
+idA.data[0] = 255;
+px1.putImageData(idA, 0, 0);
+const px2 = new RecordingContext(2, 2);
+const idB = px2.createImageData(2, 2);
+idB.data[0] = 128;
+px2.putImageData(idB, 0, 0);
+a.ok("putImageData 记录像素哈希", typeof px1.ops[0].pix === "string" && String(px1.ops[0].pix).length === 64);
+a.ok("不同像素→不同 pix 哈希", px1.ops[0].pix !== px2.ops[0].pix);
+
 a.done("recording-context");

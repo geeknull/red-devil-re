@@ -24,8 +24,12 @@ export class RecordingContext {
   private imgId(src: unknown): string {
     if (src && typeof src === "object") {
       const o = src as Record<string, unknown>;
-      if ("__imgKey" in o) return String(o.__imgKey);
-      if ("__cid" in o) return `canvas#${o.__cid}`;
+      if ("__imgKey" in o) return String(o.__imgKey); // 预注册 stub 图：稳定逻辑键
+      // 离屏画布：按其内容标识（写入的 op 序列 + 尺寸），不用分配序号。
+      // 内容变→身份变（防误绿：瓦片/换色精灵内容错误可见）；
+      // 分配顺序/缓存复用→身份不变（防误红：行为中性优化不触发假红）。
+      if ("__ctx" in o) return `canvas@${o.width}x${o.height}#${hashOps((o.__ctx as RecordingContext).ops)}`;
+      if ("__cid" in o) return `canvas#${o.__cid}`; // 兜底（挂了 __ctx 后理论不达）
     }
     return "?";
   }
@@ -78,8 +82,12 @@ export class RecordingContext {
   createImageData(w: number, h: number): { width: number; height: number; data: Uint8ClampedArray } {
     return { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) };
   }
-  putImageData(_data: unknown, x: number, y: number): void {
-    this.ops.push({ op: "putImageData", x, y });
+  putImageData(data: unknown, x: number, y: number): void {
+    // 记录像素内容哈希：game1 换色管线（createRGBImage）经此写像素，
+    // 只记 x,y 会让换色内容不可见（误绿）。哈希像素字节使内容变化进离屏 op 哈希。
+    const d = (data as { data?: Uint8ClampedArray } | null)?.data;
+    const pix = d ? createHash("sha256").update(d).digest("hex") : "";
+    this.ops.push({ op: "putImageData", x, y, pix });
   }
 }
 
