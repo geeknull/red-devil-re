@@ -2131,65 +2131,65 @@ export class GameScreen extends Canvas {
   }
 
   // b(Graphics,int) → b_GI（任务简报界面绘制）
-  private drawBriefingScreen(graphics: Graphics, n: number): void {
-    let n2 = 0;
-    let n3 = 0;
-    let n4 = 0;
-    let n5 = 1;
+  private drawBriefingScreen(graphics: Graphics, animTick: number): void {
+    let portraitSpriteDefIndex = 0;
+    let textLineIndex = 0;
+    let portraitY = 0;
+    let portraitFrameMod = 1;
     graphics.setColor(65280);
     switch (this.levelIndex) {
       case 2: {
-        n3 = 5;
-        n4 = 45;
-        n2 = 5;
+        textLineIndex = 5;
+        portraitY = 45;
+        portraitSpriteDefIndex = 5;
         graphics.drawString("敌人绑架了化学专家", 78, 16, 17);
         break;
       }
       case 4: {
-        n3 = 8;
-        n4 = 50;
-        n5 = 6;
-        n2 = 4;
+        textLineIndex = 8;
+        portraitY = 50;
+        portraitFrameMod = 6;
+        portraitSpriteDefIndex = 4;
         graphics.drawString("敌人制造了巨型炸弹", 78, 16, 17);
         break;
       }
       case 0: {
-        n3 = 0;
+        textLineIndex = 0;
         break;
       }
       case 1: {
-        n3 = 3;
+        textLineIndex = 3;
         break;
       }
       case 3: {
-        n3 = 7;
+        textLineIndex = 7;
         break;
       }
       case 5: {
-        n3 = 10;
+        textLineIndex = 10;
         break;
       }
       case 6: {
-        n3 = 11;
+        textLineIndex = 11;
         break;
       }
       case 7: {
-        n3 = 12;
+        textLineIndex = 12;
       }
     }
     if (this.levelIndex !== 2 && this.levelIndex !== 4) {
-      n4 = 30;
-      n5 = 3;
-      n2 = 13;
+      portraitY = 30;
+      portraitFrameMod = 3;
+      portraitSpriteDefIndex = 13;
       graphics.drawString("总部呼叫红帽", (GameScreen.screenWidth / 2) | 0, 16, 17);
     }
-    if (LevelLoader.spriteDefPool[n2] == null) {
-      LevelLoader.spriteDefPool[n2] = SpriteDef.loadFromBin(n2);
+    if (LevelLoader.spriteDefPool[portraitSpriteDefIndex] == null) {
+      LevelLoader.spriteDefPool[portraitSpriteDefIndex] = SpriteDef.loadFromBin(portraitSpriteDefIndex);
     }
-    LevelLoader.spriteDefPool[n2]!.paintSequenceFrame(graphics, 145, n4, 0, n % n5, 0, 0);
+    LevelLoader.spriteDefPool[portraitSpriteDefIndex]!.paintSequenceFrame(graphics, 145, portraitY, 0, animTick % portraitFrameMod, 0, 0);
     GameScreen.fillRectClipped(graphics, 135, 0, 25, 6, 0);
     GameScreen.fillRectClipped(graphics, 135, 34, 25, 25, 0);
-    LevelLoader.spriteDefPool[0]!.paintSequenceFrame(graphics, 25, 212, 0, n % 3, 0, 0);
+    LevelLoader.spriteDefPool[0]!.paintSequenceFrame(graphics, 25, 212, 0, animTick % 3, 0, 0);
     GameScreen.fillRectClipped(graphics, 0, 200, 50, 8, 0);
     graphics.setColor(65280);
     graphics.setClip(0, 0, GameScreen.screenWidth, GameScreen.screenHeight);
@@ -2198,12 +2198,12 @@ export class GameScreen extends Canvas {
     graphics.drawRect(5, 171, 166, 32);
     graphics.drawString("收到", 60, 180, 20);
     graphics.drawString("任务" + GameScreen.taskNumberChars.substring(GameScreen.instance.levelIndex, GameScreen.instance.levelIndex + 1), 15, 52, 20);
-    this.drawTextLine(graphics, n3, 30, 72);
+    this.drawTextLine(graphics, textLineIndex, 30, 72);
     if (this.levelIndex !== 3 && this.levelIndex !== 5 && this.levelIndex !== 6) {
       graphics.drawString("注意", 15, 110, 20);
-      this.drawTextLine(graphics, n3 + 1, 30, 130);
+      this.drawTextLine(graphics, textLineIndex + 1, 30, 130);
       if (this.levelIndex < 1) {
-        this.drawTextLine(graphics, n3 + 2, 30, 150);
+        this.drawTextLine(graphics, textLineIndex + 2, 30, 150);
       }
     }
   }
