@@ -140,54 +140,54 @@ export class LevelScene {
    */
   // public final void a();  → a_
   buildDrawList(): void {
-    let n: number;
+    let i: number;
     LevelScene.drawCount = 0;
     if (this.cellTriggers[this.currentCell] != null) {
-      n = 0;
-      while (n < this.cellTriggers[this.currentCell]!.length) {
-        this.runTrigger(this.cellTriggers[this.currentCell]![n]);
-        ++n;
+      i = 0;
+      while (i < this.cellTriggers[this.currentCell]!.length) {
+        this.runTrigger(this.cellTriggers[this.currentCell]![i]);
+        ++i;
       }
     }
-    n = 0;
-    while (n < this.residentActorSlots) {
-      if (LevelScene.activeActors[n] != null && LevelScene.activeActors[n]!.alive) {
-        LevelScene.drawList[LevelScene.drawCount++] = LevelScene.activeActors[n];
+    i = 0;
+    while (i < this.residentActorSlots) {
+      if (LevelScene.activeActors[i] != null && LevelScene.activeActors[i]!.alive) {
+        LevelScene.drawList[LevelScene.drawCount++] = LevelScene.activeActors[i];
       }
-      ++n;
+      ++i;
     }
-    n = this.residentActorSlots;
-    while (n < LevelScene.activeActors.length) {
-      if (LevelScene.activeActors[n] != null && LevelScene.activeActors[n]!.alive) {
-        LevelScene.drawList[LevelScene.drawCount++] = LevelScene.activeActors[n];
+    i = this.residentActorSlots;
+    while (i < LevelScene.activeActors.length) {
+      if (LevelScene.activeActors[i] != null && LevelScene.activeActors[i]!.alive) {
+        LevelScene.drawList[LevelScene.drawCount++] = LevelScene.activeActors[i];
       }
-      ++n;
+      ++i;
     }
-    n = 0;
-    while (n < LevelScene.drawCount) {
-      LevelScene.drawList[n]!.step();
-      ++n;
+    i = 0;
+    while (i < LevelScene.drawCount) {
+      LevelScene.drawList[i]!.step();
+      ++i;
     }
-    n = 0;
-    while (n < LevelScene.drawCount) {
-      LevelScene.drawList[n]!.update();
-      ++n;
+    i = 0;
+    while (i < LevelScene.drawCount) {
+      LevelScene.drawList[i]!.update();
+      ++i;
     }
   }
 
   /**
    * 计算本帧相机目标点（CFR j.java `a(boolean)`）。写入 {@link cameraTargetX}/{@link cameraTargetY}。
-   * @param bl true=跟随玩家（按朝向把镜头偏到玩家身前 1/4 或 3/4 屏，纵向考虑速度/跳跃留头部空间）；
+   * @param followPlayer true=跟随玩家（按朝向把镜头偏到玩家身前 1/4 或 3/4 屏，纵向考虑速度/跳跃留头部空间）；
    *           false=回到剧情锁定的缓存目标 {@link cameraTargetCacheX}/{@link cameraTargetCacheY}（运镜用）。
    */
   // public final void a(boolean);  → a_Z
-  updateCameraTarget(bl: boolean): void {
-    const g2: PlayerActor = this.canvas.player!;
-    if (bl) {
-      this.cameraTargetX = g2.actionHighByte === 0 ? g2.posX - ((this.canvas.viewportWidth * 1 / 4) | 0) : g2.posX - ((this.canvas.viewportWidth * 3 / 4) | 0);
-      const n: number = g2.posY - ((this.canvas.viewportHeight * 7 / 10) | 0);
-      if (g2.targetVelY === 0 || (g2.reserved & 2) !== 0 || g2.targetVelY > 0 && n > this.canvas.cameraY || g2.targetVelY < 0 && this.canvas.cameraY - n > ((this.canvas.viewportHeight * 2 / 5) | 0)) {
-        this.cameraTargetY = n;
+  updateCameraTarget(followPlayer: boolean): void {
+    const player: PlayerActor = this.canvas.player!;
+    if (followPlayer) {
+      this.cameraTargetX = player.actionHighByte === 0 ? player.posX - ((this.canvas.viewportWidth * 1 / 4) | 0) : player.posX - ((this.canvas.viewportWidth * 3 / 4) | 0);
+      const targetY: number = player.posY - ((this.canvas.viewportHeight * 7 / 10) | 0);
+      if (player.targetVelY === 0 || (player.reserved & 2) !== 0 || player.targetVelY > 0 && targetY > this.canvas.cameraY || player.targetVelY < 0 && this.canvas.cameraY - targetY > ((this.canvas.viewportHeight * 2 / 5) | 0)) {
+        this.cameraTargetY = targetY;
         return;
       }
     } else {
@@ -229,17 +229,17 @@ export class LevelScene {
         break;
       }
       case LevelSubState.BossScript: {
-        let bl: boolean = false;
+        let cameraSettled: boolean = false;
         if (LevelScene.cutsceneState[2] === 0) {
           this.updateCameraTarget(true);
-          bl = true;
+          cameraSettled = true;
         } else {
           this.updateCameraTarget(false);
           if (this.canvas.cameraX === this.cameraTargetX && this.canvas.cameraY === this.cameraTargetY) {
-            bl = true;
+            cameraSettled = true;
           }
         }
-        if (!bl || !this.canvas.player!.isDead()) break;
+        if (!cameraSettled || !this.canvas.player!.isDead()) break;
         this.subState = LevelSubState.Cutscene;
         break;
       }
@@ -266,19 +266,19 @@ export class LevelScene {
         this.subState = this.prevSubState;
       }
     }
-    let n: number = 0;
-    let n2: number = 0;
+    let camX: number = 0;
+    let camY: number = 0;
     if (this.isVerticalScrollLevel && (this.canvas.player!.reserved & 4) !== 0) {
-      n = this.verticalScrollY;
-      n2 = this.canvas.cameraY >> 10;
+      camX = this.verticalScrollY;
+      camY = this.canvas.cameraY >> 10;
       this.verticalScrollY += 8;
     } else {
       this.canvas.followCamera(this.cameraTargetX, this.cameraTargetY);
-      n = this.canvas.cameraX >> 10;
-      n2 = this.canvas.cameraY >> 10;
-      this.switchCell(n, n2);
+      camX = this.canvas.cameraX >> 10;
+      camY = this.canvas.cameraY >> 10;
+      this.switchCell(camX, camY);
     }
-    LevelScene.camera.setCameraPosition(n, n2);
+    LevelScene.camera.setCameraPosition(camX, camY);
   }
 
   /**
@@ -291,33 +291,33 @@ export class LevelScene {
   render(graphics: Graphics): void {
     LevelScene.camera.render(graphics);
     graphics.setClip(0, 0, 176, 204);
-    let n: number = 0;
-    let n2: number = 0;
-    let n3: number = 0;
-    n = 0;
-    while (n < LevelScene.drawCount - 1) {
-      n3 = n;
-      n2 = n + 1;
-      while (n2 < LevelScene.drawCount) {
-        if (LevelScene.drawList[n2]!.layer < LevelScene.drawList[n3]!.layer) {
-          n3 = n2;
+    let i: number = 0;
+    let j: number = 0;
+    let minIdx: number = 0;
+    i = 0;
+    while (i < LevelScene.drawCount - 1) {
+      minIdx = i;
+      j = i + 1;
+      while (j < LevelScene.drawCount) {
+        if (LevelScene.drawList[j]!.layer < LevelScene.drawList[minIdx]!.layer) {
+          minIdx = j;
         }
-        ++n2;
+        ++j;
       }
-      if (n !== n3) {
-        const h2: ActorBase = LevelScene.drawList[n]!;
-        LevelScene.drawList[n] = LevelScene.drawList[n3];
-        LevelScene.drawList[n3] = h2;
+      if (i !== minIdx) {
+        const swapActor: ActorBase = LevelScene.drawList[i]!;
+        LevelScene.drawList[i] = LevelScene.drawList[minIdx];
+        LevelScene.drawList[minIdx] = swapActor;
       }
-      ++n;
+      ++i;
     }
     graphics.setClip(0, 0, 176, 204);
-    const n4: number = this.canvas.cameraX >> 10;
-    const n5: number = this.canvas.cameraY >> 10;
-    n = 0;
-    while (n < LevelScene.drawCount) {
-      LevelScene.drawList[n]!.paint(graphics, n4, n5);
-      ++n;
+    const cameraPxX: number = this.canvas.cameraX >> 10;
+    const cameraPxY: number = this.canvas.cameraY >> 10;
+    i = 0;
+    while (i < LevelScene.drawCount) {
+      LevelScene.drawList[i]!.paint(graphics, cameraPxX, cameraPxY);
+      ++i;
     }
     switch (this.subState) {
       case LevelSubState.TransitionOut:
@@ -346,7 +346,7 @@ export class LevelScene {
    */
   // private void e();  → e_
   private runCutscene(): void {
-    const g2: PlayerActor = this.canvas.player!;
+    const player: PlayerActor = this.canvas.player!;
     switch (LevelScene.cutsceneState[0]) {
       case 0: {
         if (LevelScene.cutsceneState[1] === 0) {
@@ -361,26 +361,26 @@ export class LevelScene {
             return;
           }
           if (LevelScene.cutsceneStep === 1) {
-            if (g2.stepThrowQueue() === 1) {
-              g2.advanceEffectFrame();
-              g2.targetVelY = px(8);
+            if (player.stepThrowQueue() === 1) {
+              player.advanceEffectFrame();
+              player.targetVelY = px(8);
               ++LevelScene.cutsceneStep;
             }
-            g2.targetVelX = px(10);
+            player.targetVelX = px(10);
             return;
           }
-          if (LevelScene.cutsceneStep !== 2 || pkg(g2).frameGroupIndex !== 0) break;
+          if (LevelScene.cutsceneStep !== 2 || pkg(player).frameGroupIndex !== 0) break;
           this.canvas.enterBriefing();
           return;
         }
         if (LevelScene.cutsceneState[1] !== 9) break;
         if (LevelScene.cutsceneStep === 0) {
           ++LevelScene.cutsceneStep;
-          g2.setAction(0x1E | g2.actionHighByte);
+          player.setAction(0x1E | player.actionHighByte);
           return;
         }
-        if (pkg(g2).frameGroupIndex !== 0) break;
-        g2.setAction(33);
+        if (pkg(player).frameGroupIndex !== 0) break;
+        player.setAction(33);
         this.canvas.showResult(true);
         return;
       }
@@ -388,20 +388,20 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 0) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           this.canvas.enterBriefing();
           return;
         }
         if (LevelScene.cutsceneState[1] === 1) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           this.setSubState(LevelSubState.MissionDialog);
           return;
         }
@@ -416,8 +416,8 @@ export class LevelScene {
             this.cameraTargetCacheY = this.cameraTargetY;
             return;
           }
-          g2.stepThrowQueue();
-          if (g2.posX >= this.canvas.cameraX - px(20)) break;
+          player.stepThrowQueue();
+          if (player.posX >= this.canvas.cameraX - px(20)) break;
           this.canvas.showResult(true);
           return;
         }
@@ -429,7 +429,7 @@ export class LevelScene {
           PlayerActor.throwCooldownQueue[0][2] = 6;
           PlayerActor.throwCooldownQueue[1][0] = 2;
           LevelScene.cutsceneState[4] = LevelScene.cutsceneState[4] << 14;
-          PlayerActor.throwCooldownQueue[1][1] = ((LevelScene.cutsceneState[4] - g2.posX + px(126)) / px(8)) | 0;
+          PlayerActor.throwCooldownQueue[1][1] = ((LevelScene.cutsceneState[4] - player.posX + px(126)) / px(8)) | 0;
           PlayerActor.throwCooldownQueue[1][2] = 2;
           PlayerActor.throwCooldownQueue[2][0] = 16;
           PlayerActor.throwCooldownQueue[2][1] = 1;
@@ -437,25 +437,25 @@ export class LevelScene {
           PlayerActor.throwCooldownQueue[3][0] = 8;
           PlayerActor.throwCooldownQueue[3][1] = 2;
           PlayerActor.throwCooldownQueue[3][2] = 0;
-          g2.currentWeaponIndex = 1;
-          if (PlayerActor.ammoCurrent[g2.currentWeaponIndex] === PlayerActor.ammoInitTable[g2.currentWeaponIndex]) {
+          player.currentWeaponIndex = 1;
+          if (PlayerActor.ammoCurrent[player.currentWeaponIndex] === PlayerActor.ammoInitTable[player.currentWeaponIndex]) {
             return;
           }
-          if (PlayerActor.ammoReserve[g2.currentWeaponIndex] > 0) break;
-          PlayerActor.ammoReserve[g2.currentWeaponIndex] = 1;
+          if (PlayerActor.ammoReserve[player.currentWeaponIndex] > 0) break;
+          PlayerActor.ammoReserve[player.currentWeaponIndex] = 1;
           return;
         }
         if (LevelScene.cutsceneStep === 1) {
-          if (g2.stepThrowQueue() !== 3) break;
+          if (player.stepThrowQueue() !== 3) break;
           ++LevelScene.cutsceneStep;
           return;
         }
         if (LevelScene.cutsceneStep === 3) {
-          if (g2.stepThrowQueue() !== 0) break;
+          if (player.stepThrowQueue() !== 0) break;
           ++LevelScene.cutsceneStep;
           return;
         }
-        if (pkg(g2).frameGroupIndex !== 0) break;
+        if (pkg(player).frameGroupIndex !== 0) break;
         if (LevelScene.cutsceneStep === 4) {
           LevelScene.dialogState[0] = 0;
           LevelScene.dialogState[1] = 0;
@@ -474,19 +474,19 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 0) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           this.canvas.enterBriefing();
           return;
         }
         if (LevelScene.cutsceneState[1] !== 9) break;
         if (++LevelScene.cutsceneStep === 10) {
-          g2.setAction(0x1E | g2.actionHighByte);
+          player.setAction(0x1E | player.actionHighByte);
           return;
         }
-        if (pkg(g2).frameGroupIndex !== 0) break;
+        if (pkg(player).frameGroupIndex !== 0) break;
         this.canvas.showResult(true);
         return;
       }
@@ -494,10 +494,10 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 0) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           LevelScene.dialogState[0] = 0;
           LevelScene.dialogState[1] = 1;
           LevelScene.dialogState[2] = 0;
@@ -513,20 +513,20 @@ export class LevelScene {
             LevelScene.cutsceneState[2] = 1;
             return;
           }
-          g2.stepThrowQueue();
-          if (g2.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(20)) break;
-          g2.targetVelX = 0;
-          g2.setAction(0 | g2.actionHighByte);
+          player.stepThrowQueue();
+          if (player.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(20)) break;
+          player.targetVelX = 0;
+          player.setAction(0 | player.actionHighByte);
           this.setSubState(LevelSubState.MissionDialog);
           return;
         }
         if (LevelScene.cutsceneState[1] !== 9) break;
         if (LevelScene.cutsceneStep === 0) {
           ++LevelScene.cutsceneStep;
-          g2.setAction(0x1E | g2.actionHighByte);
+          player.setAction(0x1E | player.actionHighByte);
           return;
         }
-        if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) break;
+        if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) break;
         this.canvas.showResult(true);
         return;
       }
@@ -534,10 +534,10 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 0) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           LevelScene.dialogState[0] = 0;
           LevelScene.dialogState[1] = 0;
           LevelScene.dialogState[2] = 1;
@@ -546,7 +546,7 @@ export class LevelScene {
         }
         if (LevelScene.cutsceneState[1] === 1) {
           if (LevelScene.cutsceneStep++ === 0) {
-            g2.setAction(0);
+            player.setAction(0);
             return;
           }
           if (LevelScene.cutsceneStep <= 4) break;
@@ -556,10 +556,10 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] !== 9) break;
         if (LevelScene.cutsceneStep === 0) {
           ++LevelScene.cutsceneStep;
-          g2.setAction(0x1E | g2.actionHighByte);
+          player.setAction(0x1E | player.actionHighByte);
           return;
         }
-        if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) break;
+        if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) break;
         this.canvas.showResult(true);
         return;
       }
@@ -567,10 +567,10 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 0) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           LevelScene.dialogState[0] = 0;
           LevelScene.dialogState[1] = 0;
           LevelScene.dialogState[2] = 1;
@@ -579,7 +579,7 @@ export class LevelScene {
         }
         if (LevelScene.cutsceneState[1] === 1) {
           if (LevelScene.cutsceneStep++ === 0) {
-            g2.setAction(0 | (-2147483648)); // 0 | Integer.MIN_VALUE
+            player.setAction(0 | (-2147483648)); // 0 | Integer.MIN_VALUE
             return;
           }
           if (LevelScene.cutsceneStep <= 4) break;
@@ -617,21 +617,21 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 4) {
           switch (LevelScene.cutsceneStep) {
             case 0: {
-              let n: number;
-              let n2: number;
+              let dy: number;
+              let dx: number;
               this.cameraTargetCacheX = this.dialogActor!.posX - ((this.canvas.viewportWidth / 3) | 0);
               this.cameraTargetCacheY = this.dialogActor!.posY - ((this.canvas.viewportHeight / 4) | 0);
               if (this.canvas.globalFrame % 2 === 0) {
-                n2 = (5 + GameMIDlet.randomBelow(3)) << 13;
-                n = GameMIDlet.randomBelow(3) << 13;
-                ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.dialogActor!.posX - n2, this.dialogActor!.posY - n, 0, null as unknown as Int32Array);
+                dx = (5 + GameMIDlet.randomBelow(3)) << 13;
+                dy = GameMIDlet.randomBelow(3) << 13;
+                ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.dialogActor!.posX - dx, this.dialogActor!.posY - dy, 0, null as unknown as Int32Array);
               }
               if (LevelScene.cutsceneSubStep === 0) {
                 LevelScene.cutsceneSubStep = 1;
-                n2 = 0x130000 - this.dialogActor!.posX;
-                n = px(602) - this.dialogActor!.posY;
-                this.dialogActor!.targetVelX = (n2 / 20) | 0;
-                this.dialogActor!.targetVelY = (n / 20) | 0;
+                dx = 0x130000 - this.dialogActor!.posX;
+                dy = px(602) - this.dialogActor!.posY;
+                this.dialogActor!.targetVelX = (dx / 20) | 0;
+                this.dialogActor!.targetVelY = (dy / 20) | 0;
                 break;
               }
               if (this.dialogActor!.posY <= px(602)) break;
@@ -651,7 +651,7 @@ export class LevelScene {
             case 2: {
               if (this.dialogActor!.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(60)) break;
               this.dialogActor!.targetVelX = 0;
-              this.cameraTargetCacheX = g2.posX - ((this.canvas.viewportWidth / 2) | 0);
+              this.cameraTargetCacheX = player.posX - ((this.canvas.viewportWidth / 2) | 0);
               LevelScene.cutsceneState[1] = 5;
               LevelScene.cutsceneState[2] = 1;
               this.setSubState(LevelSubState.Cutscene);
@@ -663,9 +663,9 @@ export class LevelScene {
         if (LevelScene.cutsceneStep === 0) {
           if (this.canvas.cameraX !== this.cameraTargetCacheX) break;
           ++LevelScene.cutsceneStep;
-          g2.setAction(0);
+          player.setAction(0);
           PlayerActor.throwCooldownQueue[0][0] = 2;
-          PlayerActor.throwCooldownQueue[0][1] = ((0x109000 - g2.posX) / px(8)) | 0;
+          PlayerActor.throwCooldownQueue[0][1] = ((0x109000 - player.posX) / px(8)) | 0;
           PlayerActor.throwCooldownQueue[0][2] = 0;
           PlayerActor.throwCooldownQueue[1][0] = 128;
           PlayerActor.throwCooldownQueue[1][1] = 2;
@@ -677,20 +677,20 @@ export class LevelScene {
           return;
         }
         if (LevelScene.cutsceneStep === 1) {
-          const n: number = g2.stepThrowQueue();
-          if (n === 0) {
+          const throwResult: number = player.stepThrowQueue();
+          if (throwResult === 0) {
             this.cameraTargetCacheX = this.canvas.cameraX;
             LevelScene.cutsceneState[2] = 1;
             return;
           }
-          if (n !== 1) break;
-          g2.spawnEntryEffect();
+          if (throwResult !== 1) break;
+          player.spawnEntryEffect();
           ++LevelScene.cutsceneStep;
           return;
         }
         if (LevelScene.cutsceneStep !== 2) break;
-        g2.stepThrowQueue();
-        if (g2.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(50)) break;
+        player.stepThrowQueue();
+        if (player.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(50)) break;
         this.canvas.showResult(true);
         return;
       }
@@ -704,19 +704,19 @@ export class LevelScene {
             return;
           }
           if (LevelScene.cutsceneStep !== 1) break;
-          if (g2.stepThrowQueue() === 0) {
-            g2.targetVelX = 0;
+          if (player.stepThrowQueue() === 0) {
+            player.targetVelX = 0;
             LevelScene.dialogState[0] = 0;
             LevelScene.dialogState[1] = 0;
             LevelScene.dialogState[2] = 2;
             this.setSubState(LevelSubState.MissionDialog);
             return;
           }
-          g2.targetVelX = px(10);
+          player.targetVelX = px(10);
           return;
         }
         if (LevelScene.cutsceneState[1] === 1) {
-          if (!g2.publicFlagA) break;
+          if (!player.publicFlagA) break;
           this.dialogActor!.kill();
           this.dialogActor = null;
           LevelScene.dialogState[1] = 0;
@@ -726,38 +726,38 @@ export class LevelScene {
         }
         if (LevelScene.cutsceneState[1] !== 2) break;
         if (LevelScene.cutsceneStep === 0) {
-          g2.targetVelX = 0;
-          g2.targetVelY = px(12);
-          g2.publicFlagB = true;
+          player.targetVelX = 0;
+          player.targetVelY = px(12);
+          player.publicFlagB = true;
           ++LevelScene.cutsceneStep;
           return;
         }
         if (LevelScene.cutsceneStep === 2) {
-          if (g2.publicFlagC) {
+          if (player.publicFlagC) {
             ++LevelScene.cutsceneStep;
           } else {
             LevelScene.dialogState[1] = 3;
             LevelScene.dialogState[2] = 0;
             this.setSubState(LevelSubState.MissionDialog);
           }
-          g2.companionEffect!.kill();
-          g2.kill();
+          player.companionEffect!.kill();
+          player.kill();
           return;
         }
         if (LevelScene.cutsceneStep === 3) {
           this.canvas.showResult(false);
           return;
         }
-        if (g2.posY <= 132 << 10) break;
-        let n: number = 0;
-        while (n < 8) {
-          const h2: ActorBase | null = this.spawnActor(ActorType.SplashEffect, -1);
-          if (h2 != null) {
-            h2.posX = g2.posX + (pkg(g2).boxLeft << 10) + n % 4 * px(14) + ((n / 4) | 0) * px(8);
-            h2.posY = g2.posY + px(14) + ((n / 4) | 0) * px(8);
-            h2.setAction(0);
+        if (player.posY <= 132 << 10) break;
+        let i: number = 0;
+        while (i < 8) {
+          const splash: ActorBase | null = this.spawnActor(ActorType.SplashEffect, -1);
+          if (splash != null) {
+            splash.posX = player.posX + (pkg(player).boxLeft << 10) + i % 4 * px(14) + ((i / 4) | 0) * px(8);
+            splash.posY = player.posY + px(14) + ((i / 4) | 0) * px(8);
+            splash.setAction(0);
           }
-          ++n;
+          ++i;
         }
         ++LevelScene.cutsceneStep;
       }
@@ -774,11 +774,11 @@ export class LevelScene {
   private runDialogChoice(): void {
     block22: {
       block21: {
-        const bl: boolean = this.canvas.inputAction === 16;
-        if (bl) break block21;
-        const n: number = GameCanvas.briefingLineState[3];
-        GameCanvas.briefingLineState[3] = n - 1;
-        if (n >= 0) break block22;
+        const confirmPressed: boolean = this.canvas.inputAction === 16;
+        if (confirmPressed) break block21;
+        const countdown: number = GameCanvas.briefingLineState[3];
+        GameCanvas.briefingLineState[3] = countdown - 1;
+        if (countdown >= 0) break block22;
       }
       if (this.dialogAdvancePressed) {
         switch (LevelScene.cutsceneState[0]) {
@@ -809,9 +809,9 @@ export class LevelScene {
         GameCanvas.briefingLineState[0] = GameCanvas.briefingLineState[0] + 1;
         GameCanvas.briefingLineState[1] = 0;
         GameCanvas.briefingLineState[3] = 60;
-        const n: number = LevelScene.dialogState[1];
+        const speakerTmp: number = LevelScene.dialogState[1];
         LevelScene.dialogState[1] = LevelScene.dialogState[2];
-        LevelScene.dialogState[2] = n;
+        LevelScene.dialogState[2] = speakerTmp;
         LevelScene.dialogState[0] = LevelScene.dialogState[0] + 1;
         switch (LevelScene.cutsceneState[0]) {
           case 1: {
@@ -860,9 +860,9 @@ export class LevelScene {
    */
   // private void c(Graphics);  → c_G
   private renderDialogBar(graphics: Graphics): void {
-    const nArray: number[] = [14, 134, 134, 134];
-    const nArray2: number[] = [36, 14, 14, 14];
-    const nArray3: number[] = [14, 15, 16, 17];
+    const portraitX: number[] = [14, 134, 134, 134];
+    const textX: number[] = [36, 14, 14, 14];
+    const portraitCell: number[] = [14, 15, 16, 17];
     graphics.setColor(17408);
     graphics.setClip(0, 172, 176, 32);
     graphics.fillRect(0, 172, 176, 32);
@@ -870,11 +870,11 @@ export class LevelScene {
     LevelScene.hudFont.drawCell(graphics, 159, 172, 31, 0, 0);
     LevelScene.hudFont.drawCell(graphics, 12, 172, 32, 0, 0);
     LevelScene.hudFont.drawCell(graphics, 12, 202, 33, 0, 0);
-    LevelScene.hudFont.drawCell(graphics, nArray[LevelScene.dialogState[1]], 170, nArray3[LevelScene.dialogState[1]], 0, 0);
+    LevelScene.hudFont.drawCell(graphics, portraitX[LevelScene.dialogState[1]], 170, portraitCell[LevelScene.dialogState[1]], 0, 0);
     graphics.setColor(65280);
     graphics.setClip(0, 172, 176, 32);
     this.dialogAdvancePressed = this.canvas.selectParagraph(GameCanvas.briefingLineState[0]);
-    this.dialogPagePressed = this.canvas.drawTypesetText(graphics, GameCanvas.briefingLineState[1], GameCanvas.briefingLineState[2], nArray2[LevelScene.dialogState[1]], 178, 90, 19);
+    this.dialogPagePressed = this.canvas.drawTypesetText(graphics, GameCanvas.briefingLineState[1], GameCanvas.briefingLineState[2], textX[LevelScene.dialogState[1]], 178, 90, 19);
     this.canvas.inputAction = 0;
   }
 
@@ -882,11 +882,11 @@ export class LevelScene {
    * 切换场景子状态机 {@link subState}（CFR j.java `a(int)`）。
    * 保存返回态到 {@link prevSubState}，复位剧情计步 {@link LevelScene.cutsceneStep}/{@link LevelScene.cutsceneSubStep}；
    * 进入过渡（TransitionOut）时清黑幕高度，进入任务对话（MissionDialog）时初始化对话/按键状态。
-   * @param n 目标子状态，取 {@link LevelSubState} 之一。
+   * @param target 目标子状态，取 {@link LevelSubState} 之一。
    */
   // public final void a(int);  → a_I
-  setSubState(n: number): void {
-    switch (n) {
+  setSubState(target: number): void {
+    switch (target) {
       case LevelSubState.TransitionOut: {
         this.transitionMaskHeight = 0;
         break;
@@ -902,7 +902,7 @@ export class LevelScene {
       }
     }
     this.prevSubState = this.subState;
-    this.subState = n;
+    this.subState = target;
     LevelScene.cutsceneStep = 0;
     LevelScene.cutsceneSubStep = 0;
   }
@@ -914,76 +914,76 @@ export class LevelScene {
    */
   // public final void b(Graphics);  → b_G
   renderHud(graphics: Graphics): void {
-    const g2: PlayerActor = this.canvas.player!;
+    const player: PlayerActor = this.canvas.player!;
     LevelScene.hudFont.drawCell(graphics, 0, 172, 0, 0, 0);
     LevelScene.hudFont.drawCell(graphics, 12, 164, 14, 0, 0);
-    const n: number = Math.max(0, g2.health);
-    let n2: number = 0;
-    while (n2 < n) {
-      LevelScene.hudFont.drawCell(graphics, 14 + n2 * 4, 199 - LevelScene.hudFont.cellHeight[18 + n2], 18 + n2, 0, 0);
-      ++n2;
+    const healthCells: number = Math.max(0, player.health);
+    let i: number = 0;
+    while (i < healthCells) {
+      LevelScene.hudFont.drawCell(graphics, 14 + i * 4, 199 - LevelScene.hudFont.cellHeight[18 + i], 18 + i, 0, 0);
+      ++i;
     }
-    n2 = 0;
-    while (n2 < PlayerActor.ammoCurrent[2]) {
-      LevelScene.hudFont.drawCell(graphics, 127 + n2 * 9, 181, 12, 0, 0);
-      ++n2;
+    i = 0;
+    while (i < PlayerActor.ammoCurrent[2]) {
+      LevelScene.hudFont.drawCell(graphics, 127 + i * 9, 181, 12, 0, 0);
+      ++i;
     }
-    LevelScene.drawNumber(graphics, 84, 179, PlayerActor.ammoCurrent[0 + g2.currentWeaponIndex], false, true);
+    LevelScene.drawNumber(graphics, 84, 179, PlayerActor.ammoCurrent[0 + player.currentWeaponIndex], false, true);
     LevelScene.hudFont.drawCell(graphics, 86, 179, 11, 0, 0);
-    LevelScene.drawNumber(graphics, 112, 179, PlayerActor.ammoReserve[0 + g2.currentWeaponIndex], false, true);
+    LevelScene.drawNumber(graphics, 112, 179, PlayerActor.ammoReserve[0 + player.currentWeaponIndex], false, true);
     if (this.canvas.globalFrame % 4 > 1) {
       graphics.setColor(65280);
       graphics.setClip(0, 0, 176, 204);
-      graphics.drawRect(65 + g2.currentWeaponIndex * 27, 192, 23, 8);
+      graphics.drawRect(65 + player.currentWeaponIndex * 27, 192, 23, 8);
       LevelScene.hudFont.drawCell(graphics, 0, 195, 13, 0, 0);
     }
   }
 
   /**
    * 在屏幕指定纵向区间填黑（CFR j.java `a(Graphics,int,int,int)`）。过渡子状态的卷帘黑幕即用此绘制。
-   * @param n  原始参数（CFR 中传入但实际未用于绘制，按位级保真保留）。
-   * @param n2 黑带起始 y。
-   * @param n3 黑带高度。
+   * @param maskHeight 原始参数（CFR 中传入但实际未用于绘制，按位级保真保留）。
+   * @param bandY 黑带起始 y。
+   * @param bandHeight 黑带高度。
    */
   // public static final void a(Graphics,int,int,int);  → a_GIII
-  static fillBlackBand(graphics: Graphics, n: number, n2: number, n3: number): void {
+  static fillBlackBand(graphics: Graphics, maskHeight: number, bandY: number, bandHeight: number): void {
     graphics.setColor(0);
-    graphics.setClip(0, n2, 176, n3);
-    graphics.fillRect(0, n2, 176, n3);
+    graphics.setClip(0, bandY, 176, bandHeight);
+    graphics.fillRect(0, bandY, 176, bandHeight);
   }
 
   /**
    * 用 HUD 字模 {@link LevelScene.hudFont} 右对齐绘制十进制数字（CFR j.java `a(Graphics,int,int,int,boolean,boolean)`）。
    * 从右往左逐位（最多 5 位，每位宽 8px）画字符格。
-   * @param n   右边界 x（绘制从此处向左推进）。
-   * @param n2  y 坐标。
-   * @param n3  要显示的数值（负数按 0 处理）。
-   * @param bl  true 时在数字左侧追加一个前缀格（字符 38）。
-   * @param bl2 true 时个位为 0 仍补一位前导 0。
+   * @param x   右边界 x（绘制从此处向左推进）。
+   * @param y   y 坐标。
+   * @param value 要显示的数值（负数按 0 处理）。
+   * @param showPrefix true 时在数字左侧追加一个前缀格（字符 38）。
+   * @param padLeadingZero true 时个位为 0 仍补一位前导 0。
    * @returns 绘制后剩余的左边界 x。
    */
   // public static final int a(Graphics,int,int,int,boolean,boolean);  → a_GIIIZZ
-  static drawNumber(graphics: Graphics, n: number, n2: number, n3: number, bl: boolean, bl2: boolean): number {
-    let n4: number = 0;
-    const bl3: boolean = false; // 原版未使用，保留以对照
-    void bl3;
-    n3 = Math.max(0, n3);
-    let n5: number = 0;
-    while (n5 < 5) {
-      n4 = n3 % 10;
-      LevelScene.hudFont.drawCell(graphics, n -= 8, n2, 1 + n4, 0, 0);
-      if ((n3 = (n3 / 10) | 0) === 0) {
-        if (n5 !== 0 || !bl2) break;
-        LevelScene.hudFont.drawCell(graphics, n -= 8, n2, 1, 0, 0);
+  static drawNumber(graphics: Graphics, x: number, y: number, value: number, showPrefix: boolean, padLeadingZero: boolean): number {
+    let digit: number = 0;
+    const unusedFlag: boolean = false; // 原版未使用，保留以对照
+    void unusedFlag;
+    value = Math.max(0, value);
+    let i: number = 0;
+    while (i < 5) {
+      digit = value % 10;
+      LevelScene.hudFont.drawCell(graphics, x -= 8, y, 1 + digit, 0, 0);
+      if ((value = (value / 10) | 0) === 0) {
+        if (i !== 0 || !padLeadingZero) break;
+        LevelScene.hudFont.drawCell(graphics, x -= 8, y, 1, 0, 0);
         break;
       }
-      ++n5;
+      ++i;
     }
-    if (bl) {
-      LevelScene.hudFont.drawCell(graphics, n - 8, n2, 38, 0, 0);
+    if (showPrefix) {
+      LevelScene.hudFont.drawCell(graphics, x - 8, y, 38, 0, 0);
     }
     graphics.setClip(0, 0, 176, 208);
-    return n;
+    return x;
   }
 
   /**
@@ -991,54 +991,54 @@ export class LevelScene {
    * 复位波刷计数、子状态回 Normal，清触发器命中/已触发标志、清活动 actor 表与 actor 池存活位，
    * 然后生成全局常驻 actor（{@link globalActors}，含主角）与本格的常驻 actor（{@link cellActors}），
    * 设当前格号 {@link currentCell}、相机对焦、复位编队状态，并据关号判定是否纵向卷屏关。
-   * @param n  目标格的地图像素 x。
-   * @param n2 目标格的地图像素 y。
+   * @param mapX 目标格的地图像素 x。
+   * @param mapY 目标格的地图像素 y。
    */
   // public final void a(int,int);  → a_II
-  loadCell(n: number, n2: number): void {
+  loadCell(mapX: number, mapY: number): void {
     this.waveSpawnCount = 0;
     this.reservedD = 0;
     this.subState = LevelSubState.Normal;
-    const n3: number = ((n2 / this.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / this.cellWidth) | 0) + ((n / this.cellWidth) | 0);
-    let n4: number = 0;
-    while (n4 < this.triggerHitFlags.length) {
-      this.triggerHitFlags[n4] = false;
-      ++n4;
+    const cellIndex: number = ((mapY / this.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / this.cellWidth) | 0) + ((mapX / this.cellWidth) | 0);
+    let i: number = 0;
+    while (i < this.triggerHitFlags.length) {
+      this.triggerHitFlags[i] = false;
+      ++i;
     }
-    n4 = 0;
-    while (n4 < this.triggerFiredFlags.length) {
-      this.triggerFiredFlags[n4] = false;
-      ++n4;
+    i = 0;
+    while (i < this.triggerFiredFlags.length) {
+      this.triggerFiredFlags[i] = false;
+      ++i;
     }
-    n4 = 0;
-    while (n4 < LevelScene.activeActors.length) {
-      LevelScene.activeActors[n4] = null;
-      ++n4;
+    i = 0;
+    while (i < LevelScene.activeActors.length) {
+      LevelScene.activeActors[i] = null;
+      ++i;
     }
-    n4 = 0;
-    while (n4 < LevelScene.actorPool.length) {
-      if (LevelScene.actorPool[n4] != null) {
-        let n5: number = 0;
-        while (n5 < LevelScene.actorPool[n4].length) {
-          LevelScene.actorPool[n4][n5]!.alive = false;
-          ++n5;
+    i = 0;
+    while (i < LevelScene.actorPool.length) {
+      if (LevelScene.actorPool[i] != null) {
+        let j: number = 0;
+        while (j < LevelScene.actorPool[i].length) {
+          LevelScene.actorPool[i][j]!.alive = false;
+          ++j;
         }
       }
-      ++n4;
+      ++i;
     }
-    n4 = 0;
-    while (n4 < this.globalActors.length) {
-      this.spawnActor(-1, this.globalActors[n4]);
-      ++n4;
+    i = 0;
+    while (i < this.globalActors.length) {
+      this.spawnActor(-1, this.globalActors[i]);
+      ++i;
     }
-    n4 = 0;
-    while (this.cellActors[n3] != null && n4 < this.cellActors[n3]!.length) {
-      this.spawnActor(-1, this.cellActors[n3]![n4]);
-      ++n4;
+    i = 0;
+    while (this.cellActors[cellIndex] != null && i < this.cellActors[cellIndex]!.length) {
+      this.spawnActor(-1, this.cellActors[cellIndex]![i]);
+      ++i;
     }
-    this.currentCell = n3;
+    this.currentCell = cellIndex;
     LevelScene.camera.resetDrawnBounds();
-    LevelScene.camera.setCameraPosition(n, n2);
+    LevelScene.camera.setCameraPosition(mapX, mapY);
     this.verticalScrollY = 0;
     LevelScene.formationState[0] = -1;
     this.isVerticalScrollLevel = this.canvas.levelIndex === 6;
@@ -1048,142 +1048,145 @@ export class LevelScene {
    * 处理单个触发器（CFR j.java `b(int)`）。由 {@link buildDrawList} 对当前格触发器列表逐个调用。
    * 已触发（{@link triggerFiredFlags}）则跳过；否则从 {@link triggerTable} 读 AABB 区域，
    * 判定玩家是否命中后转 {@link fireTrigger}（命中传 true，否则 false）。
-   * @param n 触发器索引。
+   * @param triggerIndex 触发器索引。
    */
   // public final void b(int);  → b_I
-  runTrigger(n: number): void {
-    let n2: number;
-    let n3: number;
-    let n4: number;
-    if (this.triggerFiredFlags[n]) {
+  runTrigger(triggerIndex: number): void {
+    let rectBottom: number;
+    let rectRight: number;
+    let rectTop: number;
+    if (this.triggerFiredFlags[triggerIndex]) {
       return;
     }
-    const n5: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 10, 2);
-    if (this.canvas.player!.intersectsRect(n5, n4 = GameMIDlet.readIntLE(this.triggerTable[n]!, 12, 2), n3 = GameMIDlet.readIntLE(this.triggerTable[n]!, 14, 2), n2 = GameMIDlet.readIntLE(this.triggerTable[n]!, 16, 2))) {
-      this.fireTrigger(n, true);
+    // AABB 从 triggerTable[triggerIndex] 读：offset10=left、12=top、14=right、16=bottom；
+    // 下面在 intersectsRect(left,top,right,bottom) 调用内按逆序内联赋值（CFR 反编译产物，保读取顺序）。
+    const rectLeft: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 10, 2);
+    if (this.canvas.player!.intersectsRect(rectLeft, rectTop = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 12, 2), rectRight = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 14, 2), rectBottom = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 16, 2))) {
+      this.fireTrigger(triggerIndex, true);
       return;
     }
-    this.fireTrigger(n, false);
+    this.fireTrigger(triggerIndex, false);
   }
 
   /**
    * 相机跨格时的屏块切换（CFR j.java `b(int,int)`）。由 {@link tick} 末尾按相机像素坐标调用。
    * 算出目标格号，若与 {@link currentCell} 不同则做差分：对比旧格/新格的常驻 actor 列表（{@link cellActors}），
    * 离开旧格的 actor（远离玩家的近距敌人会被回收）销毁，进入新格的 actor 经 {@link spawnActor} 生成，最后更新 {@link currentCell}。
-   * @param n  相机的地图像素 x。
-   * @param n2 相机的地图像素 y。
+   * @param camX 相机的地图像素 x。
+   * @param camY 相机的地图像素 y。
    */
   // public final void b(int,int);  → b_II
-  switchCell(n: number, n2: number): void {
-    let by: number;
-    const n3: number = ((n2 / this.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / this.cellWidth) | 0) + ((n / this.cellWidth) | 0);
-    if (n3 === this.currentCell) {
+  switchCell(camX: number, camY: number): void {
+    // actorSlot: 前半段作旧格 actor 槽 id（与 newCellActorId 归并比较），后半段复用为 cellSpawnBuffer 读游标（CFR 单变量复用）。
+    let actorSlot: number;
+    const cellIndex: number = ((camY / this.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / this.cellWidth) | 0) + ((camX / this.cellWidth) | 0);
+    if (cellIndex === this.currentCell) {
       return;
     }
-    let n4: number = 0;
-    let n5: number = 0;
-    let by2: number = 0;
-    while (this.cellActors[this.currentCell] != null && this.cellActors[n3] != null && n4 < this.cellActors[this.currentCell]!.length && n5 < this.cellActors[n3]!.length) {
-      by = this.cellActors[this.currentCell]![n4];
-      const by3: number = this.cellActors[n3]![n5];
-      if (by < by3) {
-        if (LevelScene.activeActors[by] != null) {
-          if (pkg(LevelScene.activeActors[by]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[by]!).typeId <= ActorType.TurretEmplacement) {
-            if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) >= px(176) || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) >= px(176)) {
-              LevelScene.activeActors[by]!.kill();
-              LevelScene.activeActors[by] = null;
+    let oldCursor: number = 0;
+    let newCursor: number = 0;
+    let spawnCount: number = 0;
+    while (this.cellActors[this.currentCell] != null && this.cellActors[cellIndex] != null && oldCursor < this.cellActors[this.currentCell]!.length && newCursor < this.cellActors[cellIndex]!.length) {
+      actorSlot = this.cellActors[this.currentCell]![oldCursor];
+      const newCellActorId: number = this.cellActors[cellIndex]![newCursor];
+      if (actorSlot < newCellActorId) {
+        if (LevelScene.activeActors[actorSlot] != null) {
+          if (pkg(LevelScene.activeActors[actorSlot]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[actorSlot]!).typeId <= ActorType.TurretEmplacement) {
+            if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posX - this.canvas.player!.posX) >= px(176) || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posY - this.canvas.player!.posY) >= px(176)) {
+              LevelScene.activeActors[actorSlot]!.kill();
+              LevelScene.activeActors[actorSlot] = null;
             }
           } else {
-            LevelScene.activeActors[by]!.kill();
-            LevelScene.activeActors[by] = null;
+            LevelScene.activeActors[actorSlot]!.kill();
+            LevelScene.activeActors[actorSlot] = null;
           }
         }
-        ++n4;
+        ++oldCursor;
         continue;
       }
-      if (by > by3) {
-        LevelScene.cellSpawnBuffer[by2++] = this.cellActors[n3]![n5++];
+      if (actorSlot > newCellActorId) {
+        LevelScene.cellSpawnBuffer[spawnCount++] = this.cellActors[cellIndex]![newCursor++];
         continue;
       }
-      ++n4;
-      ++n5;
-      if (LevelScene.activeActors[by] == null || LevelScene.activeActors[by]!.alive) continue;
-      if (pkg(LevelScene.activeActors[by]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[by]!).typeId <= ActorType.TurretEmplacement) {
-        if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) < px(176) && Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) < px(176)) continue;
-        LevelScene.activeActors[by] = null;
+      ++oldCursor;
+      ++newCursor;
+      if (LevelScene.activeActors[actorSlot] == null || LevelScene.activeActors[actorSlot]!.alive) continue;
+      if (pkg(LevelScene.activeActors[actorSlot]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[actorSlot]!).typeId <= ActorType.TurretEmplacement) {
+        if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posX - this.canvas.player!.posX) < px(176) && Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posY - this.canvas.player!.posY) < px(176)) continue;
+        LevelScene.activeActors[actorSlot] = null;
         continue;
       }
-      LevelScene.activeActors[by] = null;
+      LevelScene.activeActors[actorSlot] = null;
     }
-    while (this.cellActors[this.currentCell] != null && n4 < this.cellActors[this.currentCell]!.length) {
-      if (LevelScene.activeActors[this.cellActors[this.currentCell]![n4]] != null) {
-        if (pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!).typeId <= ActorType.TurretEmplacement) {
-          if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) >= px(176) || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) >= px(176)) {
-            LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.kill();
-            LevelScene.activeActors[this.cellActors[this.currentCell]![n4]] = null;
+    while (this.cellActors[this.currentCell] != null && oldCursor < this.cellActors[this.currentCell]!.length) {
+      if (LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]] != null) {
+        if (pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!).typeId <= ActorType.TurretEmplacement) {
+          if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posX - this.canvas.player!.posX) >= px(176) || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posY - this.canvas.player!.posY) >= px(176)) {
+            LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.kill();
+            LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]] = null;
           }
         } else {
-          LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.kill();
-          LevelScene.activeActors[this.cellActors[this.currentCell]![n4]] = null;
+          LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.kill();
+          LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]] = null;
         }
       }
-      ++n4;
+      ++oldCursor;
     }
-    while (this.cellActors[n3] != null && n5 < this.cellActors[n3]!.length) {
-      if (this.cellActors[n3]![n5] !== 0) {
-        LevelScene.cellSpawnBuffer[by2++] = this.cellActors[n3]![n5];
+    while (this.cellActors[cellIndex] != null && newCursor < this.cellActors[cellIndex]!.length) {
+      if (this.cellActors[cellIndex]![newCursor] !== 0) {
+        LevelScene.cellSpawnBuffer[spawnCount++] = this.cellActors[cellIndex]![newCursor];
       }
-      ++n5;
+      ++newCursor;
     }
-    by = 0;
-    while (by < by2) {
-      if (LevelScene.activeActors[LevelScene.cellSpawnBuffer[by]] == null) {
-        this.spawnActor(-1, LevelScene.cellSpawnBuffer[by]);
+    actorSlot = 0;
+    while (actorSlot < spawnCount) {
+      if (LevelScene.activeActors[LevelScene.cellSpawnBuffer[actorSlot]] == null) {
+        this.spawnActor(-1, LevelScene.cellSpawnBuffer[actorSlot]);
       }
-      ++by;
+      ++actorSlot;
     }
-    this.currentCell = n3;
+    this.currentCell = cellIndex;
   }
 
   /**
    * 从 actor 池生成一个 actor 并登记到活动表（CFR j.java `c(int,int)`，全场生成的统一入口）。
    * 在类型 `n` 的对象池里找空闲槽复用（对象池模式，无 GC 压力）。
-   * @param n  actor 类型；传 <0 时表示按实例索引生成，类型从 {@link actorInstanceTable}[n2][0] 读取。
-   * @param n2 实例槽索引；>=0 时从 {@link actorInstanceTable} 反序列化实例（{@link ActorBase.spawnFromBytes}）并占用固定槽；
+   * @param actorType  actor 类型；传 <0 时表示按实例索引生成，类型从 {@link actorInstanceTable}[instanceSlot][0] 读取。
+   * @param instanceSlot 实例槽索引；>=0 时从 {@link actorInstanceTable} 反序列化实例（{@link ActorBase.spawnFromBytes}）并占用固定槽；
    *           <0 时分配到 {@link residentActorSlots} 之后的动态槽段并按类型设绘制层。
    * @returns 生成的 actor；池满或反序列化失败返回 null。
    */
   // public final tjge.h c(int,int);  → c_II
-  spawnActor(n: number, n2: number): ActorBase | null {
-    if (n < 0) {
-      n = this.actorInstanceTable[n2]![0];
+  spawnActor(actorType: number, instanceSlot: number): ActorBase | null {
+    if (actorType < 0) {
+      actorType = this.actorInstanceTable[instanceSlot]![0];
     }
-    let n3: number = 0;
-    while (n3 < LevelScene.actorPool[n].length) {
-      const h2: ActorBase = LevelScene.actorPool[n][n3]!;
-      if (!h2.alive) {
-        if (n2 >= 0) {
-          h2.slotIndex = n2;
-          if (!h2.spawnFromBytes(this.actorInstanceTable[n2]!)) {
+    let i: number = 0;
+    while (i < LevelScene.actorPool[actorType].length) {
+      const pooled: ActorBase = LevelScene.actorPool[actorType][i]!;
+      if (!pooled.alive) {
+        if (instanceSlot >= 0) {
+          pooled.slotIndex = instanceSlot;
+          if (!pooled.spawnFromBytes(this.actorInstanceTable[instanceSlot]!)) {
             return null;
           }
-          h2.alive = true;
-          LevelScene.activeActors[n2] = h2;
-          return h2;
+          pooled.alive = true;
+          LevelScene.activeActors[instanceSlot] = pooled;
+          return pooled;
         }
-        let n4: number = this.residentActorSlots;
-        while (n4 < LevelScene.activeActors.length) {
-          if (LevelScene.activeActors[n4] == null) {
-            h2.slotIndex = n4;
-            h2.alive = true;
-            LevelScene.activeActors[n4] = h2;
-            h2.layer = LevelScene.actorDrawLayer[n];
-            return h2;
+        let slot: number = this.residentActorSlots;
+        while (slot < LevelScene.activeActors.length) {
+          if (LevelScene.activeActors[slot] == null) {
+            pooled.slotIndex = slot;
+            pooled.alive = true;
+            LevelScene.activeActors[slot] = pooled;
+            pooled.layer = LevelScene.actorDrawLayer[actorType];
+            return pooled;
           }
-          ++n4;
+          ++slot;
         }
       }
-      ++n3;
+      ++i;
     }
     return null;
   }
@@ -1192,17 +1195,17 @@ export class LevelScene {
    * 执行触发器动作（CFR j.java `a(int,boolean)`）。由 {@link runTrigger} 调用，从 {@link triggerTable}[n] 读类型与参数。
    * 触发器类型：0=相机点（设玩家开关）、1=战斗波（填 {@link LevelScene.triggerParams} 并切到 BattleWave）、
    * 2=剧情演出（填 {@link LevelScene.cutsceneState} 并切到 BossScript）、3=多段机关（生成成组 actor 并记入 {@link LevelScene.formationState}）。
-   * @param n  触发器索引。
-   * @param bl 是否命中：命中（true）走对应类型分支；未命中（false）用于类型 3 的离开/清理逻辑。
+   * @param triggerIndex 触发器索引。
+   * @param hit 是否命中：命中（true）走对应类型分支；未命中（false）用于类型 3 的离开/清理逻辑。
    */
   // public final void a(int,boolean);  → a_IZ
-  fireTrigger(n: number, bl: boolean): void {
-    const n2: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 0, 1);
-    if (bl) {
-      switch (n2) {
+  fireTrigger(triggerIndex: number, hit: boolean): void {
+    const triggerType: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 0, 1);
+    if (hit) {
+      switch (triggerType) {
         case 0: {
-          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[n]!, 18, 1);
-          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[n]!, 19, 1);
+          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
           if (LevelScene.triggerParams[0] < 0) {
             LevelScene.triggerParams[0] = LevelScene.triggerParams[0] + 256;
           }
@@ -1213,9 +1216,9 @@ export class LevelScene {
           break;
         }
         case 1: {
-          this.triggerFiredFlags[n] = true;
-          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[n]!, 18, 1);
-          this.cameraTargetCacheY = GameMIDlet.readIntLE(this.triggerTable[n]!, 19, 1);
+          this.triggerFiredFlags[triggerIndex] = true;
+          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+          this.cameraTargetCacheY = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
           if (this.cameraTargetCacheX < 0) {
             this.cameraTargetCacheX += 256;
           }
@@ -1224,12 +1227,12 @@ export class LevelScene {
           }
           this.cameraTargetCacheX <<= 14;
           this.cameraTargetCacheY <<= 14;
-          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[n]!, 20, 1);
-          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[n]!, 21, 1);
-          LevelScene.triggerParams[2] = GameMIDlet.readIntLE(this.triggerTable[n]!, 22, 1);
-          LevelScene.triggerParams[3] = GameMIDlet.readIntLE(this.triggerTable[n]!, 23, 1);
-          LevelScene.triggerParams[4] = GameMIDlet.readIntLE(this.triggerTable[n]!, 24, 1);
-          LevelScene.triggerParams[5] = GameMIDlet.readIntLE(this.triggerTable[n]!, 25, 1);
+          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21, 1);
+          LevelScene.triggerParams[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 22, 1);
+          LevelScene.triggerParams[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 23, 1);
+          LevelScene.triggerParams[4] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 24, 1);
+          LevelScene.triggerParams[5] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 25, 1);
           LevelScene.triggerParams[6] = LevelScene.triggerParams[5];
           this.setSubState(LevelSubState.BattleWave);
           break;
@@ -1238,17 +1241,17 @@ export class LevelScene {
           if (this.canvas.levelIndex === 5 && (this.canvas.player!.reserved & 1) === 0) {
             return;
           }
-          LevelScene.cutsceneState[3] = GameMIDlet.readIntLE(this.triggerTable[n]!, 19, 1);
+          LevelScene.cutsceneState[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
           if (LevelScene.cutsceneState[3] > 0 && LevelScene.activeActors[LevelScene.cutsceneState[3]] != null) {
             LevelScene.cutsceneState[4] = LevelScene.activeActors[LevelScene.cutsceneState[3]]!.posX >> 14;
             if (pkg(LevelScene.activeActors[LevelScene.cutsceneState[3]]!).isAlive()) {
               return;
             }
           }
-          this.triggerFiredFlags[n] = true;
-          LevelScene.cutsceneState[0] = GameMIDlet.readIntLE(this.triggerTable[n]!, 18, 1);
-          LevelScene.cutsceneState[2] = GameMIDlet.readIntLE(this.triggerTable[n]!, 20, 1);
-          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[n]!, 14, 2);
+          this.triggerFiredFlags[triggerIndex] = true;
+          LevelScene.cutsceneState[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+          LevelScene.cutsceneState[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 14, 2);
           this.cameraTargetCacheX <<= 10;
           this.cameraTargetCacheX -= this.canvas.viewportWidth;
           if (this.cameraTargetCacheX < 0) {
@@ -1264,36 +1267,36 @@ export class LevelScene {
           if (LevelScene.formationState[0] !== -1) {
             return;
           }
-          let n3: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 18, 1);
-          let n4: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 19, 1);
-          n3 <<= 14;
-          n4 <<= 14;
-          const n5: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 20, 1);
-          LevelScene.formationState[0] = n;
-          let n6: number = 0;
-          while (n6 < n5) {
-            const h2: ActorBase | null = this.spawnActor(ActorType.GrappleMarker, -1);
-            if (h2 != null) {
-              h2.posX = n3 + n6 * px(16);
-              h2.posY = n4;
-              h2.setAction(GameMIDlet.readIntLE(this.triggerTable[n]!, 21 + n6, 1));
-              LevelScene.formationState[n6 + 1] = h2.slotIndex;
+          let baseX: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+          let baseY: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
+          baseX <<= 14;
+          baseY <<= 14;
+          const count: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+          LevelScene.formationState[0] = triggerIndex;
+          let i: number = 0;
+          while (i < count) {
+            const marker: ActorBase | null = this.spawnActor(ActorType.GrappleMarker, -1);
+            if (marker != null) {
+              marker.posX = baseX + i * px(16);
+              marker.posY = baseY;
+              marker.setAction(GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21 + i, 1));
+              LevelScene.formationState[i + 1] = marker.slotIndex;
             }
-            ++n6;
+            ++i;
           }
           break;
         }
       }
       return;
     }
-    if (n2 === 3 && n === LevelScene.formationState[0]) {
-      const n7: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 20, 1);
-      let n8: number = 0;
-      while (n8 < n7) {
-        if (LevelScene.activeActors[LevelScene.formationState[n8 + 1]] != null) {
-          LevelScene.activeActors[LevelScene.formationState[n8 + 1]]!.kill();
+    if (triggerType === 3 && triggerIndex === LevelScene.formationState[0]) {
+      const clearCount: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+      let j: number = 0;
+      while (j < clearCount) {
+        if (LevelScene.activeActors[LevelScene.formationState[j + 1]] != null) {
+          LevelScene.activeActors[LevelScene.formationState[j + 1]]!.kill();
         }
-        ++n8;
+        ++j;
       }
       LevelScene.formationState[0] = -1;
     }
@@ -1307,64 +1310,64 @@ export class LevelScene {
    */
   // public final void c();  → c_
   spawnWave(): void {
-    const n: number = LevelScene.triggerParams[2] << 4;
-    let n2: number = 0;
-    let n3: number = LevelScene.triggerParams[3];
-    let n4: number = LevelScene.triggerParams[4];
-    let n5: number = 0;
-    if (n4 === 0) {
-      n4 = 1 + GameMIDlet.randomBelow(3);
+    const spawnY: number = LevelScene.triggerParams[2] << 4;
+    let i: number = 0;
+    let enemyType: number = LevelScene.triggerParams[3];
+    let spawnCount: number = LevelScene.triggerParams[4];
+    let entryMode: number = 0;
+    if (spawnCount === 0) {
+      spawnCount = 1 + GameMIDlet.randomBelow(3);
     }
-    n5 = 1 + GameMIDlet.randomBelow(3);
-    if (n3 === 0) {
+    entryMode = 1 + GameMIDlet.randomBelow(3);
+    if (enemyType === 0) {
       const nArray: number[] = [1, 3, 4];
-      n3 = nArray[GameMIDlet.randomBelow(3)];
+      enemyType = nArray[GameMIDlet.randomBelow(3)];
     }
-    let n6: number = 0;
-    let n7: number = 0;
-    let n8: number = 0;
-    let n9: number = 0;
+    let spawnX: number = 0;
+    let facing: number = 0;
+    let leftCount: number = 0;
+    let rightCount: number = 0;
     this.waveSpawnCount = 0;
-    while (n2 < n4) {
-      const f2: EnemyActor = this.spawnActor(n3, -1) as unknown as EnemyActor; // Java 向下转型 (h)→f
-      if (f2 != null) {
-        let n10: number;
-        if (n5 === 3) {
+    while (i < spawnCount) {
+      const enemy: EnemyActor = this.spawnActor(enemyType, -1) as unknown as EnemyActor; // Java 向下转型 (h)→f
+      if (enemy != null) {
+        let side: number;
+        if (entryMode === 3) {
           if (this.diagonalFormationToggle > 0) {
-            n10 = 1;
+            side = 1;
             this.diagonalFormationToggle = 0;
           } else {
-            n10 = 2;
+            side = 2;
             this.diagonalFormationToggle = 1;
           }
         } else {
-          n10 = n5;
+          side = entryMode;
         }
-        if (n10 === 1) {
-          n6 = this.canvas.cameraX - ++n8 * px(15);
-          n7 = 0;
-        } else if (n10 === 2) {
-          n6 = this.canvas.cameraX + this.canvas.viewportWidth + ++n9 * 15060;
-          n7 = -128;
+        if (side === 1) {
+          spawnX = this.canvas.cameraX - ++leftCount * px(15);
+          facing = 0;
+        } else if (side === 2) {
+          spawnX = this.canvas.cameraX + this.canvas.viewportWidth + ++rightCount * 15060;
+          facing = -128;
         }
-        LevelScene.spawnBytes[0] = n3 & 0xff; // (byte)n3
-        LevelScene.spawnBytes[1] = (n6 = n6 >> 10) & 0xff; // (byte)(n6 >>= 10)
-        LevelScene.spawnBytes[2] = (n6 >> 8) & 0xff; // (byte)(n6 >> 8)
-        LevelScene.spawnBytes[3] = n & 0xff; // (byte)n
-        LevelScene.spawnBytes[4] = (n >> 8) & 0xff; // (byte)(n >> 8)
-        LevelScene.spawnBytes[5] = (0 | n7) & 0xff; // (byte)(0 | n7)
+        LevelScene.spawnBytes[0] = enemyType & 0xff; // (byte)n3
+        LevelScene.spawnBytes[1] = (spawnX = spawnX >> 10) & 0xff; // (byte)(n6 >>= 10)
+        LevelScene.spawnBytes[2] = (spawnX >> 8) & 0xff; // (byte)(n6 >> 8)
+        LevelScene.spawnBytes[3] = spawnY & 0xff; // (byte)n
+        LevelScene.spawnBytes[4] = (spawnY >> 8) & 0xff; // (byte)(n >> 8)
+        LevelScene.spawnBytes[5] = (0 | facing) & 0xff; // (byte)(0 | n7)
         LevelScene.spawnBytes[6] = 1;
         LevelScene.spawnBytes[7] = 60;
         LevelScene.spawnBytes[8] = 22;
         LevelScene.spawnBytes[9] = GameMIDlet.randomBelow(3) & 0xff; // (byte)GameMIDlet.a(3)
-        if (f2.spawnFromBytes(LevelScene.spawnBytes)) {
+        if (enemy.spawnFromBytes(LevelScene.spawnBytes)) {
           ++this.waveSpawnCount;
           if (LevelScene.triggerParams[6] > 0 && LevelScene.triggerParams[6] < 100) {
             LevelScene.triggerParams[5] = LevelScene.triggerParams[5] - 1;
           }
         }
       }
-      ++n2;
+      ++i;
     }
   }
 
@@ -1383,28 +1386,28 @@ export class LevelScene {
       this.dialogActor.kill();
       this.dialogActor = null;
     }
-    let n: number = 0;
-    while (n < LevelScene.activeActors.length) {
-      LevelScene.activeActors[n] = null;
-      ++n;
+    let actorIdx: number = 0;
+    while (actorIdx < LevelScene.activeActors.length) {
+      LevelScene.activeActors[actorIdx] = null;
+      ++actorIdx;
     }
     LevelScene.activeActors = null as unknown as (ActorBase | null)[];
-    let n2: number = 0;
-    while (n2 < this.cellActors.length) {
-      this.cellActors[n2] = null;
-      ++n2;
+    let cellIdx: number = 0;
+    while (cellIdx < this.cellActors.length) {
+      this.cellActors[cellIdx] = null;
+      ++cellIdx;
     }
     this.cellActors = null as unknown as (Int8Array | null)[];
-    let n3: number = 0;
-    while (n3 < this.actorInstanceTable.length) {
-      this.actorInstanceTable[n3] = null;
-      ++n3;
+    let instanceIdx: number = 0;
+    while (instanceIdx < this.actorInstanceTable.length) {
+      this.actorInstanceTable[instanceIdx] = null;
+      ++instanceIdx;
     }
     this.actorInstanceTable = null as unknown as (Int8Array | null)[];
-    let n4: number = 0;
-    while (n4 < this.triggerTable.length) {
-      this.triggerTable[n4] = null;
-      ++n4;
+    let triggerIdx: number = 0;
+    while (triggerIdx < this.triggerTable.length) {
+      this.triggerTable[triggerIdx] = null;
+      ++triggerIdx;
     }
     this.triggerTable = null as unknown as (Int8Array | null)[];
     this.triggerFiredFlags = null as unknown as boolean[];
@@ -1416,58 +1419,58 @@ export class LevelScene {
   /**
    * 为某 actor 类型分配对象池（CFR j.java `a(tjge.a,int,int)`）。
    * 若该类型池已存在则跳过；否则预创建 n2 个该类型 actor 实例填入 {@link LevelScene.actorPool}[n]，供 {@link spawnActor} 复用。
-   * @param a2 当前 GameCanvas（用于经 {@link GameCanvas.createActor} 创建 actor）。
-   * @param n  actor 类型。
-   * @param n2 池容量（该类型同屏最大并发数）。
+   * @param canvas 当前 GameCanvas（用于经 {@link GameCanvas.createActor} 创建 actor）。
+   * @param actorType actor 类型。
+   * @param capacity 池容量（该类型同屏最大并发数）。
    */
   // public static final void a(tjge.a,int,int);  → a_TaII
-  static allocActorPool(a2: GameCanvas, n: number, n2: number): void {
-    if (LevelScene.actorPool[n] != null) {
+  static allocActorPool(canvas: GameCanvas, actorType: number, capacity: number): void {
+    if (LevelScene.actorPool[actorType] != null) {
       return;
     }
-    LevelScene.actorPool[n] = new Array<ActorBase | null>(n2).fill(null);
-    let n3: number = 0;
-    while (n3 < n2) {
-      LevelScene.actorPool[n][n3] = a2.createActor(n, LevelScene.actorDefs[n]!);
-      ++n3;
+    LevelScene.actorPool[actorType] = new Array<ActorBase | null>(capacity).fill(null);
+    let i: number = 0;
+    while (i < capacity) {
+      LevelScene.actorPool[actorType][i] = canvas.createActor(actorType, LevelScene.actorDefs[actorType]!);
+      ++i;
     }
   }
 
   /**
    * 按需加载某 actor 类型的精灵定义（CFR j.java `c(int)`）。
    * 若 {@link LevelScene.actorDefs}[n] 未加载则经 {@link SpriteDef.loadFromArchive} 解码，并置好加载标志。
-   * @param n actor 类型。
+   * @param actorType actor 类型。
    */
   // public static final void c(int);  → c_I
-  static loadActorDef(n: number): void {
-    if (LevelScene.actorDefs[n] == null) {
-      LevelScene.actorDefs[n] = SpriteDef.loadFromArchive(n);
+  static loadActorDef(actorType: number): void {
+    if (LevelScene.actorDefs[actorType] == null) {
+      LevelScene.actorDefs[actorType] = SpriteDef.loadFromArchive(actorType);
     }
-    LevelScene.actorDefLoaded[n] = true;
-    SpriteDef.loadedFlags[SpriteDef.idMap[n]] = true;
+    LevelScene.actorDefLoaded[actorType] = true;
+    SpriteDef.loadedFlags[SpriteDef.idMap[actorType]] = true;
   }
 
   /**
    * 分步加载资源（CFR j.java `a(tjge.a,int)`）。加载进度由调用方递增 n 驱动，用于关卡加载进度条/分帧加载。
    * 按 {@link LevelScene.resourceLoadTable} 前 n 项依次加载 actor 精灵定义（{@link loadActorDef}）并分配对象池（{@link allocActorPool}）；
    * 当 n===3 时额外加载 HUD 字模 {@link LevelScene.hudFont}。
-   * @param a2 当前 GameCanvas。
-   * @param n  本次加载到第几项（步进游标）。
+   * @param canvas 当前 GameCanvas。
+   * @param upTo  本次加载到第几项（步进游标）。
    * @returns 是否已加载完整张资源表（全部完成时为 true）。
    */
   // public static final boolean a(tjge.a,int);  → a_TaI
-  static loadResourcesUpTo(a2: GameCanvas, n: number): boolean {
-    let n2: number = 0;
-    n2 = 0;
-    while (n2 < n && n2 < LevelScene.resourceLoadTable.length) {
-      LevelScene.loadActorDef(LevelScene.resourceLoadTable[n2][0]);
-      LevelScene.allocActorPool(a2, LevelScene.resourceLoadTable[n2][0], LevelScene.resourceLoadTable[n2][1]);
-      ++n2;
+  static loadResourcesUpTo(canvas: GameCanvas, upTo: number): boolean {
+    let i: number = 0;
+    i = 0;
+    while (i < upTo && i < LevelScene.resourceLoadTable.length) {
+      LevelScene.loadActorDef(LevelScene.resourceLoadTable[i][0]);
+      LevelScene.allocActorPool(canvas, LevelScene.resourceLoadTable[i][0], LevelScene.resourceLoadTable[i][1]);
+      ++i;
     }
-    if (n === 3) {
+    if (upTo === 3) {
       LevelScene.hudFont = TileSheet.loadFromBin(6)!; // a_I 在 TS 返回 i|null；原版直接赋值（运行时非空）
     }
-    return n2 >= LevelScene.resourceLoadTable.length;
+    return i >= LevelScene.resourceLoadTable.length;
   }
 
   /**
@@ -1476,102 +1479,104 @@ export class LevelScene {
    * 读触发器表 {@link triggerTable}、actor 实例表 {@link actorInstanceTable}、分屏触发器 {@link cellTriggers}、
    * 全局常驻 actor {@link globalActors} 与各分屏常驻 actor {@link cellActors}；非 0/2 关额外载入剧情字符串。
    * 解析全程经 {@link GameMIDlet} 的小端字节读取保持位级一致；任何异常返回 null。
-   * @param a2 当前 GameCanvas（场景持有它以访问玩家/输入/相机）。
-   * @param n  关卡号（s.bin 中的条目索引，0~6）。
+   * @param canvas 当前 GameCanvas（场景持有它以访问玩家/输入/相机）。
+   * @param levelIndex  关卡号（s.bin 中的条目索引，0~6）。
    * @returns 装配好的场景实例；加载失败返回 null。
    */
   // public static final tjge.j b(tjge.a,int);  → b_TaI
-  static loadLevel(a2: GameCanvas, n: number): LevelScene | null {
-    const j2: LevelScene = new LevelScene();
+  static loadLevel(canvas: GameCanvas, levelIndex: number): LevelScene | null {
+    const scene: LevelScene = new LevelScene();
     try {
+      // n2/n4/by 为 CFR 反编译级多角色 scratch（跨"记录长度/循环游标/actor 类型/触发器数"复用），
+      // 纯改名下任何语义名都会误导另一角色，故保留原名待后续活跃区间拆分；blobLen 全程仅表"刚读出的尺寸"。
       let n2: number;
-      let n3: number;
+      let blobLen: number;
       let n4: number;
       let by: number;
-      const inputStream: InputStream = GameMIDlet.openEntryStream("/res/s.bin", n)!;
-      j2.cellWidth = GameMIDlet.readShortLE(inputStream);
-      j2.cellHeight = GameMIDlet.readShortLE(inputStream);
-      const by2: number = GameMIDlet.readByte(inputStream);
-      let by3: number = 0;
-      const bl: boolean = false; // 原版局部变量，未使用
-      void bl;
-      if (by2 === 2) {
+      const inputStream: InputStream = GameMIDlet.openEntryStream("/res/s.bin", levelIndex)!;
+      scene.cellWidth = GameMIDlet.readShortLE(inputStream);
+      scene.cellHeight = GameMIDlet.readShortLE(inputStream);
+      const mapFormat: number = GameMIDlet.readByte(inputStream);
+      let mapParamB: number = 0;
+      const unusedA: boolean = false; // 原版局部变量，未使用
+      void unusedA;
+      if (mapFormat === 2) {
         GameMIDlet.readByte(inputStream);
-        by3 = GameMIDlet.readByte(inputStream);
+        mapParamB = GameMIDlet.readByte(inputStream);
       }
       GameMIDlet.readByte(inputStream);
-      const by4: number = GameMIDlet.readByte(inputStream);
+      const mapParamA: number = GameMIDlet.readByte(inputStream);
       LevelScene.camera = new TileMap(176, 172);
-      LevelScene.camera.load(by4, by3, by2);
-      const bl2: boolean = false; // 原版局部变量，未使用
-      void bl2;
-      const n5: number = inputStream.read1(); // 原 InputStream.read()（无参）
-      let n6: number = 0;
-      while (n6 < n5) {
+      LevelScene.camera.load(mapParamA, mapParamB, mapFormat);
+      const unusedB: boolean = false; // 原版局部变量，未使用
+      void unusedB;
+      const actorTypeCount: number = inputStream.read1(); // 原 InputStream.read()（无参）
+      let typeIdx: number = 0;
+      while (typeIdx < actorTypeCount) {
         by = GameMIDlet.readByte(inputStream);
         LevelScene.loadActorDef(by);
         GameMIDlet.readByte(inputStream);
         n4 = GameMIDlet.readByte(inputStream);
-        LevelScene.allocActorPool(a2, by, n4);
-        ++n6;
+        LevelScene.allocActorPool(canvas, by, n4);
+        ++typeIdx;
       }
       by = GameMIDlet.readByte(inputStream);
-      j2.triggerTable = new Array<Int8Array | null>(by).fill(null);
-      j2.triggerFiredFlags = new Array<boolean>(by).fill(false);
+      scene.triggerTable = new Array<Int8Array | null>(by).fill(null);
+      scene.triggerFiredFlags = new Array<boolean>(by).fill(false);
       n4 = 0;
       while (n4 < by) {
-        n3 = GameMIDlet.readByte(inputStream);
-        j2.triggerTable[n4] = new Int8Array(n3 += 18);
-        inputStream.read(j2.triggerTable[n4]!);
+        blobLen = GameMIDlet.readByte(inputStream);
+        scene.triggerTable[n4] = new Int8Array(blobLen += 18);
+        inputStream.read(scene.triggerTable[n4]!);
         ++n4;
       }
-      j2.residentActorSlots = n3 = inputStream.read1(); // 原 InputStream.read()（无参）
-      j2.actorInstanceTable = new Array<Int8Array | null>(n3).fill(null);
-      j2.triggerHitFlags = new Array<boolean>(n3).fill(false);
-      LevelScene.activeActors = new Array<ActorBase | null>(n3 + 30).fill(null);
-      let n7: number = 0;
-      while (n7 < n3) {
-        j2.triggerHitFlags[n7] = false;
+      scene.residentActorSlots = blobLen = inputStream.read1(); // 原 InputStream.read()（无参）
+      scene.actorInstanceTable = new Array<Int8Array | null>(blobLen).fill(null);
+      scene.triggerHitFlags = new Array<boolean>(blobLen).fill(false);
+      LevelScene.activeActors = new Array<ActorBase | null>(blobLen + 30).fill(null);
+      let instIdx: number = 0;
+      while (instIdx < blobLen) {
+        scene.triggerHitFlags[instIdx] = false;
         n2 = GameMIDlet.readByte(inputStream);
-        j2.actorInstanceTable[n7] = new Int8Array(n2 += 7);
-        inputStream.read(j2.actorInstanceTable[n7]!);
-        ++n7;
+        scene.actorInstanceTable[instIdx] = new Int8Array(n2 += 7);
+        inputStream.read(scene.actorInstanceTable[instIdx]!);
+        ++instIdx;
       }
-      j2.cellCount = ((LevelScene.camera.getMapHeight() / j2.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / j2.cellWidth) | 0);
-      j2.cellTriggers = new Array<Int8Array | null>(j2.cellCount).fill(null);
+      scene.cellCount = ((LevelScene.camera.getMapHeight() / scene.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / scene.cellWidth) | 0);
+      scene.cellTriggers = new Array<Int8Array | null>(scene.cellCount).fill(null);
       n2 = 0;
-      while (n2 < j2.cellCount) {
-        const by5: number = GameMIDlet.readByte(inputStream);
-        n3 = by5;
-        if (by5 > 0) {
-          j2.cellTriggers[n2] = new Int8Array(n3);
-          inputStream.read(j2.cellTriggers[n2]!);
+      while (n2 < scene.cellCount) {
+        const cellTrigLen: number = GameMIDlet.readByte(inputStream);
+        blobLen = cellTrigLen;
+        if (cellTrigLen > 0) {
+          scene.cellTriggers[n2] = new Int8Array(blobLen);
+          inputStream.read(scene.cellTriggers[n2]!);
         }
         ++n2;
       }
-      j2.globalActorCount = GameMIDlet.readByte(inputStream);
-      j2.globalActors = new Int8Array(j2.globalActorCount);
-      inputStream.read(j2.globalActors);
-      j2.cellActors = new Array<Int8Array | null>(j2.cellCount).fill(null);
-      let n8: number = 0;
-      while (n8 < j2.cellCount) {
-        n3 = inputStream.read1(); // 原 InputStream.read()（无参）
-        j2.cellActors[n8] = new Int8Array(n3);
-        inputStream.read(j2.cellActors[n8]!);
-        ++n8;
+      scene.globalActorCount = GameMIDlet.readByte(inputStream);
+      scene.globalActors = new Int8Array(scene.globalActorCount);
+      inputStream.read(scene.globalActors);
+      scene.cellActors = new Array<Int8Array | null>(scene.cellCount).fill(null);
+      let cellIdx: number = 0;
+      while (cellIdx < scene.cellCount) {
+        blobLen = inputStream.read1(); // 原 InputStream.read()（无参）
+        scene.cellActors[cellIdx] = new Int8Array(blobLen);
+        inputStream.read(scene.cellActors[cellIdx]!);
+        ++cellIdx;
       }
       inputStream.close();
-      j2.mapWidth = LevelScene.camera.getMapWidth();
-      j2.mapHeight = LevelScene.camera.getMapHeight();
-      j2.canvas = a2;
-      if (n !== 0 && n !== 2) {
-        GameMIDlet.loadTextEntry(n, "/res/string.bin");
+      scene.mapWidth = LevelScene.camera.getMapWidth();
+      scene.mapHeight = LevelScene.camera.getMapHeight();
+      scene.canvas = canvas;
+      if (levelIndex !== 0 && levelIndex !== 2) {
+        GameMIDlet.loadTextEntry(levelIndex, "/res/string.bin");
       }
-      LevelScene.currentLevel = n;
+      LevelScene.currentLevel = levelIndex;
     } catch (exception) {
       return null;
     }
-    return j2;
+    return scene;
   }
 
   // static {};  静态初始化块
