@@ -1265,37 +1265,31 @@ export class PlayerActor extends ActorBase {
    */
   // g(tjge.b) → g_Tb（爬升/攀爬检测，结果写入 n/S/T）
   checkClimbable(b2: TileMap): boolean {
-    const bl = false;
-    void bl;
-    const bl2 = false;
-    void bl2;
-    const bl3 = false;
-    void bl3;
-    const n = (((this.posY + this.velY) >> 10) + -56) >> 4;
-    const n2 = (((this.posY + this.velY) >> 10) - 3) >> 4;
-    let n3 = (this.posX + this.velX) >> 10;
-    n3 += this.facingLeft ? -16 : 16;
-    n3 >>= 4;
-    let n4 = n;
-    while (n4 <= n2) {
-      const n5 = b2.queryColumnTileAt(n3, n4, true);
-      if (n5 === 1) {
-        if (n4 < n + 1) {
+    // 扫描列自上(-56)而下(-3)找可攀爬瓦片；scanTileX 由像素X±16(朝向)右移得列。
+    const topRow = (((this.posY + this.velY) >> 10) + -56) >> 4;
+    const bottomRow = (((this.posY + this.velY) >> 10) - 3) >> 4;
+    const scanPixelX = ((this.posX + this.velX) >> 10) + (this.facingLeft ? -16 : 16);
+    const scanTileX = scanPixelX >> 4;
+    let row = topRow;
+    while (row <= bottomRow) {
+      const tileValue = b2.queryColumnTileAt(scanTileX, row, true);
+      if (tileValue === 1) {
+        if (row < topRow + 1) {
           this.climbResult = 4;
           return true;
         }
-        if (n4 < n + 2 || n4 < n + 3) {
-          this.climbTargetX = this.facingLeft ? ((n3 << 4) + 16) << 10 : n3 << 14;
-          this.climbTargetY = n4 << 14;
-          this.climbResult = n4 === n + 1 ? 3 : 2;
+        if (row < topRow + 2 || row < topRow + 3) {
+          this.climbTargetX = this.facingLeft ? ((scanTileX << 4) + 16) << 10 : scanTileX << 14;
+          this.climbTargetY = row << 14;
+          this.climbResult = row === topRow + 1 ? 3 : 2;
           return true;
         }
-        if (n4 < n + 4) {
+        if (row < topRow + 4) {
           this.climbResult = 1;
           return true;
         }
       }
-      ++n4;
+      ++row;
     }
     this.climbResult = 0;
     return false;
