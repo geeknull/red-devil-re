@@ -354,17 +354,17 @@ export class EnemyActor extends ActorBase {
                   }
                   return;
                 }
-                const l2: ProjectileActor | null = this.fireProjectile(this.aiState === 5 ? 32 : 14);
-                if (l2 === null) break;
+                const projectile: ProjectileActor | null = this.fireProjectile(this.aiState === 5 ? 32 : 14);
+                if (projectile === null) break;
                 if (this.aiState === 5) {
                   this.setFrame(3 | this.facingFlag);
                 } else {
                   this.setFrame(9 | this.facingFlag);
                 }
-                if (l2.advanceAndCollide(this.facingFlag === 0)) {
-                  l2.setFrame(1);
+                if (projectile.advanceAndCollide(this.facingFlag === 0)) {
+                  projectile.setFrame(1);
                 } else {
-                  l2.targetVelX = l2.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
+                  projectile.targetVelX = projectile.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
                 }
                 this.aiState = 11;
                 this.rhythmThreshold = this.hitPoints > 0 ? 12 : 15;
@@ -514,10 +514,10 @@ export class EnemyActor extends ActorBase {
             break;
           }
           case ActorType.ReconScoutEnemy: {
-            const l2: ProjectileActor | null = this.fireProjectile(28);
-            if (l2 === null) break;
+            const projectile: ProjectileActor | null = this.fireProjectile(28);
+            if (projectile === null) break;
             this.aiState = 0;
-            l2.targetVelX = l2.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
+            projectile.targetVelX = projectile.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
             this.setFrame(3 | this.facingFlag);
             this.rhythmThreshold = 12;
           }
@@ -539,10 +539,10 @@ export class EnemyActor extends ActorBase {
 
   // i() → i_
   private spawnMeleeHitbox(): void {
-    const l2: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - px(30), 1);
-    if (l2 !== null) {
+    const projectile: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - px(30), 1);
+    if (projectile !== null) {
       this.timerB = 0;
-      l2.launchArc(this.facingFlag !== 0 ? 1 : 0);
+      projectile.launchArc(this.facingFlag !== 0 ? 1 : 0);
       this.setFrame(2 | this.facingFlag);
       this.rhythmThreshold = this.hitPoints > 0 ? 12 : 15;
     }
@@ -656,18 +656,18 @@ export class EnemyActor extends ActorBase {
    * 已处于死亡/硬直/特殊态(aiState 4/9/10)或对方为 mode===1 的弹时忽略。按弹型 {@link ProjectileActor.typeId}
    * 结算：type21 扣 1 命中计数 {@link lives}、type10/16 即死、type15/20 生成 type16 爆炸并播音效。
    * 触发受击则转硬直态 9 并切动作(type18→3、其余→7)；{@link lives}<=0 时播死亡音效。
-   * @param l2 命中本敌人的弹体 ProjectileActor（对应 tjge.l）
+   * @param projectile 命中本敌人的弹体 ProjectileActor（对应 tjge.l）
    */
   // a(tjge.l) → a_Tl
-  onProjectileHit(l2: ProjectileActor): void {
-    if (l2.mode === 1 || this.aiState === 4 || this.aiState === 9 || this.aiState === 10) {
+  onProjectileHit(projectile: ProjectileActor): void {
+    if (projectile.mode === 1 || this.aiState === 4 || this.aiState === 9 || this.aiState === 10) {
       return;
     }
     let bl: boolean = false;
-    switch (l2.typeId) {
+    switch (projectile.typeId) {
       case ActorType.GuidedMissileProjectile: {
-        if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
-        l2.deactivate();
+        if ((projectile.frameIndex & SEQUENCE_MASK) !== 0) break;
+        projectile.deactivate();
         --this.lives;
         bl = true;
         break;
@@ -680,9 +680,9 @@ export class EnemyActor extends ActorBase {
       }
       case ActorType.GrenadeProjectile:
       case ActorType.FallingBombProjectile: {
-        const n: number = l2.targetVelX > 0 ? px(8) : px(-8);
-        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX + n, l2.posY + px(8), 0);
-        l2.deactivate();
+        const n: number = projectile.targetVelX > 0 ? px(8) : px(-8);
+        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, projectile.posX + n, projectile.posY + px(8), 0);
+        projectile.deactivate();
         GameScreen.playSound(5, 1, 220);
       }
     }
