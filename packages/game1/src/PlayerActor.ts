@@ -1506,46 +1506,46 @@ export class PlayerActor extends ActorBase {
    * 在三把武器（0/1/2）间轮转选出有弹药的一把，命中条件时切换换弹动画帧（蹲姿用 0x1c，站姿用 1）。
    * 备弹 ammoReserveB/C 与当前弹匣 magazineAmmo 由调用方在调用前后更新。
    */
-  // f(int) → f_I（换弹/切换武器，n=武器类型；k=当前武器，l=弹匣，h/i=备弹）
-  switchOrReloadWeapon(n: number): void {
-    let bl = false;
+  // f(int) → f_I（换弹/切换武器，triggerAction=触发键 32切换/其余换弹；k=当前武器，l=弹匣，h/i=备弹）
+  switchOrReloadWeapon(triggerAction: number): void {
+    let resolved = false;
     if (this.weaponIndex > 2) {
       this.weaponIndex = 0;
     }
-    while (!bl) {
+    while (!resolved) {
       if (this.weaponIndex === 1) {
-        if (n === 32) {
+        if (triggerAction === 32) {
           if (this.ammoReserveB <= 0) {
             this.weaponIndex = 2;
           } else {
-            bl = true;
+            resolved = true;
           }
         } else {
           if (this.magazineAmmo >= 3 || this.ammoReserveB <= 0) break;
-          bl = true;
+          resolved = true;
         }
       }
       if (this.weaponIndex === 2) {
-        if (n === 32) {
+        if (triggerAction === 32) {
           if (this.ammoReserveC === 0) {
             this.weaponIndex = 0;
           } else {
-            bl = true;
+            resolved = true;
           }
         } else {
           if (this.magazineAmmo >= 1 || this.ammoReserveC <= 0) break;
-          bl = true;
+          resolved = true;
         }
       }
       if (this.weaponIndex !== 0) continue;
-      if (n === 32) {
-        bl = true;
+      if (triggerAction === 32) {
+        resolved = true;
         continue;
       }
       if (this.magazineAmmo >= 10) break;
-      bl = true;
+      resolved = true;
     }
-    if (bl) {
+    if (resolved) {
       if (this.actionId === 5 || this.actionId === 28) {
         this.setFrame(0x1c | this.facingFlag);
         return;
@@ -1575,8 +1575,8 @@ export class PlayerActor extends ActorBase {
    */
   // n() → n_（换弹回收：将当前弹匣余弹归还备弹池）
   reloadFromReserve(): void {
-    let n = 0;
-    void n;
+    let ammoNeeded = 0;
+    void ammoNeeded; // 反编译产物：对应 CFR `int n = 0;` 声明，实值在 case1/2 重算后使用
     if (this.magazineAmmo < 0) {
       this.magazineAmmo = 0;
     }
@@ -1586,9 +1586,9 @@ export class PlayerActor extends ActorBase {
         return;
       }
       case 1: {
-        n = 3 - this.magazineAmmo;
-        if (this.ammoReserveB > n) {
-          this.ammoReserveB -= n;
+        ammoNeeded = 3 - this.magazineAmmo;
+        if (this.ammoReserveB > ammoNeeded) {
+          this.ammoReserveB -= ammoNeeded;
           this.magazineAmmo = 3;
           return;
         }
@@ -1597,9 +1597,9 @@ export class PlayerActor extends ActorBase {
         return;
       }
       case 2: {
-        n = 1 - this.magazineAmmo;
-        if (this.ammoReserveC > n) {
-          this.ammoReserveC -= n;
+        ammoNeeded = 1 - this.magazineAmmo;
+        if (this.ammoReserveC > ammoNeeded) {
+          this.ammoReserveC -= ammoNeeded;
           this.magazineAmmo = 1;
           return;
         }
