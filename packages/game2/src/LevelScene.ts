@@ -140,54 +140,54 @@ export class LevelScene {
    */
   // public final void a();  → a_
   buildDrawList(): void {
-    let n: number;
+    let i: number;
     LevelScene.drawCount = 0;
     if (this.cellTriggers[this.currentCell] != null) {
-      n = 0;
-      while (n < this.cellTriggers[this.currentCell]!.length) {
-        this.runTrigger(this.cellTriggers[this.currentCell]![n]);
-        ++n;
+      i = 0;
+      while (i < this.cellTriggers[this.currentCell]!.length) {
+        this.runTrigger(this.cellTriggers[this.currentCell]![i]);
+        ++i;
       }
     }
-    n = 0;
-    while (n < this.residentActorSlots) {
-      if (LevelScene.activeActors[n] != null && LevelScene.activeActors[n]!.alive) {
-        LevelScene.drawList[LevelScene.drawCount++] = LevelScene.activeActors[n];
+    i = 0;
+    while (i < this.residentActorSlots) {
+      if (LevelScene.activeActors[i] != null && LevelScene.activeActors[i]!.alive) {
+        LevelScene.drawList[LevelScene.drawCount++] = LevelScene.activeActors[i];
       }
-      ++n;
+      ++i;
     }
-    n = this.residentActorSlots;
-    while (n < LevelScene.activeActors.length) {
-      if (LevelScene.activeActors[n] != null && LevelScene.activeActors[n]!.alive) {
-        LevelScene.drawList[LevelScene.drawCount++] = LevelScene.activeActors[n];
+    i = this.residentActorSlots;
+    while (i < LevelScene.activeActors.length) {
+      if (LevelScene.activeActors[i] != null && LevelScene.activeActors[i]!.alive) {
+        LevelScene.drawList[LevelScene.drawCount++] = LevelScene.activeActors[i];
       }
-      ++n;
+      ++i;
     }
-    n = 0;
-    while (n < LevelScene.drawCount) {
-      LevelScene.drawList[n]!.step();
-      ++n;
+    i = 0;
+    while (i < LevelScene.drawCount) {
+      LevelScene.drawList[i]!.step();
+      ++i;
     }
-    n = 0;
-    while (n < LevelScene.drawCount) {
-      LevelScene.drawList[n]!.update();
-      ++n;
+    i = 0;
+    while (i < LevelScene.drawCount) {
+      LevelScene.drawList[i]!.update();
+      ++i;
     }
   }
 
   /**
    * 计算本帧相机目标点（CFR j.java `a(boolean)`）。写入 {@link cameraTargetX}/{@link cameraTargetY}。
-   * @param bl true=跟随玩家（按朝向把镜头偏到玩家身前 1/4 或 3/4 屏，纵向考虑速度/跳跃留头部空间）；
+   * @param followPlayer true=跟随玩家（按朝向把镜头偏到玩家身前 1/4 或 3/4 屏，纵向考虑速度/跳跃留头部空间）；
    *           false=回到剧情锁定的缓存目标 {@link cameraTargetCacheX}/{@link cameraTargetCacheY}（运镜用）。
    */
   // public final void a(boolean);  → a_Z
-  updateCameraTarget(bl: boolean): void {
-    const g2: PlayerActor = this.canvas.player!;
-    if (bl) {
-      this.cameraTargetX = g2.actionHighByte === 0 ? g2.posX - ((this.canvas.viewportWidth * 1 / 4) | 0) : g2.posX - ((this.canvas.viewportWidth * 3 / 4) | 0);
-      const n: number = g2.posY - ((this.canvas.viewportHeight * 7 / 10) | 0);
-      if (g2.targetVelY === 0 || (g2.reserved & 2) !== 0 || g2.targetVelY > 0 && n > this.canvas.cameraY || g2.targetVelY < 0 && this.canvas.cameraY - n > ((this.canvas.viewportHeight * 2 / 5) | 0)) {
-        this.cameraTargetY = n;
+  updateCameraTarget(followPlayer: boolean): void {
+    const player: PlayerActor = this.canvas.player!;
+    if (followPlayer) {
+      this.cameraTargetX = player.actionHighByte === 0 ? player.posX - ((this.canvas.viewportWidth * 1 / 4) | 0) : player.posX - ((this.canvas.viewportWidth * 3 / 4) | 0);
+      const targetY: number = player.posY - ((this.canvas.viewportHeight * 7 / 10) | 0);
+      if (player.targetVelY === 0 || (player.reserved & 2) !== 0 || player.targetVelY > 0 && targetY > this.canvas.cameraY || player.targetVelY < 0 && this.canvas.cameraY - targetY > ((this.canvas.viewportHeight * 2 / 5) | 0)) {
+        this.cameraTargetY = targetY;
         return;
       }
     } else {
@@ -229,17 +229,17 @@ export class LevelScene {
         break;
       }
       case LevelSubState.BossScript: {
-        let bl: boolean = false;
+        let cameraSettled: boolean = false;
         if (LevelScene.cutsceneState[2] === 0) {
           this.updateCameraTarget(true);
-          bl = true;
+          cameraSettled = true;
         } else {
           this.updateCameraTarget(false);
           if (this.canvas.cameraX === this.cameraTargetX && this.canvas.cameraY === this.cameraTargetY) {
-            bl = true;
+            cameraSettled = true;
           }
         }
-        if (!bl || !this.canvas.player!.isDead()) break;
+        if (!cameraSettled || !this.canvas.player!.isDead()) break;
         this.subState = LevelSubState.Cutscene;
         break;
       }
@@ -266,19 +266,19 @@ export class LevelScene {
         this.subState = this.prevSubState;
       }
     }
-    let n: number = 0;
-    let n2: number = 0;
+    let camX: number = 0;
+    let camY: number = 0;
     if (this.isVerticalScrollLevel && (this.canvas.player!.reserved & 4) !== 0) {
-      n = this.verticalScrollY;
-      n2 = this.canvas.cameraY >> 10;
+      camX = this.verticalScrollY;
+      camY = this.canvas.cameraY >> 10;
       this.verticalScrollY += 8;
     } else {
       this.canvas.followCamera(this.cameraTargetX, this.cameraTargetY);
-      n = this.canvas.cameraX >> 10;
-      n2 = this.canvas.cameraY >> 10;
-      this.switchCell(n, n2);
+      camX = this.canvas.cameraX >> 10;
+      camY = this.canvas.cameraY >> 10;
+      this.switchCell(camX, camY);
     }
-    LevelScene.camera.setCameraPosition(n, n2);
+    LevelScene.camera.setCameraPosition(camX, camY);
   }
 
   /**
@@ -291,33 +291,33 @@ export class LevelScene {
   render(graphics: Graphics): void {
     LevelScene.camera.render(graphics);
     graphics.setClip(0, 0, 176, 204);
-    let n: number = 0;
-    let n2: number = 0;
-    let n3: number = 0;
-    n = 0;
-    while (n < LevelScene.drawCount - 1) {
-      n3 = n;
-      n2 = n + 1;
-      while (n2 < LevelScene.drawCount) {
-        if (LevelScene.drawList[n2]!.layer < LevelScene.drawList[n3]!.layer) {
-          n3 = n2;
+    let i: number = 0;
+    let j: number = 0;
+    let minIdx: number = 0;
+    i = 0;
+    while (i < LevelScene.drawCount - 1) {
+      minIdx = i;
+      j = i + 1;
+      while (j < LevelScene.drawCount) {
+        if (LevelScene.drawList[j]!.layer < LevelScene.drawList[minIdx]!.layer) {
+          minIdx = j;
         }
-        ++n2;
+        ++j;
       }
-      if (n !== n3) {
-        const h2: ActorBase = LevelScene.drawList[n]!;
-        LevelScene.drawList[n] = LevelScene.drawList[n3];
-        LevelScene.drawList[n3] = h2;
+      if (i !== minIdx) {
+        const swapActor: ActorBase = LevelScene.drawList[i]!;
+        LevelScene.drawList[i] = LevelScene.drawList[minIdx];
+        LevelScene.drawList[minIdx] = swapActor;
       }
-      ++n;
+      ++i;
     }
     graphics.setClip(0, 0, 176, 204);
-    const n4: number = this.canvas.cameraX >> 10;
-    const n5: number = this.canvas.cameraY >> 10;
-    n = 0;
-    while (n < LevelScene.drawCount) {
-      LevelScene.drawList[n]!.paint(graphics, n4, n5);
-      ++n;
+    const cameraPxX: number = this.canvas.cameraX >> 10;
+    const cameraPxY: number = this.canvas.cameraY >> 10;
+    i = 0;
+    while (i < LevelScene.drawCount) {
+      LevelScene.drawList[i]!.paint(graphics, cameraPxX, cameraPxY);
+      ++i;
     }
     switch (this.subState) {
       case LevelSubState.TransitionOut:
@@ -914,76 +914,76 @@ export class LevelScene {
    */
   // public final void b(Graphics);  → b_G
   renderHud(graphics: Graphics): void {
-    const g2: PlayerActor = this.canvas.player!;
+    const player: PlayerActor = this.canvas.player!;
     LevelScene.hudFont.drawCell(graphics, 0, 172, 0, 0, 0);
     LevelScene.hudFont.drawCell(graphics, 12, 164, 14, 0, 0);
-    const n: number = Math.max(0, g2.health);
-    let n2: number = 0;
-    while (n2 < n) {
-      LevelScene.hudFont.drawCell(graphics, 14 + n2 * 4, 199 - LevelScene.hudFont.cellHeight[18 + n2], 18 + n2, 0, 0);
-      ++n2;
+    const healthCells: number = Math.max(0, player.health);
+    let i: number = 0;
+    while (i < healthCells) {
+      LevelScene.hudFont.drawCell(graphics, 14 + i * 4, 199 - LevelScene.hudFont.cellHeight[18 + i], 18 + i, 0, 0);
+      ++i;
     }
-    n2 = 0;
-    while (n2 < PlayerActor.ammoCurrent[2]) {
-      LevelScene.hudFont.drawCell(graphics, 127 + n2 * 9, 181, 12, 0, 0);
-      ++n2;
+    i = 0;
+    while (i < PlayerActor.ammoCurrent[2]) {
+      LevelScene.hudFont.drawCell(graphics, 127 + i * 9, 181, 12, 0, 0);
+      ++i;
     }
-    LevelScene.drawNumber(graphics, 84, 179, PlayerActor.ammoCurrent[0 + g2.currentWeaponIndex], false, true);
+    LevelScene.drawNumber(graphics, 84, 179, PlayerActor.ammoCurrent[0 + player.currentWeaponIndex], false, true);
     LevelScene.hudFont.drawCell(graphics, 86, 179, 11, 0, 0);
-    LevelScene.drawNumber(graphics, 112, 179, PlayerActor.ammoReserve[0 + g2.currentWeaponIndex], false, true);
+    LevelScene.drawNumber(graphics, 112, 179, PlayerActor.ammoReserve[0 + player.currentWeaponIndex], false, true);
     if (this.canvas.globalFrame % 4 > 1) {
       graphics.setColor(65280);
       graphics.setClip(0, 0, 176, 204);
-      graphics.drawRect(65 + g2.currentWeaponIndex * 27, 192, 23, 8);
+      graphics.drawRect(65 + player.currentWeaponIndex * 27, 192, 23, 8);
       LevelScene.hudFont.drawCell(graphics, 0, 195, 13, 0, 0);
     }
   }
 
   /**
    * 在屏幕指定纵向区间填黑（CFR j.java `a(Graphics,int,int,int)`）。过渡子状态的卷帘黑幕即用此绘制。
-   * @param n  原始参数（CFR 中传入但实际未用于绘制，按位级保真保留）。
-   * @param n2 黑带起始 y。
-   * @param n3 黑带高度。
+   * @param maskHeight 原始参数（CFR 中传入但实际未用于绘制，按位级保真保留）。
+   * @param bandY 黑带起始 y。
+   * @param bandHeight 黑带高度。
    */
   // public static final void a(Graphics,int,int,int);  → a_GIII
-  static fillBlackBand(graphics: Graphics, n: number, n2: number, n3: number): void {
+  static fillBlackBand(graphics: Graphics, maskHeight: number, bandY: number, bandHeight: number): void {
     graphics.setColor(0);
-    graphics.setClip(0, n2, 176, n3);
-    graphics.fillRect(0, n2, 176, n3);
+    graphics.setClip(0, bandY, 176, bandHeight);
+    graphics.fillRect(0, bandY, 176, bandHeight);
   }
 
   /**
    * 用 HUD 字模 {@link LevelScene.hudFont} 右对齐绘制十进制数字（CFR j.java `a(Graphics,int,int,int,boolean,boolean)`）。
    * 从右往左逐位（最多 5 位，每位宽 8px）画字符格。
-   * @param n   右边界 x（绘制从此处向左推进）。
-   * @param n2  y 坐标。
-   * @param n3  要显示的数值（负数按 0 处理）。
-   * @param bl  true 时在数字左侧追加一个前缀格（字符 38）。
-   * @param bl2 true 时个位为 0 仍补一位前导 0。
+   * @param x   右边界 x（绘制从此处向左推进）。
+   * @param y   y 坐标。
+   * @param value 要显示的数值（负数按 0 处理）。
+   * @param showPrefix true 时在数字左侧追加一个前缀格（字符 38）。
+   * @param padLeadingZero true 时个位为 0 仍补一位前导 0。
    * @returns 绘制后剩余的左边界 x。
    */
   // public static final int a(Graphics,int,int,int,boolean,boolean);  → a_GIIIZZ
-  static drawNumber(graphics: Graphics, n: number, n2: number, n3: number, bl: boolean, bl2: boolean): number {
-    let n4: number = 0;
-    const bl3: boolean = false; // 原版未使用，保留以对照
-    void bl3;
-    n3 = Math.max(0, n3);
-    let n5: number = 0;
-    while (n5 < 5) {
-      n4 = n3 % 10;
-      LevelScene.hudFont.drawCell(graphics, n -= 8, n2, 1 + n4, 0, 0);
-      if ((n3 = (n3 / 10) | 0) === 0) {
-        if (n5 !== 0 || !bl2) break;
-        LevelScene.hudFont.drawCell(graphics, n -= 8, n2, 1, 0, 0);
+  static drawNumber(graphics: Graphics, x: number, y: number, value: number, showPrefix: boolean, padLeadingZero: boolean): number {
+    let digit: number = 0;
+    const unusedFlag: boolean = false; // 原版未使用，保留以对照
+    void unusedFlag;
+    value = Math.max(0, value);
+    let i: number = 0;
+    while (i < 5) {
+      digit = value % 10;
+      LevelScene.hudFont.drawCell(graphics, x -= 8, y, 1 + digit, 0, 0);
+      if ((value = (value / 10) | 0) === 0) {
+        if (i !== 0 || !padLeadingZero) break;
+        LevelScene.hudFont.drawCell(graphics, x -= 8, y, 1, 0, 0);
         break;
       }
-      ++n5;
+      ++i;
     }
-    if (bl) {
-      LevelScene.hudFont.drawCell(graphics, n - 8, n2, 38, 0, 0);
+    if (showPrefix) {
+      LevelScene.hudFont.drawCell(graphics, x - 8, y, 38, 0, 0);
     }
     graphics.setClip(0, 0, 176, 208);
-    return n;
+    return x;
   }
 
   /**
