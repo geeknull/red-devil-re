@@ -1386,28 +1386,28 @@ export class LevelScene {
       this.dialogActor.kill();
       this.dialogActor = null;
     }
-    let n: number = 0;
-    while (n < LevelScene.activeActors.length) {
-      LevelScene.activeActors[n] = null;
-      ++n;
+    let actorIdx: number = 0;
+    while (actorIdx < LevelScene.activeActors.length) {
+      LevelScene.activeActors[actorIdx] = null;
+      ++actorIdx;
     }
     LevelScene.activeActors = null as unknown as (ActorBase | null)[];
-    let n2: number = 0;
-    while (n2 < this.cellActors.length) {
-      this.cellActors[n2] = null;
-      ++n2;
+    let cellIdx: number = 0;
+    while (cellIdx < this.cellActors.length) {
+      this.cellActors[cellIdx] = null;
+      ++cellIdx;
     }
     this.cellActors = null as unknown as (Int8Array | null)[];
-    let n3: number = 0;
-    while (n3 < this.actorInstanceTable.length) {
-      this.actorInstanceTable[n3] = null;
-      ++n3;
+    let instanceIdx: number = 0;
+    while (instanceIdx < this.actorInstanceTable.length) {
+      this.actorInstanceTable[instanceIdx] = null;
+      ++instanceIdx;
     }
     this.actorInstanceTable = null as unknown as (Int8Array | null)[];
-    let n4: number = 0;
-    while (n4 < this.triggerTable.length) {
-      this.triggerTable[n4] = null;
-      ++n4;
+    let triggerIdx: number = 0;
+    while (triggerIdx < this.triggerTable.length) {
+      this.triggerTable[triggerIdx] = null;
+      ++triggerIdx;
     }
     this.triggerTable = null as unknown as (Int8Array | null)[];
     this.triggerFiredFlags = null as unknown as boolean[];
@@ -1419,58 +1419,58 @@ export class LevelScene {
   /**
    * 为某 actor 类型分配对象池（CFR j.java `a(tjge.a,int,int)`）。
    * 若该类型池已存在则跳过；否则预创建 n2 个该类型 actor 实例填入 {@link LevelScene.actorPool}[n]，供 {@link spawnActor} 复用。
-   * @param a2 当前 GameCanvas（用于经 {@link GameCanvas.createActor} 创建 actor）。
-   * @param n  actor 类型。
-   * @param n2 池容量（该类型同屏最大并发数）。
+   * @param canvas 当前 GameCanvas（用于经 {@link GameCanvas.createActor} 创建 actor）。
+   * @param actorType actor 类型。
+   * @param capacity 池容量（该类型同屏最大并发数）。
    */
   // public static final void a(tjge.a,int,int);  → a_TaII
-  static allocActorPool(a2: GameCanvas, n: number, n2: number): void {
-    if (LevelScene.actorPool[n] != null) {
+  static allocActorPool(canvas: GameCanvas, actorType: number, capacity: number): void {
+    if (LevelScene.actorPool[actorType] != null) {
       return;
     }
-    LevelScene.actorPool[n] = new Array<ActorBase | null>(n2).fill(null);
-    let n3: number = 0;
-    while (n3 < n2) {
-      LevelScene.actorPool[n][n3] = a2.createActor(n, LevelScene.actorDefs[n]!);
-      ++n3;
+    LevelScene.actorPool[actorType] = new Array<ActorBase | null>(capacity).fill(null);
+    let i: number = 0;
+    while (i < capacity) {
+      LevelScene.actorPool[actorType][i] = canvas.createActor(actorType, LevelScene.actorDefs[actorType]!);
+      ++i;
     }
   }
 
   /**
    * 按需加载某 actor 类型的精灵定义（CFR j.java `c(int)`）。
    * 若 {@link LevelScene.actorDefs}[n] 未加载则经 {@link SpriteDef.loadFromArchive} 解码，并置好加载标志。
-   * @param n actor 类型。
+   * @param actorType actor 类型。
    */
   // public static final void c(int);  → c_I
-  static loadActorDef(n: number): void {
-    if (LevelScene.actorDefs[n] == null) {
-      LevelScene.actorDefs[n] = SpriteDef.loadFromArchive(n);
+  static loadActorDef(actorType: number): void {
+    if (LevelScene.actorDefs[actorType] == null) {
+      LevelScene.actorDefs[actorType] = SpriteDef.loadFromArchive(actorType);
     }
-    LevelScene.actorDefLoaded[n] = true;
-    SpriteDef.loadedFlags[SpriteDef.idMap[n]] = true;
+    LevelScene.actorDefLoaded[actorType] = true;
+    SpriteDef.loadedFlags[SpriteDef.idMap[actorType]] = true;
   }
 
   /**
    * 分步加载资源（CFR j.java `a(tjge.a,int)`）。加载进度由调用方递增 n 驱动，用于关卡加载进度条/分帧加载。
    * 按 {@link LevelScene.resourceLoadTable} 前 n 项依次加载 actor 精灵定义（{@link loadActorDef}）并分配对象池（{@link allocActorPool}）；
    * 当 n===3 时额外加载 HUD 字模 {@link LevelScene.hudFont}。
-   * @param a2 当前 GameCanvas。
-   * @param n  本次加载到第几项（步进游标）。
+   * @param canvas 当前 GameCanvas。
+   * @param upTo  本次加载到第几项（步进游标）。
    * @returns 是否已加载完整张资源表（全部完成时为 true）。
    */
   // public static final boolean a(tjge.a,int);  → a_TaI
-  static loadResourcesUpTo(a2: GameCanvas, n: number): boolean {
-    let n2: number = 0;
-    n2 = 0;
-    while (n2 < n && n2 < LevelScene.resourceLoadTable.length) {
-      LevelScene.loadActorDef(LevelScene.resourceLoadTable[n2][0]);
-      LevelScene.allocActorPool(a2, LevelScene.resourceLoadTable[n2][0], LevelScene.resourceLoadTable[n2][1]);
-      ++n2;
+  static loadResourcesUpTo(canvas: GameCanvas, upTo: number): boolean {
+    let i: number = 0;
+    i = 0;
+    while (i < upTo && i < LevelScene.resourceLoadTable.length) {
+      LevelScene.loadActorDef(LevelScene.resourceLoadTable[i][0]);
+      LevelScene.allocActorPool(canvas, LevelScene.resourceLoadTable[i][0], LevelScene.resourceLoadTable[i][1]);
+      ++i;
     }
-    if (n === 3) {
+    if (upTo === 3) {
       LevelScene.hudFont = TileSheet.loadFromBin(6)!; // a_I 在 TS 返回 i|null；原版直接赋值（运行时非空）
     }
-    return n2 >= LevelScene.resourceLoadTable.length;
+    return i >= LevelScene.resourceLoadTable.length;
   }
 
   /**
@@ -1479,102 +1479,104 @@ export class LevelScene {
    * 读触发器表 {@link triggerTable}、actor 实例表 {@link actorInstanceTable}、分屏触发器 {@link cellTriggers}、
    * 全局常驻 actor {@link globalActors} 与各分屏常驻 actor {@link cellActors}；非 0/2 关额外载入剧情字符串。
    * 解析全程经 {@link GameMIDlet} 的小端字节读取保持位级一致；任何异常返回 null。
-   * @param a2 当前 GameCanvas（场景持有它以访问玩家/输入/相机）。
-   * @param n  关卡号（s.bin 中的条目索引，0~6）。
+   * @param canvas 当前 GameCanvas（场景持有它以访问玩家/输入/相机）。
+   * @param levelIndex  关卡号（s.bin 中的条目索引，0~6）。
    * @returns 装配好的场景实例；加载失败返回 null。
    */
   // public static final tjge.j b(tjge.a,int);  → b_TaI
-  static loadLevel(a2: GameCanvas, n: number): LevelScene | null {
-    const j2: LevelScene = new LevelScene();
+  static loadLevel(canvas: GameCanvas, levelIndex: number): LevelScene | null {
+    const scene: LevelScene = new LevelScene();
     try {
+      // n2/n4/by 为 CFR 反编译级多角色 scratch（跨"记录长度/循环游标/actor 类型/触发器数"复用），
+      // 纯改名下任何语义名都会误导另一角色，故保留原名待后续活跃区间拆分；blobLen 全程仅表"刚读出的尺寸"。
       let n2: number;
-      let n3: number;
+      let blobLen: number;
       let n4: number;
       let by: number;
-      const inputStream: InputStream = GameMIDlet.openEntryStream("/res/s.bin", n)!;
-      j2.cellWidth = GameMIDlet.readShortLE(inputStream);
-      j2.cellHeight = GameMIDlet.readShortLE(inputStream);
-      const by2: number = GameMIDlet.readByte(inputStream);
-      let by3: number = 0;
-      const bl: boolean = false; // 原版局部变量，未使用
-      void bl;
-      if (by2 === 2) {
+      const inputStream: InputStream = GameMIDlet.openEntryStream("/res/s.bin", levelIndex)!;
+      scene.cellWidth = GameMIDlet.readShortLE(inputStream);
+      scene.cellHeight = GameMIDlet.readShortLE(inputStream);
+      const mapFormat: number = GameMIDlet.readByte(inputStream);
+      let mapParamB: number = 0;
+      const unusedA: boolean = false; // 原版局部变量，未使用
+      void unusedA;
+      if (mapFormat === 2) {
         GameMIDlet.readByte(inputStream);
-        by3 = GameMIDlet.readByte(inputStream);
+        mapParamB = GameMIDlet.readByte(inputStream);
       }
       GameMIDlet.readByte(inputStream);
-      const by4: number = GameMIDlet.readByte(inputStream);
+      const mapParamA: number = GameMIDlet.readByte(inputStream);
       LevelScene.camera = new TileMap(176, 172);
-      LevelScene.camera.load(by4, by3, by2);
-      const bl2: boolean = false; // 原版局部变量，未使用
-      void bl2;
-      const n5: number = inputStream.read1(); // 原 InputStream.read()（无参）
-      let n6: number = 0;
-      while (n6 < n5) {
+      LevelScene.camera.load(mapParamA, mapParamB, mapFormat);
+      const unusedB: boolean = false; // 原版局部变量，未使用
+      void unusedB;
+      const actorTypeCount: number = inputStream.read1(); // 原 InputStream.read()（无参）
+      let typeIdx: number = 0;
+      while (typeIdx < actorTypeCount) {
         by = GameMIDlet.readByte(inputStream);
         LevelScene.loadActorDef(by);
         GameMIDlet.readByte(inputStream);
         n4 = GameMIDlet.readByte(inputStream);
-        LevelScene.allocActorPool(a2, by, n4);
-        ++n6;
+        LevelScene.allocActorPool(canvas, by, n4);
+        ++typeIdx;
       }
       by = GameMIDlet.readByte(inputStream);
-      j2.triggerTable = new Array<Int8Array | null>(by).fill(null);
-      j2.triggerFiredFlags = new Array<boolean>(by).fill(false);
+      scene.triggerTable = new Array<Int8Array | null>(by).fill(null);
+      scene.triggerFiredFlags = new Array<boolean>(by).fill(false);
       n4 = 0;
       while (n4 < by) {
-        n3 = GameMIDlet.readByte(inputStream);
-        j2.triggerTable[n4] = new Int8Array(n3 += 18);
-        inputStream.read(j2.triggerTable[n4]!);
+        blobLen = GameMIDlet.readByte(inputStream);
+        scene.triggerTable[n4] = new Int8Array(blobLen += 18);
+        inputStream.read(scene.triggerTable[n4]!);
         ++n4;
       }
-      j2.residentActorSlots = n3 = inputStream.read1(); // 原 InputStream.read()（无参）
-      j2.actorInstanceTable = new Array<Int8Array | null>(n3).fill(null);
-      j2.triggerHitFlags = new Array<boolean>(n3).fill(false);
-      LevelScene.activeActors = new Array<ActorBase | null>(n3 + 30).fill(null);
-      let n7: number = 0;
-      while (n7 < n3) {
-        j2.triggerHitFlags[n7] = false;
+      scene.residentActorSlots = blobLen = inputStream.read1(); // 原 InputStream.read()（无参）
+      scene.actorInstanceTable = new Array<Int8Array | null>(blobLen).fill(null);
+      scene.triggerHitFlags = new Array<boolean>(blobLen).fill(false);
+      LevelScene.activeActors = new Array<ActorBase | null>(blobLen + 30).fill(null);
+      let instIdx: number = 0;
+      while (instIdx < blobLen) {
+        scene.triggerHitFlags[instIdx] = false;
         n2 = GameMIDlet.readByte(inputStream);
-        j2.actorInstanceTable[n7] = new Int8Array(n2 += 7);
-        inputStream.read(j2.actorInstanceTable[n7]!);
-        ++n7;
+        scene.actorInstanceTable[instIdx] = new Int8Array(n2 += 7);
+        inputStream.read(scene.actorInstanceTable[instIdx]!);
+        ++instIdx;
       }
-      j2.cellCount = ((LevelScene.camera.getMapHeight() / j2.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / j2.cellWidth) | 0);
-      j2.cellTriggers = new Array<Int8Array | null>(j2.cellCount).fill(null);
+      scene.cellCount = ((LevelScene.camera.getMapHeight() / scene.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / scene.cellWidth) | 0);
+      scene.cellTriggers = new Array<Int8Array | null>(scene.cellCount).fill(null);
       n2 = 0;
-      while (n2 < j2.cellCount) {
-        const by5: number = GameMIDlet.readByte(inputStream);
-        n3 = by5;
-        if (by5 > 0) {
-          j2.cellTriggers[n2] = new Int8Array(n3);
-          inputStream.read(j2.cellTriggers[n2]!);
+      while (n2 < scene.cellCount) {
+        const cellTrigLen: number = GameMIDlet.readByte(inputStream);
+        blobLen = cellTrigLen;
+        if (cellTrigLen > 0) {
+          scene.cellTriggers[n2] = new Int8Array(blobLen);
+          inputStream.read(scene.cellTriggers[n2]!);
         }
         ++n2;
       }
-      j2.globalActorCount = GameMIDlet.readByte(inputStream);
-      j2.globalActors = new Int8Array(j2.globalActorCount);
-      inputStream.read(j2.globalActors);
-      j2.cellActors = new Array<Int8Array | null>(j2.cellCount).fill(null);
-      let n8: number = 0;
-      while (n8 < j2.cellCount) {
-        n3 = inputStream.read1(); // 原 InputStream.read()（无参）
-        j2.cellActors[n8] = new Int8Array(n3);
-        inputStream.read(j2.cellActors[n8]!);
-        ++n8;
+      scene.globalActorCount = GameMIDlet.readByte(inputStream);
+      scene.globalActors = new Int8Array(scene.globalActorCount);
+      inputStream.read(scene.globalActors);
+      scene.cellActors = new Array<Int8Array | null>(scene.cellCount).fill(null);
+      let cellIdx: number = 0;
+      while (cellIdx < scene.cellCount) {
+        blobLen = inputStream.read1(); // 原 InputStream.read()（无参）
+        scene.cellActors[cellIdx] = new Int8Array(blobLen);
+        inputStream.read(scene.cellActors[cellIdx]!);
+        ++cellIdx;
       }
       inputStream.close();
-      j2.mapWidth = LevelScene.camera.getMapWidth();
-      j2.mapHeight = LevelScene.camera.getMapHeight();
-      j2.canvas = a2;
-      if (n !== 0 && n !== 2) {
-        GameMIDlet.loadTextEntry(n, "/res/string.bin");
+      scene.mapWidth = LevelScene.camera.getMapWidth();
+      scene.mapHeight = LevelScene.camera.getMapHeight();
+      scene.canvas = canvas;
+      if (levelIndex !== 0 && levelIndex !== 2) {
+        GameMIDlet.loadTextEntry(levelIndex, "/res/string.bin");
       }
-      LevelScene.currentLevel = n;
+      LevelScene.currentLevel = levelIndex;
     } catch (exception) {
       return null;
     }
-    return j2;
+    return scene;
   }
 
   // static {};  静态初始化块
