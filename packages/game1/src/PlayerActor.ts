@@ -1025,7 +1025,7 @@ export class PlayerActor extends ActorBase {
    * 按子状态 subState 选起跳动画帧，置竖直速度 n、恢复重力 accelY=4096、清着地位、标记移动中。
    */
   // b(int) → b_I（向左跳跃/落地动作分支设定）
-  startLeapLeft(n: number): void {
+  startLeapLeft(jumpVelY: number): void {
     if (this.subState === 2) {
       this.posX = this.climbTargetX + px(12);
       this.setFrame(-2147483626);
@@ -1034,7 +1034,7 @@ export class PlayerActor extends ActorBase {
     } else {
       this.setFrame(-2147483645);
     }
-    this.targetVelY = n;
+    this.targetVelY = jumpVelY;
     this.accelY = px(4);
     this.stateFlags &= 0xfffffffe;
     this.movingFlag = 1;
@@ -1045,7 +1045,7 @@ export class PlayerActor extends ActorBase {
    * 与 startLeapLeft() 镜像，@param n 同义（向上为负）。
    */
   // c(int) → c_I（向右跳跃/落地动作分支设定）
-  startLeapRight(n: number): void {
+  startLeapRight(jumpVelY: number): void {
     if (this.subState === 2) {
       this.posX = this.climbTargetX - px(12);
       this.setFrame(22);
@@ -1054,7 +1054,7 @@ export class PlayerActor extends ActorBase {
     } else {
       this.setFrame(3);
     }
-    this.targetVelY = n;
+    this.targetVelY = jumpVelY;
     this.accelY = px(4);
     this.stateFlags &= 0xfffffffe;
     this.movingFlag = 1;
@@ -1243,14 +1243,14 @@ export class PlayerActor extends ActorBase {
    * 由 onProjectileHit() 等命中逻辑调用。
    */
   // e(int) → e_I（受击：扣血并进入受击动作）
-  takeDamage(n: number): void {
+  takeDamage(damage: number): void {
     if (this.screen.state !== GameState.Playing) {
       return;
     }
     if (this.actionId === 13 || this.actionId === 19 || this.actionId === 15 || this.actionId === 16 || this.invulnTimer > 0) {
       return;
     }
-    this.health -= n;
+    this.health -= damage;
     this.frameTimer = 0;
     this.invulnTimer = 5;
     this.stateFlags &= 0xffffdfff;
@@ -1470,26 +1470,26 @@ export class PlayerActor extends ActorBase {
    * 由 GameScreen 碰撞遍历在弹体击中玩家包围盒时调用。
    */
   // a(tjge.l) → a_Tl（被子弹/拾取物命中处理，覆写基类 a_Tl）
-  onProjectileHit(l2: ProjectileActor): void {
+  onProjectileHit(projectile: ProjectileActor): void {
     if (this.actionId !== 19 && this.actionId !== 23 && this.actionId !== 15 && this.actionId !== 16) {
-      switch (l2.typeId) {
+      switch (projectile.typeId) {
         case ActorType.GuidedMissileProjectile: {
-          if (this.facingLeft && l2.targetVelX < 0) {
+          if (this.facingLeft && projectile.targetVelX < 0) {
             this.facingFlag = 0;
             this.facingLeft = false;
-          } else if (!this.facingLeft && l2.targetVelX > 0) {
+          } else if (!this.facingLeft && projectile.targetVelX > 0) {
             this.facingFlag = MIRROR_FLAG; // Integer.MIN_VALUE
             this.facingLeft = true;
           }
-          if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
+          if ((projectile.frameIndex & SEQUENCE_MASK) !== 0) break;
           this.takeDamage(1);
-          l2.deactivate();
+          projectile.deactivate();
           return;
         }
         case ActorType.FallingBombProjectile: {
-          const n = l2.targetVelX > 0 ? px(8) : px(-8);
-          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX + n, l2.posY + px(8), l2.mode);
-          l2.deactivate();
+          const spawnOffsetX = projectile.targetVelX > 0 ? px(8) : px(-8);
+          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, projectile.posX + spawnOffsetX, projectile.posY + px(8), projectile.mode);
+          projectile.deactivate();
           GameScreen.playSound(5, 1, 220);
           return;
         }
