@@ -1395,74 +1395,74 @@ export class PlayerActor extends ActorBase {
     }
   }
 
-  // a(tjge.b,int) → a_TbI（向左侧地形碰撞，n=偏移；n==100 表示忽略 E 方向限制）
-  checkWallLeft(b2: TileMap, n: number): boolean {
-    if (n !== 100) {
+  // a(tjge.b,int) → a_TbI（向左侧地形碰撞，probeMargin=探测偏移；==100 表示忽略 E 方向限制）
+  checkWallLeft(b2: TileMap, probeMargin: number): boolean {
+    if (probeMargin !== 100) {
       if (this.velX > 0) {
         return false;
       }
     } else {
-      n = 0;
+      probeMargin = 0;
     }
-    let n2 = this.boundsTop;
-    const bl = false;
-    void bl;
+    // n2：碰撞箱上沿相对像素Y的偏移，梯子态(0x2000)固定为 -20（对应 CFR z 字段）
+    let boxTopOffset = this.boundsTop;
     if ((this.stateFlags & 0x2000) !== 0) {
-      n2 = -20;
+      boxTopOffset = -20;
     }
-    let n3 = (this.posY + this.velY) >> 10;
-    const n4 = (((this.posX + this.velX) >> 10) + -9 - n) >> 4;
-    const n5 = (n3 + n2 - 2) >> 4;
-    const n6 = (n3 - 10) >> 4;
-    let n7 = n5;
-    while (n7 <= n6) {
-      n3 = b2.queryColumnTileAt(n4, n7, true);
-      if (n3 === 1) {
-        n3 = b2.queryColumnTileAt(n4 + 1, n7, true);
-        if (n3 !== 1) {
+    // 拆 CFR 的 n3 双义：先是像素Y（算行范围），循环内复用为瓦片值。
+    const pixelY = (this.posY + this.velY) >> 10;
+    const wallTileX = (((this.posX + this.velX) >> 10) + -9 - probeMargin) >> 4;
+    const topRow = (pixelY + boxTopOffset - 2) >> 4;
+    const bottomRow = (pixelY - 10) >> 4;
+    let row = topRow;
+    while (row <= bottomRow) {
+      let tileValue = b2.queryColumnTileAt(wallTileX, row, true);
+      if (tileValue === 1) {
+        tileValue = b2.queryColumnTileAt(wallTileX + 1, row, true);
+        if (tileValue !== 1) {
           this.targetVelX = 0;
           this.posX &= 0xfffffc00;
-          this.velX = (((n4 << 4) + 25) << 10) - this.posX;
+          this.velX = (((wallTileX << 4) + 25) << 10) - this.posX;
         }
         return true;
       }
-      ++n7;
+      ++row;
     }
     return false;
   }
 
-  // b(tjge.b,int) → b_TbI（向右侧地形碰撞，n=偏移；n==100 表示忽略 E 方向限制）
-  checkWallRight(b2: TileMap, n: number): boolean {
-    if (n !== 100) {
+  // b(tjge.b,int) → b_TbI（向右侧地形碰撞，probeMargin=探测偏移；==100 表示忽略 E 方向限制）
+  checkWallRight(b2: TileMap, probeMargin: number): boolean {
+    if (probeMargin !== 100) {
       if (this.velX < 0) {
         return false;
       }
     } else {
-      n = 0;
+      probeMargin = 0;
     }
-    let n2 = this.boundsTop;
-    const bl = false;
-    void bl;
+    // n2：碰撞箱上沿相对像素Y的偏移，梯子态(0x2000)固定为 -20（对应 CFR z 字段）
+    let boxTopOffset = this.boundsTop;
     if ((this.stateFlags & 0x2000) !== 0) {
-      n2 = -20;
+      boxTopOffset = -20;
     }
-    let n3 = (this.posY + this.velY) >> 10;
-    const n4 = (((this.posX + this.velX) >> 10) + 9 + n) >> 4;
-    const n5 = (n3 + n2 - 2) >> 4;
-    const n6 = (n3 - 10) >> 4;
-    let n7 = n5;
-    while (n7 <= n6) {
-      n3 = b2.queryColumnTileAt(n4, n7, true);
-      if (n3 === 1) {
-        n3 = b2.queryColumnTileAt(n4 - 1, n7, true);
-        if (n3 !== 1) {
+    // 拆 CFR 的 n3 双义：先是像素Y（算行范围），循环内复用为瓦片值。
+    const pixelY = (this.posY + this.velY) >> 10;
+    const wallTileX = (((this.posX + this.velX) >> 10) + 9 + probeMargin) >> 4;
+    const topRow = (pixelY + boxTopOffset - 2) >> 4;
+    const bottomRow = (pixelY - 10) >> 4;
+    let row = topRow;
+    while (row <= bottomRow) {
+      let tileValue = b2.queryColumnTileAt(wallTileX, row, true);
+      if (tileValue === 1) {
+        tileValue = b2.queryColumnTileAt(wallTileX - 1, row, true);
+        if (tileValue !== 1) {
           this.targetVelX = 0;
           this.posX &= 0xfffffc00;
-          this.velX = (((n4 << 4) - 10) << 10) - this.posX;
+          this.velX = (((wallTileX << 4) - 10) << 10) - this.posX;
         }
         return true;
       }
-      ++n7;
+      ++row;
     }
     return false;
   }
