@@ -811,123 +811,19 @@ export class PlayerActor extends ActorBase {
                       }
                     }
                     if (this.screen.heldKeyAction === 1) {
-                      if ((this.stateFlags & 1) !== 0) {
-                        if (this.actionId !== 2) {
-                          if (this.facingLeft) {
-                            if (this.actionId === 5 && this.checkWallAhead(this.screen.tileMap!)) {
-                              return;
-                            }
-                            if (!this.checkWallLeft(this.screen.tileMap!, 2)) {
-                              this.walkLeft();
-                            }
-                          } else {
-                            this.setFrame(this.actionId | MIRROR_FLAG);
-                          }
-                        }
-                      } else if ((this.stateFlags & 8192) !== 0 && !this.checkWallLeft(this.screen.tileMap!, 14)) {
-                        if (this.checkLadderTile(this.screen.tileMap!, false)) {
-                          this.frameTimer = 0;
-                          this.movingFlag = 1;
-                          this.targetVelY = px(10);
-                          this.targetVelX = px(-8);
-                          this.subState = 5;
-                          this.setFrame(-2147483631);
-                        } else {
-                          this.velY = px(4);
-                          this.setFrame(MIRROR_FLAG);
-                        }
-                        this.stateFlags &= -8193;
-                      }
-                      this.lastInputDir = 1;
+                      this.handleLeftPress();
                       return;
                     }
                     if (this.screen.heldKeyAction === 2) {
-                      if ((this.stateFlags & 1) !== 0) {
-                        if (this.actionId !== 2) {
-                          if (!this.facingLeft) {
-                            if (this.actionId === 5 && this.checkWallAhead(this.screen.tileMap!)) {
-                              return;
-                            }
-                            if (!this.checkWallRight(this.screen.tileMap!, 2)) {
-                              this.walkRight();
-                            }
-                          } else {
-                            this.setFrame(this.actionId);
-                          }
-                        }
-                      } else if ((this.stateFlags & 8192) !== 0 && !this.checkWallRight(this.screen.tileMap!, 14)) {
-                        if (this.checkLadderTile(this.screen.tileMap!, false)) {
-                          this.frameTimer = 0;
-                          this.movingFlag = 1;
-                          this.targetVelY = px(10);
-                          this.targetVelX = px(8);
-                          this.subState = 5;
-                          this.setFrame(17);
-                        } else {
-                          this.velY = px(4);
-                          this.setFrame(0);
-                        }
-                        this.stateFlags &= -8193;
-                      }
-                      this.lastInputDir = 2;
+                      this.handleRightPress();
                       return;
                     }
                     if (this.screen.heldKeyAction === 4) {
-                      if (this.actionFlag && (this.stateFlags & 1) !== 0) {
-                        if (this.linkedEnemy !== null) {
-                          this.setFrame(13 | this.facingFlag);
-                        }
-                      } else if (this.actionId === 5) {
-                        if (!this.checkWallAhead(this.screen.tileMap!)) {
-                          this.setFrame(0 | this.facingFlag);
-                        }
-                      } else if (this.checkLadderTile(this.screen.tileMap!, true)) {
-                        this.climbAdvance = true;
-                        this.stateFlags &= -2;
-                        this.stateFlags |= 8192;
-                        this.targetVelY = px(-5);
-                        this.movingFlag = 0;
-                        this.setFrame(this.climbAnimState | this.facingFlag);
-                      } else if ((this.stateFlags & 8192) !== 0) {
-                        this.ledgeGrabFlag = true;
-                        this.setFrame(27 | this.facingFlag);
-                      }
-                      this.lastInputDir = 4;
-                      this.inputHoldCount = 0;
+                      this.handleUpPress();
                       return;
                     }
                     if (this.screen.heldKeyAction === 8) {
-                      this.targetVelX = 0;
-                      if (this.checkLadderTile(this.screen.tileMap!, false)) {
-                        if ((this.stateFlags & 8192) === 0) {
-                          this.stateFlags &= -2;
-                          this.stateFlags |= 8192;
-                          this.movingFlag = 0;
-                          this.ledgeGrabFlag = false;
-                          this.posY += px(30);
-                          this.setFrame(27 | this.facingFlag);
-                        } else {
-                          this.setFrame(this.climbAnimState | this.facingFlag);
-                        }
-                        this.targetVelY = px(5);
-                        this.climbAdvance = true;
-                      } else if ((this.stateFlags & 8192) !== 0) {
-                        this.stateFlags &= -8193;
-                        this.velY = px(4);
-                        this.setFrame(0 | this.facingFlag);
-                      } else if (
-                        (this.stateFlags & 1) !== 0 &&
-                        ((this.inputHoldCount > 0 && this.inputHoldCount < 3 && this.lastInputDir === 8) ||
-                          (this.actionId === 5 && this.inputHoldCount > 0))
-                      ) {
-                        this.movingFlag = 1;
-                        this.targetVelX = this.facingLeft === false ? px(8) : px(-8);
-                        this.setFrame(19 | this.facingFlag);
-                      } else if ((this.stateFlags & 1) !== 0 && this.inputHoldCount > 0) {
-                        this.setFrame(5 | this.facingFlag);
-                      }
-                      this.lastInputDir = 8;
-                      this.inputHoldCount = 0;
+                      this.handleDownPress();
                       return;
                     }
                     if (this.screen.heldKeyAction !== 64) break block88;
@@ -1039,69 +935,19 @@ export class PlayerActor extends ActorBase {
     }
     // block92:
     if (this.screen.heldKeyAction === 16) {
-      if ((this.stateFlags & 8192) !== 0) {
-        return;
-      }
-      if (this.inputHoldCount === 0) {
-        ++this.inputHoldCount;
-        return;
-      }
-      switch (this.weaponIndex) {
-        case 0:
-        case 1: {
-          this.fireWeapon(21);
-          break;
-        }
-        case 2: {
-          this.fireWeapon(15);
-        }
-      }
-      this.inputHoldCount = 0;
-      this.targetVelX = 0;
-      this.screen.heldKeyAction &= -17;
+      this.handleFireInput();
       return;
     }
     if (this.screen.heldKeyAction === 32) {
-      if ((this.stateFlags & 8192) === 0 && this.inputHoldCount > 1) {
-        switch (this.weaponIndex) {
-          case 0: {
-            if (this.ammoReserveB !== 0 || this.ammoReserveC !== 0) break;
-            return;
-          }
-          case 1: {
-            this.ammoReserveB += this.magazineAmmo;
-            break;
-          }
-          case 2: {
-            this.ammoReserveC += this.magazineAmmo;
-          }
-        }
-        this.inputHoldCount = 0;
-        this.magazineAmmo = 0;
-        ++this.weaponIndex;
-        this.switchOrReloadWeapon(32);
-      }
-      this.targetVelX = 0;
-      this.screen.heldKeyAction &= -33;
+      this.handleSwitchWeaponInput();
       return;
     }
     if (this.screen.heldKeyAction === 2048) {
-      if (this.actionId !== 1 && this.actionId !== 28 && (this.stateFlags & 8192) === 0 && this.inputHoldCount > 1) {
-        this.switchOrReloadWeapon(2048);
-        this.inputHoldCount = 0;
-      }
-      this.targetVelX = 0;
-      this.screen.heldKeyAction &= -2049;
+      this.handleReloadInput();
       return;
     }
     if (this.screen.heldKeyAction === 1024) {
-      if ((this.stateFlags & 8192) !== 0 || this.inputHoldCount === 0) {
-        return;
-      }
-      this.fireWeapon(20);
-      this.inputHoldCount = 0;
-      this.targetVelX = 0;
-      this.screen.heldKeyAction &= -1025;
+      this.handleGrenadeInput();
       return;
     }
     ++this.inputHoldCount;
@@ -1111,6 +957,200 @@ export class PlayerActor extends ActorBase {
     if (this.actionId === 2 && (this.stateFlags & 1) !== 0) {
       this.setFrame(0 | this.facingFlag);
     }
+  }
+
+  // 开火键(heldKeyAction===16)：CFR h() block92 后 ab.q==16 分支。梯子态不开火；首帧只累计蓄力。
+  private handleFireInput(): void {
+    if ((this.stateFlags & 8192) !== 0) {
+      return;
+    }
+    if (this.inputHoldCount === 0) {
+      ++this.inputHoldCount;
+      return;
+    }
+    switch (this.weaponIndex) {
+      case 0:
+      case 1: {
+        this.fireWeapon(21);
+        break;
+      }
+      case 2: {
+        this.fireWeapon(15);
+      }
+    }
+    this.inputHoldCount = 0;
+    this.targetVelX = 0;
+    this.screen.heldKeyAction &= -17;
+  }
+
+  // 切武器键(heldKeyAction===32)：CFR h() ab.q==32 分支。weaponIndex0 无备弹则内层 return（跳过末尾清键）。
+  private handleSwitchWeaponInput(): void {
+    if ((this.stateFlags & 8192) === 0 && this.inputHoldCount > 1) {
+      switch (this.weaponIndex) {
+        case 0: {
+          if (this.ammoReserveB !== 0 || this.ammoReserveC !== 0) break;
+          return;
+        }
+        case 1: {
+          this.ammoReserveB += this.magazineAmmo;
+          break;
+        }
+        case 2: {
+          this.ammoReserveC += this.magazineAmmo;
+        }
+      }
+      this.inputHoldCount = 0;
+      this.magazineAmmo = 0;
+      ++this.weaponIndex;
+      this.switchOrReloadWeapon(32);
+    }
+    this.targetVelX = 0;
+    this.screen.heldKeyAction &= -33;
+  }
+
+  // 换弹键(heldKeyAction===2048)：CFR h() ab.q==2048 分支。
+  private handleReloadInput(): void {
+    if (this.actionId !== 1 && this.actionId !== 28 && (this.stateFlags & 8192) === 0 && this.inputHoldCount > 1) {
+      this.switchOrReloadWeapon(2048);
+      this.inputHoldCount = 0;
+    }
+    this.targetVelX = 0;
+    this.screen.heldKeyAction &= -2049;
+  }
+
+  // 手雷键(heldKeyAction===1024)：CFR h() ab.q==1024 分支。梯子态或未蓄力则 return。
+  private handleGrenadeInput(): void {
+    if ((this.stateFlags & 8192) !== 0 || this.inputHoldCount === 0) {
+      return;
+    }
+    this.fireWeapon(20);
+    this.inputHoldCount = 0;
+    this.targetVelX = 0;
+    this.screen.heldKeyAction &= -1025;
+  }
+
+  // 左键(heldKeyAction===1)：CFR h() ab.q==1 分支（block90 内，标号网入口前）。着地走/贴墙 vs 梯子态下滑。
+  private handleLeftPress(): void {
+    if ((this.stateFlags & 1) !== 0) {
+      if (this.actionId !== 2) {
+        if (this.facingLeft) {
+          if (this.actionId === 5 && this.checkWallAhead(this.screen.tileMap!)) {
+            return;
+          }
+          if (!this.checkWallLeft(this.screen.tileMap!, 2)) {
+            this.walkLeft();
+          }
+        } else {
+          this.setFrame(this.actionId | MIRROR_FLAG);
+        }
+      }
+    } else if ((this.stateFlags & 8192) !== 0 && !this.checkWallLeft(this.screen.tileMap!, 14)) {
+      if (this.checkLadderTile(this.screen.tileMap!, false)) {
+        this.frameTimer = 0;
+        this.movingFlag = 1;
+        this.targetVelY = px(10);
+        this.targetVelX = px(-8);
+        this.subState = 5;
+        this.setFrame(-2147483631);
+      } else {
+        this.velY = px(4);
+        this.setFrame(MIRROR_FLAG);
+      }
+      this.stateFlags &= -8193;
+    }
+    this.lastInputDir = 1;
+  }
+
+  // 右键(heldKeyAction===2)：CFR h() ab.q==2 分支。与左键镜像。
+  private handleRightPress(): void {
+    if ((this.stateFlags & 1) !== 0) {
+      if (this.actionId !== 2) {
+        if (!this.facingLeft) {
+          if (this.actionId === 5 && this.checkWallAhead(this.screen.tileMap!)) {
+            return;
+          }
+          if (!this.checkWallRight(this.screen.tileMap!, 2)) {
+            this.walkRight();
+          }
+        } else {
+          this.setFrame(this.actionId);
+        }
+      }
+    } else if ((this.stateFlags & 8192) !== 0 && !this.checkWallRight(this.screen.tileMap!, 14)) {
+      if (this.checkLadderTile(this.screen.tileMap!, false)) {
+        this.frameTimer = 0;
+        this.movingFlag = 1;
+        this.targetVelY = px(10);
+        this.targetVelX = px(8);
+        this.subState = 5;
+        this.setFrame(17);
+      } else {
+        this.velY = px(4);
+        this.setFrame(0);
+      }
+      this.stateFlags &= -8193;
+    }
+    this.lastInputDir = 2;
+  }
+
+  // 上键(heldKeyAction===4)：CFR h() ab.q==4 分支。抓捕敌人/取消跑/攀爬登梯/翻越预备。
+  private handleUpPress(): void {
+    if (this.actionFlag && (this.stateFlags & 1) !== 0) {
+      if (this.linkedEnemy !== null) {
+        this.setFrame(13 | this.facingFlag);
+      }
+    } else if (this.actionId === 5) {
+      if (!this.checkWallAhead(this.screen.tileMap!)) {
+        this.setFrame(0 | this.facingFlag);
+      }
+    } else if (this.checkLadderTile(this.screen.tileMap!, true)) {
+      this.climbAdvance = true;
+      this.stateFlags &= -2;
+      this.stateFlags |= 8192;
+      this.targetVelY = px(-5);
+      this.movingFlag = 0;
+      this.setFrame(this.climbAnimState | this.facingFlag);
+    } else if ((this.stateFlags & 8192) !== 0) {
+      this.ledgeGrabFlag = true;
+      this.setFrame(27 | this.facingFlag);
+    }
+    this.lastInputDir = 4;
+    this.inputHoldCount = 0;
+  }
+
+  // 下键(heldKeyAction===8)：CFR h() ab.q==8 分支。下梯/离梯/翻滚/蹲。
+  private handleDownPress(): void {
+    this.targetVelX = 0;
+    if (this.checkLadderTile(this.screen.tileMap!, false)) {
+      if ((this.stateFlags & 8192) === 0) {
+        this.stateFlags &= -2;
+        this.stateFlags |= 8192;
+        this.movingFlag = 0;
+        this.ledgeGrabFlag = false;
+        this.posY += px(30);
+        this.setFrame(27 | this.facingFlag);
+      } else {
+        this.setFrame(this.climbAnimState | this.facingFlag);
+      }
+      this.targetVelY = px(5);
+      this.climbAdvance = true;
+    } else if ((this.stateFlags & 8192) !== 0) {
+      this.stateFlags &= -8193;
+      this.velY = px(4);
+      this.setFrame(0 | this.facingFlag);
+    } else if (
+      (this.stateFlags & 1) !== 0 &&
+      ((this.inputHoldCount > 0 && this.inputHoldCount < 3 && this.lastInputDir === 8) ||
+        (this.actionId === 5 && this.inputHoldCount > 0))
+    ) {
+      this.movingFlag = 1;
+      this.targetVelX = this.facingLeft === false ? px(8) : px(-8);
+      this.setFrame(19 | this.facingFlag);
+    } else if ((this.stateFlags & 1) !== 0 && this.inputHoldCount > 0) {
+      this.setFrame(5 | this.facingFlag);
+    }
+    this.lastInputDir = 8;
+    this.inputHoldCount = 0;
   }
 
   /**
