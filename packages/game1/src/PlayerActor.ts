@@ -86,73 +86,71 @@ export class PlayerActor extends ActorBase {
     if (this.velY < 0) {
       return false;
     }
-    const bl = false;
-    void bl;
-    const bl2 = false;
-    void bl2;
-    const n = (this.posY + this.velY) >> 14;
-    const n2 = (((this.posX + this.velX) >> 10) + -5) >> 4;
-    const n3 = (((this.posX + this.velX) >> 10) + 5) >> 4;
-    let bl3 = false;
-    let bl4 = false;
-    if (b2.queryColumnTileAt(n2, n, true) === 1) {
-      bl3 = true;
+    const groundTileY = (this.posY + this.velY) >> 14;
+    const leftFootTileX = (((this.posX + this.velX) >> 10) + -5) >> 4;
+    const rightFootTileX = (((this.posX + this.velX) >> 10) + 5) >> 4;
+    let leftHit = false;
+    let rightHit = false;
+    if (b2.queryColumnTileAt(leftFootTileX, groundTileY, true) === 1) {
+      leftHit = true;
     }
-    if (b2.queryColumnTileAt(n3, n, true) === 1) {
-      bl4 = true;
+    if (b2.queryColumnTileAt(rightFootTileX, groundTileY, true) === 1) {
+      rightHit = true;
     }
-    if (bl3 && bl4) {
+    if (leftHit && rightHit) {
       this.targetVelY = 0;
       this.posY &= 0xfffffc00;
-      this.velY = (n << 14) - this.posY;
+      this.velY = (groundTileY << 14) - this.posY;
       return true;
     }
-    if (this.facingFlag !== 0 && (bl3 || bl4)) {
-      if (bl3 && !bl4) {
-        const n4 = (n2 << 4) + 16 - (((this.posX + this.velX) >> 10) + -5);
+    // edgeDist：脚像素到瓦片边沿的水平距（坡步阈值），各分支独立块作用域，忠实保留原偏移。
+    if (this.facingFlag !== 0 && (leftHit || rightHit)) {
+      if (leftHit && !rightHit) {
+        const edgeDist = (leftFootTileX << 4) + 16 - (((this.posX + this.velX) >> 10) + -5);
         this.targetVelX = 0;
-        if (n4 > 6 || (n4 >= 4 && (this.actionId === 4 || this.actionId === 3))) {
+        if (edgeDist > 6 || (edgeDist >= 4 && (this.actionId === 4 || this.actionId === 3))) {
           this.targetVelY = 0;
-          this.velX = (((n2 << 4) + 7) << 10) - this.posX;
-          this.velY = (n << 14) - this.posY;
+          this.velX = (((leftFootTileX << 4) + 7) << 10) - this.posX;
+          this.velY = (groundTileY << 14) - this.posY;
           return true;
         }
-        this.velX = (((n2 << 4) + 25) << 10) - this.posX;
-      } else if (!bl3 && bl4 && (this.stateFlags & 1) === 0) {
-        const n5 = (n3 << 4) - (((this.posX + this.velX) >> 10) + -5);
+        this.velX = (((leftFootTileX << 4) + 25) << 10) - this.posX;
+      } else if (!leftHit && rightHit && (this.stateFlags & 1) === 0) {
+        const edgeDist = (rightFootTileX << 4) - (((this.posX + this.velX) >> 10) + -5);
         this.targetVelX = 0;
-        if (n5 < 7) {
+        if (edgeDist < 7) {
           this.targetVelY = 0;
-          this.velX = (((n3 << 4) + 7) << 10) - this.posX;
-          this.velY = (n << 14) - this.posY;
+          this.velX = (((rightFootTileX << 4) + 7) << 10) - this.posX;
+          this.velY = (groundTileY << 14) - this.posY;
           return true;
         }
-        this.velX = (((n3 << 4) - 9) << 10) - this.posX;
-      } else if (!bl3 && bl4) {
+        this.velX = (((rightFootTileX << 4) - 9) << 10) - this.posX;
+      } else if (!leftHit && rightHit) {
         this.velY = px(2);
       }
-    } else if (this.facingFlag === 0 && (bl4 || bl3)) {
-      if (bl4 && !bl3) {
-        const n6 = ((this.posX + this.velX) >> 10) + 5 - (n3 << 4);
+    } else if (this.facingFlag === 0 && (rightHit || leftHit)) {
+      if (rightHit && !leftHit) {
+        const edgeDist = ((this.posX + this.velX) >> 10) + 5 - (rightFootTileX << 4);
         this.targetVelX = 0;
-        if (n6 > 6 || (n6 >= 4 && (this.actionId === 4 || this.actionId === 3))) {
+        if (edgeDist > 6 || (edgeDist >= 4 && (this.actionId === 4 || this.actionId === 3))) {
           this.targetVelY = 0;
-          this.velX = (((n3 << 4) + 7) << 10) - this.posX;
-          this.velY = (n << 14) - this.posY;
+          this.velX = (((rightFootTileX << 4) + 7) << 10) - this.posX;
+          this.velY = (groundTileY << 14) - this.posY;
           return true;
         }
-        this.velX = (((n3 << 4) - 9) << 10) - this.posX;
-      } else if (!bl4 && bl3 && (this.stateFlags & 1) === 0) {
-        const n7 = ((this.posX + this.velX) >> 10) + 5 - (n3 << 4);
+        this.velX = (((rightFootTileX << 4) - 9) << 10) - this.posX;
+      } else if (!rightHit && leftHit && (this.stateFlags & 1) === 0) {
+        // CFR 反编译特性：本(左命中)分支 edgeDist 用 rightFootTileX，而 velX 用 leftFootTileX，忠实保留。
+        const edgeDist = ((this.posX + this.velX) >> 10) + 5 - (rightFootTileX << 4);
         this.targetVelX = 0;
-        if (n7 < 7) {
+        if (edgeDist < 7) {
           this.targetVelY = 0;
-          this.velX = (((n2 << 4) + 9) << 10) - this.posX;
-          this.velY = (n << 14) - this.posY;
+          this.velX = (((leftFootTileX << 4) + 9) << 10) - this.posX;
+          this.velY = (groundTileY << 14) - this.posY;
           return true;
         }
-        this.velX = (((n2 << 4) + 25) << 10) - this.posX;
-      } else if (!bl4 && bl3) {
+        this.velX = (((leftFootTileX << 4) + 25) << 10) - this.posX;
+      } else if (!rightHit && leftHit) {
         this.velY = px(2);
       }
     }
