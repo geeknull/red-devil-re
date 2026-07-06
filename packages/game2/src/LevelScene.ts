@@ -346,7 +346,7 @@ export class LevelScene {
    */
   // private void e();  → e_
   private runCutscene(): void {
-    const g2: PlayerActor = this.canvas.player!;
+    const player: PlayerActor = this.canvas.player!;
     switch (LevelScene.cutsceneState[0]) {
       case 0: {
         if (LevelScene.cutsceneState[1] === 0) {
@@ -361,26 +361,26 @@ export class LevelScene {
             return;
           }
           if (LevelScene.cutsceneStep === 1) {
-            if (g2.stepThrowQueue() === 1) {
-              g2.advanceEffectFrame();
-              g2.targetVelY = px(8);
+            if (player.stepThrowQueue() === 1) {
+              player.advanceEffectFrame();
+              player.targetVelY = px(8);
               ++LevelScene.cutsceneStep;
             }
-            g2.targetVelX = px(10);
+            player.targetVelX = px(10);
             return;
           }
-          if (LevelScene.cutsceneStep !== 2 || pkg(g2).frameGroupIndex !== 0) break;
+          if (LevelScene.cutsceneStep !== 2 || pkg(player).frameGroupIndex !== 0) break;
           this.canvas.enterBriefing();
           return;
         }
         if (LevelScene.cutsceneState[1] !== 9) break;
         if (LevelScene.cutsceneStep === 0) {
           ++LevelScene.cutsceneStep;
-          g2.setAction(0x1E | g2.actionHighByte);
+          player.setAction(0x1E | player.actionHighByte);
           return;
         }
-        if (pkg(g2).frameGroupIndex !== 0) break;
-        g2.setAction(33);
+        if (pkg(player).frameGroupIndex !== 0) break;
+        player.setAction(33);
         this.canvas.showResult(true);
         return;
       }
@@ -388,20 +388,20 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 0) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           this.canvas.enterBriefing();
           return;
         }
         if (LevelScene.cutsceneState[1] === 1) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           this.setSubState(LevelSubState.MissionDialog);
           return;
         }
@@ -416,8 +416,8 @@ export class LevelScene {
             this.cameraTargetCacheY = this.cameraTargetY;
             return;
           }
-          g2.stepThrowQueue();
-          if (g2.posX >= this.canvas.cameraX - px(20)) break;
+          player.stepThrowQueue();
+          if (player.posX >= this.canvas.cameraX - px(20)) break;
           this.canvas.showResult(true);
           return;
         }
@@ -429,7 +429,7 @@ export class LevelScene {
           PlayerActor.throwCooldownQueue[0][2] = 6;
           PlayerActor.throwCooldownQueue[1][0] = 2;
           LevelScene.cutsceneState[4] = LevelScene.cutsceneState[4] << 14;
-          PlayerActor.throwCooldownQueue[1][1] = ((LevelScene.cutsceneState[4] - g2.posX + px(126)) / px(8)) | 0;
+          PlayerActor.throwCooldownQueue[1][1] = ((LevelScene.cutsceneState[4] - player.posX + px(126)) / px(8)) | 0;
           PlayerActor.throwCooldownQueue[1][2] = 2;
           PlayerActor.throwCooldownQueue[2][0] = 16;
           PlayerActor.throwCooldownQueue[2][1] = 1;
@@ -437,25 +437,25 @@ export class LevelScene {
           PlayerActor.throwCooldownQueue[3][0] = 8;
           PlayerActor.throwCooldownQueue[3][1] = 2;
           PlayerActor.throwCooldownQueue[3][2] = 0;
-          g2.currentWeaponIndex = 1;
-          if (PlayerActor.ammoCurrent[g2.currentWeaponIndex] === PlayerActor.ammoInitTable[g2.currentWeaponIndex]) {
+          player.currentWeaponIndex = 1;
+          if (PlayerActor.ammoCurrent[player.currentWeaponIndex] === PlayerActor.ammoInitTable[player.currentWeaponIndex]) {
             return;
           }
-          if (PlayerActor.ammoReserve[g2.currentWeaponIndex] > 0) break;
-          PlayerActor.ammoReserve[g2.currentWeaponIndex] = 1;
+          if (PlayerActor.ammoReserve[player.currentWeaponIndex] > 0) break;
+          PlayerActor.ammoReserve[player.currentWeaponIndex] = 1;
           return;
         }
         if (LevelScene.cutsceneStep === 1) {
-          if (g2.stepThrowQueue() !== 3) break;
+          if (player.stepThrowQueue() !== 3) break;
           ++LevelScene.cutsceneStep;
           return;
         }
         if (LevelScene.cutsceneStep === 3) {
-          if (g2.stepThrowQueue() !== 0) break;
+          if (player.stepThrowQueue() !== 0) break;
           ++LevelScene.cutsceneStep;
           return;
         }
-        if (pkg(g2).frameGroupIndex !== 0) break;
+        if (pkg(player).frameGroupIndex !== 0) break;
         if (LevelScene.cutsceneStep === 4) {
           LevelScene.dialogState[0] = 0;
           LevelScene.dialogState[1] = 0;
@@ -474,19 +474,19 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 0) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           this.canvas.enterBriefing();
           return;
         }
         if (LevelScene.cutsceneState[1] !== 9) break;
         if (++LevelScene.cutsceneStep === 10) {
-          g2.setAction(0x1E | g2.actionHighByte);
+          player.setAction(0x1E | player.actionHighByte);
           return;
         }
-        if (pkg(g2).frameGroupIndex !== 0) break;
+        if (pkg(player).frameGroupIndex !== 0) break;
         this.canvas.showResult(true);
         return;
       }
@@ -494,10 +494,10 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 0) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           LevelScene.dialogState[0] = 0;
           LevelScene.dialogState[1] = 1;
           LevelScene.dialogState[2] = 0;
@@ -513,20 +513,20 @@ export class LevelScene {
             LevelScene.cutsceneState[2] = 1;
             return;
           }
-          g2.stepThrowQueue();
-          if (g2.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(20)) break;
-          g2.targetVelX = 0;
-          g2.setAction(0 | g2.actionHighByte);
+          player.stepThrowQueue();
+          if (player.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(20)) break;
+          player.targetVelX = 0;
+          player.setAction(0 | player.actionHighByte);
           this.setSubState(LevelSubState.MissionDialog);
           return;
         }
         if (LevelScene.cutsceneState[1] !== 9) break;
         if (LevelScene.cutsceneStep === 0) {
           ++LevelScene.cutsceneStep;
-          g2.setAction(0x1E | g2.actionHighByte);
+          player.setAction(0x1E | player.actionHighByte);
           return;
         }
-        if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) break;
+        if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) break;
         this.canvas.showResult(true);
         return;
       }
@@ -534,10 +534,10 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 0) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           LevelScene.dialogState[0] = 0;
           LevelScene.dialogState[1] = 0;
           LevelScene.dialogState[2] = 1;
@@ -546,7 +546,7 @@ export class LevelScene {
         }
         if (LevelScene.cutsceneState[1] === 1) {
           if (LevelScene.cutsceneStep++ === 0) {
-            g2.setAction(0);
+            player.setAction(0);
             return;
           }
           if (LevelScene.cutsceneStep <= 4) break;
@@ -556,10 +556,10 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] !== 9) break;
         if (LevelScene.cutsceneStep === 0) {
           ++LevelScene.cutsceneStep;
-          g2.setAction(0x1E | g2.actionHighByte);
+          player.setAction(0x1E | player.actionHighByte);
           return;
         }
-        if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) break;
+        if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) break;
         this.canvas.showResult(true);
         return;
       }
@@ -567,10 +567,10 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 0) {
           if (LevelScene.cutsceneStep === 0) {
             ++LevelScene.cutsceneStep;
-            g2.setAction(0x1E | g2.actionHighByte);
+            player.setAction(0x1E | player.actionHighByte);
             return;
           }
-          if (pkg(g2).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
+          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
           LevelScene.dialogState[0] = 0;
           LevelScene.dialogState[1] = 0;
           LevelScene.dialogState[2] = 1;
@@ -579,7 +579,7 @@ export class LevelScene {
         }
         if (LevelScene.cutsceneState[1] === 1) {
           if (LevelScene.cutsceneStep++ === 0) {
-            g2.setAction(0 | (-2147483648)); // 0 | Integer.MIN_VALUE
+            player.setAction(0 | (-2147483648)); // 0 | Integer.MIN_VALUE
             return;
           }
           if (LevelScene.cutsceneStep <= 4) break;
@@ -617,21 +617,21 @@ export class LevelScene {
         if (LevelScene.cutsceneState[1] === 4) {
           switch (LevelScene.cutsceneStep) {
             case 0: {
-              let n: number;
-              let n2: number;
+              let dy: number;
+              let dx: number;
               this.cameraTargetCacheX = this.dialogActor!.posX - ((this.canvas.viewportWidth / 3) | 0);
               this.cameraTargetCacheY = this.dialogActor!.posY - ((this.canvas.viewportHeight / 4) | 0);
               if (this.canvas.globalFrame % 2 === 0) {
-                n2 = (5 + GameMIDlet.randomBelow(3)) << 13;
-                n = GameMIDlet.randomBelow(3) << 13;
-                ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.dialogActor!.posX - n2, this.dialogActor!.posY - n, 0, null as unknown as Int32Array);
+                dx = (5 + GameMIDlet.randomBelow(3)) << 13;
+                dy = GameMIDlet.randomBelow(3) << 13;
+                ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.dialogActor!.posX - dx, this.dialogActor!.posY - dy, 0, null as unknown as Int32Array);
               }
               if (LevelScene.cutsceneSubStep === 0) {
                 LevelScene.cutsceneSubStep = 1;
-                n2 = 0x130000 - this.dialogActor!.posX;
-                n = px(602) - this.dialogActor!.posY;
-                this.dialogActor!.targetVelX = (n2 / 20) | 0;
-                this.dialogActor!.targetVelY = (n / 20) | 0;
+                dx = 0x130000 - this.dialogActor!.posX;
+                dy = px(602) - this.dialogActor!.posY;
+                this.dialogActor!.targetVelX = (dx / 20) | 0;
+                this.dialogActor!.targetVelY = (dy / 20) | 0;
                 break;
               }
               if (this.dialogActor!.posY <= px(602)) break;
@@ -651,7 +651,7 @@ export class LevelScene {
             case 2: {
               if (this.dialogActor!.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(60)) break;
               this.dialogActor!.targetVelX = 0;
-              this.cameraTargetCacheX = g2.posX - ((this.canvas.viewportWidth / 2) | 0);
+              this.cameraTargetCacheX = player.posX - ((this.canvas.viewportWidth / 2) | 0);
               LevelScene.cutsceneState[1] = 5;
               LevelScene.cutsceneState[2] = 1;
               this.setSubState(LevelSubState.Cutscene);
@@ -663,9 +663,9 @@ export class LevelScene {
         if (LevelScene.cutsceneStep === 0) {
           if (this.canvas.cameraX !== this.cameraTargetCacheX) break;
           ++LevelScene.cutsceneStep;
-          g2.setAction(0);
+          player.setAction(0);
           PlayerActor.throwCooldownQueue[0][0] = 2;
-          PlayerActor.throwCooldownQueue[0][1] = ((0x109000 - g2.posX) / px(8)) | 0;
+          PlayerActor.throwCooldownQueue[0][1] = ((0x109000 - player.posX) / px(8)) | 0;
           PlayerActor.throwCooldownQueue[0][2] = 0;
           PlayerActor.throwCooldownQueue[1][0] = 128;
           PlayerActor.throwCooldownQueue[1][1] = 2;
@@ -677,20 +677,20 @@ export class LevelScene {
           return;
         }
         if (LevelScene.cutsceneStep === 1) {
-          const n: number = g2.stepThrowQueue();
-          if (n === 0) {
+          const throwResult: number = player.stepThrowQueue();
+          if (throwResult === 0) {
             this.cameraTargetCacheX = this.canvas.cameraX;
             LevelScene.cutsceneState[2] = 1;
             return;
           }
-          if (n !== 1) break;
-          g2.spawnEntryEffect();
+          if (throwResult !== 1) break;
+          player.spawnEntryEffect();
           ++LevelScene.cutsceneStep;
           return;
         }
         if (LevelScene.cutsceneStep !== 2) break;
-        g2.stepThrowQueue();
-        if (g2.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(50)) break;
+        player.stepThrowQueue();
+        if (player.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(50)) break;
         this.canvas.showResult(true);
         return;
       }
@@ -704,19 +704,19 @@ export class LevelScene {
             return;
           }
           if (LevelScene.cutsceneStep !== 1) break;
-          if (g2.stepThrowQueue() === 0) {
-            g2.targetVelX = 0;
+          if (player.stepThrowQueue() === 0) {
+            player.targetVelX = 0;
             LevelScene.dialogState[0] = 0;
             LevelScene.dialogState[1] = 0;
             LevelScene.dialogState[2] = 2;
             this.setSubState(LevelSubState.MissionDialog);
             return;
           }
-          g2.targetVelX = px(10);
+          player.targetVelX = px(10);
           return;
         }
         if (LevelScene.cutsceneState[1] === 1) {
-          if (!g2.publicFlagA) break;
+          if (!player.publicFlagA) break;
           this.dialogActor!.kill();
           this.dialogActor = null;
           LevelScene.dialogState[1] = 0;
@@ -726,38 +726,38 @@ export class LevelScene {
         }
         if (LevelScene.cutsceneState[1] !== 2) break;
         if (LevelScene.cutsceneStep === 0) {
-          g2.targetVelX = 0;
-          g2.targetVelY = px(12);
-          g2.publicFlagB = true;
+          player.targetVelX = 0;
+          player.targetVelY = px(12);
+          player.publicFlagB = true;
           ++LevelScene.cutsceneStep;
           return;
         }
         if (LevelScene.cutsceneStep === 2) {
-          if (g2.publicFlagC) {
+          if (player.publicFlagC) {
             ++LevelScene.cutsceneStep;
           } else {
             LevelScene.dialogState[1] = 3;
             LevelScene.dialogState[2] = 0;
             this.setSubState(LevelSubState.MissionDialog);
           }
-          g2.companionEffect!.kill();
-          g2.kill();
+          player.companionEffect!.kill();
+          player.kill();
           return;
         }
         if (LevelScene.cutsceneStep === 3) {
           this.canvas.showResult(false);
           return;
         }
-        if (g2.posY <= 132 << 10) break;
-        let n: number = 0;
-        while (n < 8) {
-          const h2: ActorBase | null = this.spawnActor(ActorType.SplashEffect, -1);
-          if (h2 != null) {
-            h2.posX = g2.posX + (pkg(g2).boxLeft << 10) + n % 4 * px(14) + ((n / 4) | 0) * px(8);
-            h2.posY = g2.posY + px(14) + ((n / 4) | 0) * px(8);
-            h2.setAction(0);
+        if (player.posY <= 132 << 10) break;
+        let i: number = 0;
+        while (i < 8) {
+          const splash: ActorBase | null = this.spawnActor(ActorType.SplashEffect, -1);
+          if (splash != null) {
+            splash.posX = player.posX + (pkg(player).boxLeft << 10) + i % 4 * px(14) + ((i / 4) | 0) * px(8);
+            splash.posY = player.posY + px(14) + ((i / 4) | 0) * px(8);
+            splash.setAction(0);
           }
-          ++n;
+          ++i;
         }
         ++LevelScene.cutsceneStep;
       }
@@ -774,11 +774,11 @@ export class LevelScene {
   private runDialogChoice(): void {
     block22: {
       block21: {
-        const bl: boolean = this.canvas.inputAction === 16;
-        if (bl) break block21;
-        const n: number = GameCanvas.briefingLineState[3];
-        GameCanvas.briefingLineState[3] = n - 1;
-        if (n >= 0) break block22;
+        const confirmPressed: boolean = this.canvas.inputAction === 16;
+        if (confirmPressed) break block21;
+        const countdown: number = GameCanvas.briefingLineState[3];
+        GameCanvas.briefingLineState[3] = countdown - 1;
+        if (countdown >= 0) break block22;
       }
       if (this.dialogAdvancePressed) {
         switch (LevelScene.cutsceneState[0]) {
@@ -809,9 +809,9 @@ export class LevelScene {
         GameCanvas.briefingLineState[0] = GameCanvas.briefingLineState[0] + 1;
         GameCanvas.briefingLineState[1] = 0;
         GameCanvas.briefingLineState[3] = 60;
-        const n: number = LevelScene.dialogState[1];
+        const speakerTmp: number = LevelScene.dialogState[1];
         LevelScene.dialogState[1] = LevelScene.dialogState[2];
-        LevelScene.dialogState[2] = n;
+        LevelScene.dialogState[2] = speakerTmp;
         LevelScene.dialogState[0] = LevelScene.dialogState[0] + 1;
         switch (LevelScene.cutsceneState[0]) {
           case 1: {
@@ -860,9 +860,9 @@ export class LevelScene {
    */
   // private void c(Graphics);  → c_G
   private renderDialogBar(graphics: Graphics): void {
-    const nArray: number[] = [14, 134, 134, 134];
-    const nArray2: number[] = [36, 14, 14, 14];
-    const nArray3: number[] = [14, 15, 16, 17];
+    const portraitX: number[] = [14, 134, 134, 134];
+    const textX: number[] = [36, 14, 14, 14];
+    const portraitCell: number[] = [14, 15, 16, 17];
     graphics.setColor(17408);
     graphics.setClip(0, 172, 176, 32);
     graphics.fillRect(0, 172, 176, 32);
@@ -870,11 +870,11 @@ export class LevelScene {
     LevelScene.hudFont.drawCell(graphics, 159, 172, 31, 0, 0);
     LevelScene.hudFont.drawCell(graphics, 12, 172, 32, 0, 0);
     LevelScene.hudFont.drawCell(graphics, 12, 202, 33, 0, 0);
-    LevelScene.hudFont.drawCell(graphics, nArray[LevelScene.dialogState[1]], 170, nArray3[LevelScene.dialogState[1]], 0, 0);
+    LevelScene.hudFont.drawCell(graphics, portraitX[LevelScene.dialogState[1]], 170, portraitCell[LevelScene.dialogState[1]], 0, 0);
     graphics.setColor(65280);
     graphics.setClip(0, 172, 176, 32);
     this.dialogAdvancePressed = this.canvas.selectParagraph(GameCanvas.briefingLineState[0]);
-    this.dialogPagePressed = this.canvas.drawTypesetText(graphics, GameCanvas.briefingLineState[1], GameCanvas.briefingLineState[2], nArray2[LevelScene.dialogState[1]], 178, 90, 19);
+    this.dialogPagePressed = this.canvas.drawTypesetText(graphics, GameCanvas.briefingLineState[1], GameCanvas.briefingLineState[2], textX[LevelScene.dialogState[1]], 178, 90, 19);
     this.canvas.inputAction = 0;
   }
 
@@ -882,11 +882,11 @@ export class LevelScene {
    * 切换场景子状态机 {@link subState}（CFR j.java `a(int)`）。
    * 保存返回态到 {@link prevSubState}，复位剧情计步 {@link LevelScene.cutsceneStep}/{@link LevelScene.cutsceneSubStep}；
    * 进入过渡（TransitionOut）时清黑幕高度，进入任务对话（MissionDialog）时初始化对话/按键状态。
-   * @param n 目标子状态，取 {@link LevelSubState} 之一。
+   * @param target 目标子状态，取 {@link LevelSubState} 之一。
    */
   // public final void a(int);  → a_I
-  setSubState(n: number): void {
-    switch (n) {
+  setSubState(target: number): void {
+    switch (target) {
       case LevelSubState.TransitionOut: {
         this.transitionMaskHeight = 0;
         break;
@@ -902,7 +902,7 @@ export class LevelScene {
       }
     }
     this.prevSubState = this.subState;
-    this.subState = n;
+    this.subState = target;
     LevelScene.cutsceneStep = 0;
     LevelScene.cutsceneSubStep = 0;
   }
