@@ -1223,93 +1223,16 @@ export class LevelScene {
   fireTrigger(triggerIndex: number, hit: boolean): void {
     const triggerType: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 0, 1);
     if (hit) {
+      // 命中：按触发器类型分派（原 CFR 每 case 末尾退出 switch 的 break == 其后紧邻的 return，故 helper 内改 return）。
       switch (triggerType) {
-        case 0: {
-          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
-          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
-          if (LevelScene.triggerParams[0] < 0) {
-            LevelScene.triggerParams[0] = LevelScene.triggerParams[0] + 256;
-          }
-          if (LevelScene.triggerParams[1] < 0) {
-            LevelScene.triggerParams[1] = LevelScene.triggerParams[1] + 256;
-          }
-          this.canvas.player!.triggerSwitch(true);
-          break;
-        }
-        case 1: {
-          this.triggerFiredFlags[triggerIndex] = true;
-          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
-          this.cameraTargetCacheY = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
-          if (this.cameraTargetCacheX < 0) {
-            this.cameraTargetCacheX += 256;
-          }
-          if (this.cameraTargetCacheY < 0) {
-            this.cameraTargetCacheY += 256;
-          }
-          this.cameraTargetCacheX <<= 14;
-          this.cameraTargetCacheY <<= 14;
-          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
-          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21, 1);
-          LevelScene.triggerParams[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 22, 1);
-          LevelScene.triggerParams[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 23, 1);
-          LevelScene.triggerParams[4] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 24, 1);
-          LevelScene.triggerParams[5] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 25, 1);
-          LevelScene.triggerParams[6] = LevelScene.triggerParams[5];
-          this.setSubState(LevelSubState.BattleWave);
-          break;
-        }
-        case 2: {
-          if (this.canvas.levelIndex === 5 && (this.canvas.player!.reserved & 1) === 0) {
-            return;
-          }
-          LevelScene.cutsceneState[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
-          if (LevelScene.cutsceneState[3] > 0 && LevelScene.activeActors[LevelScene.cutsceneState[3]] != null) {
-            LevelScene.cutsceneState[4] = LevelScene.activeActors[LevelScene.cutsceneState[3]]!.posX >> 14;
-            if (pkg(LevelScene.activeActors[LevelScene.cutsceneState[3]]!).isAlive()) {
-              return;
-            }
-          }
-          this.triggerFiredFlags[triggerIndex] = true;
-          LevelScene.cutsceneState[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
-          LevelScene.cutsceneState[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
-          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 14, 2);
-          this.cameraTargetCacheX <<= 10;
-          this.cameraTargetCacheX -= this.canvas.viewportWidth;
-          if (this.cameraTargetCacheX < 0) {
-            this.cameraTargetCacheX = 0;
-          }
-          this.cameraTargetCacheY = this.canvas.cameraY;
-          LevelScene.cutsceneState[1] = LevelScene.cutsceneState[0] % 10;
-          LevelScene.cutsceneState[0] = (LevelScene.cutsceneState[0] / 10) | 0;
-          this.setSubState(LevelSubState.BossScript);
-          break;
-        }
-        case 3: {
-          if (LevelScene.formationState[0] !== -1) {
-            return;
-          }
-          let baseX: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
-          let baseY: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
-          baseX <<= 14;
-          baseY <<= 14;
-          const count: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
-          LevelScene.formationState[0] = triggerIndex;
-          let i: number = 0;
-          while (i < count) {
-            const marker: ActorBase | null = this.spawnActor(ActorType.GrappleMarker, -1);
-            if (marker != null) {
-              marker.posX = baseX + i * px(16);
-              marker.posY = baseY;
-              marker.setAction(GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21 + i, 1));
-              LevelScene.formationState[i + 1] = marker.slotIndex;
-            }
-            ++i;
-          }
-          break;
-        }
+        case 0: this.fireTriggerCameraPoint(triggerIndex); return;
+        case 1: this.fireTriggerBattleWave(triggerIndex); return;
+        case 2: this.fireTriggerBossScript(triggerIndex); return;
+        case 3: this.fireTriggerFormation(triggerIndex); return;
       }
       return;
     }
+    // 未命中：仅类型 3（多段机关）离开其区域时，清理已生成的成组 actor 并复位编队。
     if (triggerType === 3 && triggerIndex === LevelScene.formationState[0]) {
       const clearCount: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
       let j: number = 0;
@@ -1321,6 +1244,97 @@ export class LevelScene {
       }
       LevelScene.formationState[0] = -1;
     }
+  }
+
+  /** 触发器类型 0：相机点，读开关坐标（<0 补 256 还原无符号字节）并置玩家开关。原退出外层 switch 的 break 已改 return。 */
+  private fireTriggerCameraPoint(triggerIndex: number): void {
+    LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+    LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
+    if (LevelScene.triggerParams[0] < 0) {
+      LevelScene.triggerParams[0] = LevelScene.triggerParams[0] + 256;
+    }
+    if (LevelScene.triggerParams[1] < 0) {
+      LevelScene.triggerParams[1] = LevelScene.triggerParams[1] + 256;
+    }
+    this.canvas.player!.triggerSwitch(true);
+    return;
+  }
+
+  /** 触发器类型 1：战斗波，填 {@link LevelScene.triggerParams} 并切到 BattleWave。原退出外层 switch 的 break 已改 return。 */
+  private fireTriggerBattleWave(triggerIndex: number): void {
+    this.triggerFiredFlags[triggerIndex] = true;
+    this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+    this.cameraTargetCacheY = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
+    if (this.cameraTargetCacheX < 0) {
+      this.cameraTargetCacheX += 256;
+    }
+    if (this.cameraTargetCacheY < 0) {
+      this.cameraTargetCacheY += 256;
+    }
+    this.cameraTargetCacheX <<= 14;
+    this.cameraTargetCacheY <<= 14;
+    LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+    LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21, 1);
+    LevelScene.triggerParams[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 22, 1);
+    LevelScene.triggerParams[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 23, 1);
+    LevelScene.triggerParams[4] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 24, 1);
+    LevelScene.triggerParams[5] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 25, 1);
+    LevelScene.triggerParams[6] = LevelScene.triggerParams[5];
+    this.setSubState(LevelSubState.BattleWave);
+    return;
+  }
+
+  /** 触发器类型 2：剧情演出，填 {@link LevelScene.cutsceneState} 并切到 BossScript。含两处早退守卫；原退出外层 switch 的 break 已改 return。 */
+  private fireTriggerBossScript(triggerIndex: number): void {
+    if (this.canvas.levelIndex === 5 && (this.canvas.player!.reserved & 1) === 0) {
+      return;
+    }
+    LevelScene.cutsceneState[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
+    if (LevelScene.cutsceneState[3] > 0 && LevelScene.activeActors[LevelScene.cutsceneState[3]] != null) {
+      LevelScene.cutsceneState[4] = LevelScene.activeActors[LevelScene.cutsceneState[3]]!.posX >> 14;
+      if (pkg(LevelScene.activeActors[LevelScene.cutsceneState[3]]!).isAlive()) {
+        return;
+      }
+    }
+    this.triggerFiredFlags[triggerIndex] = true;
+    LevelScene.cutsceneState[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+    LevelScene.cutsceneState[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+    this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 14, 2);
+    this.cameraTargetCacheX <<= 10;
+    this.cameraTargetCacheX -= this.canvas.viewportWidth;
+    if (this.cameraTargetCacheX < 0) {
+      this.cameraTargetCacheX = 0;
+    }
+    this.cameraTargetCacheY = this.canvas.cameraY;
+    LevelScene.cutsceneState[1] = LevelScene.cutsceneState[0] % 10;
+    LevelScene.cutsceneState[0] = (LevelScene.cutsceneState[0] / 10) | 0;
+    this.setSubState(LevelSubState.BossScript);
+    return;
+  }
+
+  /** 触发器类型 3：多段机关，生成一排抓钩标记 actor 并记入 {@link LevelScene.formationState}。含早退守卫；原退出外层 switch 的 break 已改 return。 */
+  private fireTriggerFormation(triggerIndex: number): void {
+    if (LevelScene.formationState[0] !== -1) {
+      return;
+    }
+    let baseX: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+    let baseY: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
+    baseX <<= 14;
+    baseY <<= 14;
+    const count: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+    LevelScene.formationState[0] = triggerIndex;
+    let i: number = 0;
+    while (i < count) {
+      const marker: ActorBase | null = this.spawnActor(ActorType.GrappleMarker, -1);
+      if (marker != null) {
+        marker.posX = baseX + i * px(16);
+        marker.posY = baseY;
+        marker.setAction(GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21 + i, 1));
+        LevelScene.formationState[i + 1] = marker.slotIndex;
+      }
+      ++i;
+    }
+    return;
   }
 
   /**
