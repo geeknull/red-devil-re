@@ -163,51 +163,53 @@ export class PlayerActor extends ActorBase {
     if (this.velY < 0) {
       return false;
     }
-    const n = (this.posX + this.velX) >> 14;
-    const n2 = (this.posY - px(10)) >> 14;
-    let n3 = 0;
-    while (n3 < 3) {
-      if (b2.queryColumnTileAt(n, n2 + n3, true) === 1) {
+    const scanTileX = (this.posX + this.velX) >> 14;
+    const topRow = (this.posY - px(10)) >> 14;
+    let rowOffset = 0;
+    while (rowOffset < 3) {
+      if (b2.queryColumnTileAt(scanTileX, topRow + rowOffset, true) === 1) {
         return true;
       }
-      ++n3;
+      ++rowOffset;
     }
     return false;
   }
 
   // f(tjge.b) → f_Tb（前方贴墙检测）
   checkWallAhead(b2: TileMap): boolean {
-    let n = this.facingLeft ? this.posX - px(2) : this.posX + px(2);
-    const n2 = ((this.posY >> 10) - 34) >> 4;
-    return b2.queryColumnTileAt((n >>= 14), n2, true) === 1;
+    // n 双义拆分：先定点像素X(前方±px(2))，再 >>14 得瓦片列。
+    const probeFx = this.facingLeft ? this.posX - px(2) : this.posX + px(2);
+    const row = ((this.posY >> 10) - 34) >> 4;
+    return b2.queryColumnTileAt(probeFx >> 14, row, true) === 1;
   }
 
-  // a(tjge.b,boolean) → a_TbZ（侧向墙体碰撞）
-  checkLadderTile(b2: TileMap, bl: boolean): boolean {
-    let n = bl
+  // a(tjge.b,boolean) → a_TbZ（侧向墙体/梯子瓦片检测；probeAbove=true 探头顶上方）
+  checkLadderTile(b2: TileMap, probeAbove: boolean): boolean {
+    // n 双义：先是探测行(瓦片Y)，末尾梯子态里复用为定点Y位置写回 posY。
+    let probeRow = probeAbove
       ? (this.posY - px(30)) >> 14
       : (this.stateFlags & 0x2000) !== 0
         ? (this.posY + this.velY) >> 14
         : (this.posY + this.velY + px(20)) >> 14;
-    const n2 = ((this.posX >> 10) - 3) >> 4;
-    const n3 = ((this.posX >> 10) + 3) >> 4;
-    let n4 = n2;
-    while (n4 <= n3) {
-      const n5 = b2.queryColumnTileAt(n4, n, true);
-      if (n5 === 2) {
-        this.posX = ((n4 << 4) + 8) << 10;
+    const leftCol = ((this.posX >> 10) - 3) >> 4;
+    const rightCol = ((this.posX >> 10) + 3) >> 4;
+    let col = leftCol;
+    while (col <= rightCol) {
+      const tileValue = b2.queryColumnTileAt(col, probeRow, true);
+      if (tileValue === 2) {
+        this.posX = ((col << 4) + 8) << 10;
         this.velX = 0;
         this.targetVelX = 0;
         return true;
       }
-      ++n4;
+      ++col;
     }
     if ((this.stateFlags & 0x2000) !== 0) {
-      if (bl) {
-        ++n;
-        this.posY = (n <<= 14) + px(10);
+      if (probeAbove) {
+        ++probeRow;
+        this.posY = (probeRow << 14) + px(10);
       } else {
-        this.posY = n <<= 14;
+        this.posY = probeRow << 14;
       }
       this.targetVelY = 0;
     }
