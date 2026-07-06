@@ -291,8 +291,9 @@ export class PlayerActor extends ActorBase {
         return;
       }
       case GameState.Playing: {
-        let n: number;
-        const n2 = GameScreen.viewWidthFx;
+        // n 的两处复用拆名：wallHit(墙体命中0/1) 与 alignOffset(posX%px(8) 8px对齐余量)。
+        let alignOffset: number;
+        const viewWidthFx = GameScreen.viewWidthFx;
         if (this.screen.levelIndex === 4) {
           if (this.screen.reinforceBudget-- > 25) {
             this.targetVelX = 0;
@@ -316,8 +317,8 @@ export class PlayerActor extends ActorBase {
             this.posX = this.screen.cameraX + px(20);
             return;
           }
-          if (this.posX - this.screen.cameraX <= n2 - px(20)) break;
-          this.posX = this.screen.cameraX + n2 - px(20);
+          if (this.posX - this.screen.cameraX <= viewWidthFx - px(20)) break;
+          this.posX = this.screen.cameraX + viewWidthFx - px(20);
           return;
         }
         if ((this.stateFlags & 0x2000) === 0) {
@@ -330,13 +331,13 @@ export class PlayerActor extends ActorBase {
             }
           } else {
             if (this.facingFlag !== 0) {
-              n = this.checkWallLeft(this.screen.tileMap!, 0) ? 1 : 0;
-              if (n !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
+              const wallHit = this.checkWallLeft(this.screen.tileMap!, 0) ? 1 : 0;
+              if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
                 this.setFrame(0 | this.facingFlag);
               }
             } else {
-              n = this.checkWallRight(this.screen.tileMap!, 0) ? 1 : 0;
-              if (n !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
+              const wallHit = this.checkWallRight(this.screen.tileMap!, 0) ? 1 : 0;
+              if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
                 this.setFrame(0);
               }
             }
@@ -365,14 +366,14 @@ export class PlayerActor extends ActorBase {
         if (
           (this.stateFlags & 1) !== 0 &&
           (this.actionId === 2 || this.actionId === 0) &&
-          (n = this.posX % px(8)) > px(2) &&
-          n < px(6)
+          (alignOffset = this.posX % px(8)) > px(2) &&
+          alignOffset < px(6)
         ) {
-          if (n > px(4)) {
-            n = px(8) - n;
-            this.posX += n;
+          if (alignOffset > px(4)) {
+            alignOffset = px(8) - alignOffset;
+            this.posX += alignOffset;
           } else {
-            this.posX -= n;
+            this.posX -= alignOffset;
           }
         }
         if (this.screen.scriptFlagL && this.screen.levelIndex !== 7 && this.screen.levelIndex !== 2) {
@@ -381,8 +382,8 @@ export class PlayerActor extends ActorBase {
             this.targetVelX = 0;
             return;
           }
-          if (this.posX <= this.screen.cameraX + n2 - px(10)) break;
-          this.posX = this.screen.cameraX + n2 - px(10);
+          if (this.posX <= this.screen.cameraX + viewWidthFx - px(10)) break;
+          this.posX = this.screen.cameraX + viewWidthFx - px(10);
           this.targetVelX = 0;
           return;
         }
