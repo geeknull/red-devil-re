@@ -348,420 +348,441 @@ export class LevelScene {
   private runCutscene(): void {
     const player: PlayerActor = this.canvas.player!;
     switch (LevelScene.cutsceneState[0]) {
-      case 0: {
-        if (LevelScene.cutsceneState[1] === 0) {
-          if (LevelScene.cutsceneStep === 0) {
-            ++LevelScene.cutsceneStep;
-            PlayerActor.throwCooldownQueue[0][0] = 2;
-            PlayerActor.throwCooldownQueue[0][1] = 13;
-            PlayerActor.throwCooldownQueue[0][2] = 0;
-            PlayerActor.throwCooldownQueue[1][0] = 16;
-            PlayerActor.throwCooldownQueue[1][1] = 1;
-            PlayerActor.throwCooldownQueue[1][2] = 2;
-            return;
-          }
-          if (LevelScene.cutsceneStep === 1) {
-            if (player.stepThrowQueue() === 1) {
-              player.advanceEffectFrame();
-              player.targetVelY = px(8);
-              ++LevelScene.cutsceneStep;
-            }
-            player.targetVelX = px(10);
-            return;
-          }
-          if (LevelScene.cutsceneStep !== 2 || pkg(player).frameGroupIndex !== 0) break;
-          this.canvas.enterBriefing();
-          return;
-        }
-        if (LevelScene.cutsceneState[1] !== 9) break;
-        if (LevelScene.cutsceneStep === 0) {
-          ++LevelScene.cutsceneStep;
-          player.setAction(0x1E | player.actionHighByte);
-          return;
-        }
-        if (pkg(player).frameGroupIndex !== 0) break;
-        player.setAction(33);
-        this.canvas.showResult(true);
-        return;
-      }
-      case 1: {
-        if (LevelScene.cutsceneState[1] === 0) {
-          if (LevelScene.cutsceneStep === 0) {
-            ++LevelScene.cutsceneStep;
-            player.setAction(0x1E | player.actionHighByte);
-            return;
-          }
-          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
-          this.canvas.enterBriefing();
-          return;
-        }
-        if (LevelScene.cutsceneState[1] === 1) {
-          if (LevelScene.cutsceneStep === 0) {
-            ++LevelScene.cutsceneStep;
-            player.setAction(0x1E | player.actionHighByte);
-            return;
-          }
-          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
-          this.setSubState(LevelSubState.MissionDialog);
-          return;
-        }
-        if (LevelScene.cutsceneState[1] === 2) {
-          if (LevelScene.cutsceneStep === 0) {
-            ++LevelScene.cutsceneStep;
-            PlayerActor.throwCooldownQueue[0][0] = 1;
-            PlayerActor.throwCooldownQueue[0][1] = 50;
-            PlayerActor.throwCooldownQueue[0][2] = 0;
-            LevelScene.cutsceneState[2] = 1;
-            this.cameraTargetCacheX = this.cameraTargetX;
-            this.cameraTargetCacheY = this.cameraTargetY;
-            return;
-          }
-          player.stepThrowQueue();
-          if (player.posX >= this.canvas.cameraX - px(20)) break;
-          this.canvas.showResult(true);
-          return;
-        }
-        if (LevelScene.cutsceneState[1] !== 9) break;
-        if (LevelScene.cutsceneStep === 0) {
-          ++LevelScene.cutsceneStep;
-          PlayerActor.throwCooldownQueue[0][0] = 2048;
-          PlayerActor.throwCooldownQueue[0][1] = 1;
-          PlayerActor.throwCooldownQueue[0][2] = 6;
-          PlayerActor.throwCooldownQueue[1][0] = 2;
-          LevelScene.cutsceneState[4] = LevelScene.cutsceneState[4] << 14;
-          PlayerActor.throwCooldownQueue[1][1] = ((LevelScene.cutsceneState[4] - player.posX + px(126)) / px(8)) | 0;
-          PlayerActor.throwCooldownQueue[1][2] = 2;
-          PlayerActor.throwCooldownQueue[2][0] = 16;
-          PlayerActor.throwCooldownQueue[2][1] = 1;
-          PlayerActor.throwCooldownQueue[2][2] = 2;
-          PlayerActor.throwCooldownQueue[3][0] = 8;
-          PlayerActor.throwCooldownQueue[3][1] = 2;
-          PlayerActor.throwCooldownQueue[3][2] = 0;
-          player.currentWeaponIndex = 1;
-          if (PlayerActor.ammoCurrent[player.currentWeaponIndex] === PlayerActor.ammoInitTable[player.currentWeaponIndex]) {
-            return;
-          }
-          if (PlayerActor.ammoReserve[player.currentWeaponIndex] > 0) break;
-          PlayerActor.ammoReserve[player.currentWeaponIndex] = 1;
-          return;
-        }
-        if (LevelScene.cutsceneStep === 1) {
-          if (player.stepThrowQueue() !== 3) break;
-          ++LevelScene.cutsceneStep;
-          return;
-        }
-        if (LevelScene.cutsceneStep === 3) {
-          if (player.stepThrowQueue() !== 0) break;
-          ++LevelScene.cutsceneStep;
-          return;
-        }
-        if (pkg(player).frameGroupIndex !== 0) break;
-        if (LevelScene.cutsceneStep === 4) {
-          LevelScene.dialogState[0] = 0;
-          LevelScene.dialogState[1] = 0;
-          LevelScene.dialogState[2] = 1;
-          this.setSubState(LevelSubState.MissionDialog);
-          return;
-        }
-        if (LevelScene.cutsceneStep !== 2) break;
-        PlayerActor.throwCooldownQueue[0][0] = 2;
-        PlayerActor.throwCooldownQueue[0][1] = 4;
-        PlayerActor.throwCooldownQueue[0][2] = 2;
-        ++LevelScene.cutsceneStep;
-        return;
-      }
-      case 2: {
-        if (LevelScene.cutsceneState[1] === 0) {
-          if (LevelScene.cutsceneStep === 0) {
-            ++LevelScene.cutsceneStep;
-            player.setAction(0x1E | player.actionHighByte);
-            return;
-          }
-          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
-          this.canvas.enterBriefing();
-          return;
-        }
-        if (LevelScene.cutsceneState[1] !== 9) break;
-        if (++LevelScene.cutsceneStep === 10) {
-          player.setAction(0x1E | player.actionHighByte);
-          return;
-        }
-        if (pkg(player).frameGroupIndex !== 0) break;
-        this.canvas.showResult(true);
-        return;
-      }
-      case 3: {
-        if (LevelScene.cutsceneState[1] === 0) {
-          if (LevelScene.cutsceneStep === 0) {
-            ++LevelScene.cutsceneStep;
-            player.setAction(0x1E | player.actionHighByte);
-            return;
-          }
-          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
-          LevelScene.dialogState[0] = 0;
-          LevelScene.dialogState[1] = 1;
-          LevelScene.dialogState[2] = 0;
-          this.setSubState(LevelSubState.MissionDialog);
-          return;
-        }
-        if (LevelScene.cutsceneState[1] === 1) {
-          if (LevelScene.cutsceneStep === 0) {
-            ++LevelScene.cutsceneStep;
-            PlayerActor.throwCooldownQueue[0][0] = 2;
-            PlayerActor.throwCooldownQueue[0][1] = 50;
-            PlayerActor.throwCooldownQueue[0][2] = 0;
-            LevelScene.cutsceneState[2] = 1;
-            return;
-          }
-          player.stepThrowQueue();
-          if (player.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(20)) break;
-          player.targetVelX = 0;
-          player.setAction(0 | player.actionHighByte);
-          this.setSubState(LevelSubState.MissionDialog);
-          return;
-        }
-        if (LevelScene.cutsceneState[1] !== 9) break;
-        if (LevelScene.cutsceneStep === 0) {
-          ++LevelScene.cutsceneStep;
-          player.setAction(0x1E | player.actionHighByte);
-          return;
-        }
-        if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) break;
-        this.canvas.showResult(true);
-        return;
-      }
-      case 4: {
-        if (LevelScene.cutsceneState[1] === 0) {
-          if (LevelScene.cutsceneStep === 0) {
-            ++LevelScene.cutsceneStep;
-            player.setAction(0x1E | player.actionHighByte);
-            return;
-          }
-          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
-          LevelScene.dialogState[0] = 0;
-          LevelScene.dialogState[1] = 0;
-          LevelScene.dialogState[2] = 1;
-          this.setSubState(LevelSubState.MissionDialog);
-          return;
-        }
-        if (LevelScene.cutsceneState[1] === 1) {
-          if (LevelScene.cutsceneStep++ === 0) {
-            player.setAction(0);
-            return;
-          }
-          if (LevelScene.cutsceneStep <= 4) break;
-          this.canvas.enterBriefing();
-          return;
-        }
-        if (LevelScene.cutsceneState[1] !== 9) break;
-        if (LevelScene.cutsceneStep === 0) {
-          ++LevelScene.cutsceneStep;
-          player.setAction(0x1E | player.actionHighByte);
-          return;
-        }
-        if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) break;
-        this.canvas.showResult(true);
-        return;
-      }
-      case 5: {
-        if (LevelScene.cutsceneState[1] === 0) {
-          if (LevelScene.cutsceneStep === 0) {
-            ++LevelScene.cutsceneStep;
-            player.setAction(0x1E | player.actionHighByte);
-            return;
-          }
-          if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) break;
-          LevelScene.dialogState[0] = 0;
-          LevelScene.dialogState[1] = 0;
-          LevelScene.dialogState[2] = 1;
-          this.setSubState(LevelSubState.MissionDialog);
-          return;
-        }
-        if (LevelScene.cutsceneState[1] === 1) {
-          if (LevelScene.cutsceneStep++ === 0) {
-            player.setAction(0 | (-2147483648)); // 0 | Integer.MIN_VALUE
-            return;
-          }
-          if (LevelScene.cutsceneStep <= 4) break;
-          this.canvas.enterBriefing();
-          return;
-        }
-        if (LevelScene.cutsceneState[1] === 2) {
-          if (LevelScene.cutsceneStep === 0) {
-            this.dialogActor = this.spawnActor(ActorType.HelicopterBoss, -1) as unknown as BossActor; // 原 (c)this.c(19,-1)
-            this.dialogActor!.resetBoss();
-          } else if (LevelScene.cutsceneStep < 22) {
-            this.dialogActor!.posY += px(4);
-          } else if (LevelScene.cutsceneStep === 22) {
-            LevelScene.dialogState[1] = 2;
-            LevelScene.dialogState[2] = 0;
-            this.setSubState(LevelSubState.MissionDialog);
-          }
-          ++LevelScene.cutsceneStep;
-          return;
-        }
-        if (LevelScene.cutsceneState[1] === 3) {
-          this.cameraTargetCacheX = this.canvas.cameraX;
-          this.cameraTargetCacheY = this.canvas.cameraY;
-          LevelScene.triggerParams[0] = this.dialogActor!.slotIndex;
-          LevelScene.triggerParams[1] = 0;
-          LevelScene.triggerParams[2] = 38;
-          LevelScene.triggerParams[3] = 0;
-          LevelScene.triggerParams[4] = 2;
-          LevelScene.triggerParams[5] = 100;
-          LevelScene.triggerParams[6] = 0;
-          this.setSubState(LevelSubState.BattleWave);
-          this.dialogActor!.dormant = false;
-          return;
-        }
-        if (LevelScene.cutsceneState[1] === 4) {
-          switch (LevelScene.cutsceneStep) {
-            case 0: {
-              let dy: number;
-              let dx: number;
-              this.cameraTargetCacheX = this.dialogActor!.posX - ((this.canvas.viewportWidth / 3) | 0);
-              this.cameraTargetCacheY = this.dialogActor!.posY - ((this.canvas.viewportHeight / 4) | 0);
-              if (this.canvas.globalFrame % 2 === 0) {
-                dx = (5 + GameMIDlet.randomBelow(3)) << 13;
-                dy = GameMIDlet.randomBelow(3) << 13;
-                ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.dialogActor!.posX - dx, this.dialogActor!.posY - dy, 0, null as unknown as Int32Array);
-              }
-              if (LevelScene.cutsceneSubStep === 0) {
-                LevelScene.cutsceneSubStep = 1;
-                dx = 0x130000 - this.dialogActor!.posX;
-                dy = px(602) - this.dialogActor!.posY;
-                this.dialogActor!.targetVelX = (dx / 20) | 0;
-                this.dialogActor!.targetVelY = (dy / 20) | 0;
-                break;
-              }
-              if (this.dialogActor!.posY <= px(602)) break;
-              this.dialogActor!.targetVelX = 0;
-              this.dialogActor!.targetVelY = 0;
-              this.dialogActor!.setAction(-2147483647);
-              LevelScene.cutsceneStep = 1;
-              break;
-            }
-            case 1: {
-              this.dialogActor!.posY = this.dialogActor!.posY + (LevelScene.cutsceneSubStep % 1 === 1 ? px(-2) : px(2));
-              if (LevelScene.cutsceneSubStep++ <= 5) break;
-              LevelScene.cutsceneStep = 2;
-              this.dialogActor!.targetVelX = px(10);
-              break;
-            }
-            case 2: {
-              if (this.dialogActor!.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(60)) break;
-              this.dialogActor!.targetVelX = 0;
-              this.cameraTargetCacheX = player.posX - ((this.canvas.viewportWidth / 2) | 0);
-              LevelScene.cutsceneState[1] = 5;
-              LevelScene.cutsceneState[2] = 1;
-              this.setSubState(LevelSubState.Cutscene);
-            }
-          }
-          return;
-        }
-        if (LevelScene.cutsceneState[1] !== 5) break;
-        if (LevelScene.cutsceneStep === 0) {
-          if (this.canvas.cameraX !== this.cameraTargetCacheX) break;
-          ++LevelScene.cutsceneStep;
-          player.setAction(0);
-          PlayerActor.throwCooldownQueue[0][0] = 2;
-          PlayerActor.throwCooldownQueue[0][1] = ((0x109000 - player.posX) / px(8)) | 0;
-          PlayerActor.throwCooldownQueue[0][2] = 0;
-          PlayerActor.throwCooldownQueue[1][0] = 128;
-          PlayerActor.throwCooldownQueue[1][1] = 2;
-          PlayerActor.throwCooldownQueue[1][2] = 0;
-          PlayerActor.throwCooldownQueue[2][0] = 2;
-          PlayerActor.throwCooldownQueue[2][1] = 50;
-          PlayerActor.throwCooldownQueue[2][2] = 0;
-          LevelScene.cutsceneState[2] = 0;
-          return;
-        }
-        if (LevelScene.cutsceneStep === 1) {
-          const throwResult: number = player.stepThrowQueue();
-          if (throwResult === 0) {
-            this.cameraTargetCacheX = this.canvas.cameraX;
-            LevelScene.cutsceneState[2] = 1;
-            return;
-          }
-          if (throwResult !== 1) break;
-          player.spawnEntryEffect();
-          ++LevelScene.cutsceneStep;
-          return;
-        }
-        if (LevelScene.cutsceneStep !== 2) break;
-        player.stepThrowQueue();
-        if (player.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(50)) break;
-        this.canvas.showResult(true);
-        return;
-      }
-      case 6: {
-        if (LevelScene.cutsceneState[1] === 0) {
-          if (LevelScene.cutsceneStep === 0) {
-            ++LevelScene.cutsceneStep;
-            PlayerActor.throwCooldownQueue[0][0] = 2;
-            PlayerActor.throwCooldownQueue[0][1] = 10;
-            PlayerActor.throwCooldownQueue[0][2] = 0;
-            return;
-          }
-          if (LevelScene.cutsceneStep !== 1) break;
-          if (player.stepThrowQueue() === 0) {
-            player.targetVelX = 0;
-            LevelScene.dialogState[0] = 0;
-            LevelScene.dialogState[1] = 0;
-            LevelScene.dialogState[2] = 2;
-            this.setSubState(LevelSubState.MissionDialog);
-            return;
-          }
-          player.targetVelX = px(10);
-          return;
-        }
-        if (LevelScene.cutsceneState[1] === 1) {
-          if (!player.publicFlagA) break;
-          this.dialogActor!.kill();
-          this.dialogActor = null;
-          LevelScene.dialogState[1] = 0;
-          LevelScene.dialogState[2] = 3;
-          this.setSubState(LevelSubState.MissionDialog);
-          return;
-        }
-        if (LevelScene.cutsceneState[1] !== 2) break;
-        if (LevelScene.cutsceneStep === 0) {
-          player.targetVelX = 0;
-          player.targetVelY = px(12);
-          player.publicFlagB = true;
-          ++LevelScene.cutsceneStep;
-          return;
-        }
-        if (LevelScene.cutsceneStep === 2) {
-          if (player.publicFlagC) {
-            ++LevelScene.cutsceneStep;
-          } else {
-            LevelScene.dialogState[1] = 3;
-            LevelScene.dialogState[2] = 0;
-            this.setSubState(LevelSubState.MissionDialog);
-          }
-          player.companionEffect!.kill();
-          player.kill();
-          return;
-        }
-        if (LevelScene.cutsceneStep === 3) {
-          this.canvas.showResult(false);
-          return;
-        }
-        if (player.posY <= 132 << 10) break;
-        let i: number = 0;
-        while (i < 8) {
-          const splash: ActorBase | null = this.spawnActor(ActorType.SplashEffect, -1);
-          if (splash != null) {
-            splash.posX = player.posX + (pkg(player).boxLeft << 10) + i % 4 * px(14) + ((i / 4) | 0) * px(8);
-            splash.posY = player.posY + px(14) + ((i / 4) | 0) * px(8);
-            splash.setAction(0);
-          }
-          ++i;
-        }
-        ++LevelScene.cutsceneStep;
-      }
+      case 0: this.runCutsceneScene0(player); return;
+      case 1: this.runCutsceneScene1(player); return;
+      case 2: this.runCutsceneScene2(player); return;
+      case 3: this.runCutsceneScene3(player); return;
+      case 4: this.runCutsceneScene4(player); return;
+      case 5: this.runCutsceneScene5(player); return;
+      case 6: this.runCutsceneScene6(player); return;
     }
+  }
+
+  /** cutsceneState[0]===0（第 1 关开场跳伞入场→简报 / 结算演出）。原退出外层 switch 的 break 已改 return。 */
+  private runCutsceneScene0(player: PlayerActor): void {
+    if (LevelScene.cutsceneState[1] === 0) {
+      if (LevelScene.cutsceneStep === 0) {
+        ++LevelScene.cutsceneStep;
+        PlayerActor.throwCooldownQueue[0][0] = 2;
+        PlayerActor.throwCooldownQueue[0][1] = 13;
+        PlayerActor.throwCooldownQueue[0][2] = 0;
+        PlayerActor.throwCooldownQueue[1][0] = 16;
+        PlayerActor.throwCooldownQueue[1][1] = 1;
+        PlayerActor.throwCooldownQueue[1][2] = 2;
+        return;
+      }
+      if (LevelScene.cutsceneStep === 1) {
+        if (player.stepThrowQueue() === 1) {
+          player.advanceEffectFrame();
+          player.targetVelY = px(8);
+          ++LevelScene.cutsceneStep;
+        }
+        player.targetVelX = px(10);
+        return;
+      }
+      if (LevelScene.cutsceneStep !== 2 || pkg(player).frameGroupIndex !== 0) return;
+      this.canvas.enterBriefing();
+      return;
+    }
+    if (LevelScene.cutsceneState[1] !== 9) return;
+    if (LevelScene.cutsceneStep === 0) {
+      ++LevelScene.cutsceneStep;
+      player.setAction(0x1E | player.actionHighByte);
+      return;
+    }
+    if (pkg(player).frameGroupIndex !== 0) return;
+    player.setAction(33);
+    this.canvas.showResult(true);
+    return;
+  }
+
+  /** cutsceneState[0]===1。原退出外层 switch 的 break 已改 return。 */
+  private runCutsceneScene1(player: PlayerActor): void {
+    if (LevelScene.cutsceneState[1] === 0) {
+      if (LevelScene.cutsceneStep === 0) {
+        ++LevelScene.cutsceneStep;
+        player.setAction(0x1E | player.actionHighByte);
+        return;
+      }
+      if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) return;
+      this.canvas.enterBriefing();
+      return;
+    }
+    if (LevelScene.cutsceneState[1] === 1) {
+      if (LevelScene.cutsceneStep === 0) {
+        ++LevelScene.cutsceneStep;
+        player.setAction(0x1E | player.actionHighByte);
+        return;
+      }
+      if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) return;
+      this.setSubState(LevelSubState.MissionDialog);
+      return;
+    }
+    if (LevelScene.cutsceneState[1] === 2) {
+      if (LevelScene.cutsceneStep === 0) {
+        ++LevelScene.cutsceneStep;
+        PlayerActor.throwCooldownQueue[0][0] = 1;
+        PlayerActor.throwCooldownQueue[0][1] = 50;
+        PlayerActor.throwCooldownQueue[0][2] = 0;
+        LevelScene.cutsceneState[2] = 1;
+        this.cameraTargetCacheX = this.cameraTargetX;
+        this.cameraTargetCacheY = this.cameraTargetY;
+        return;
+      }
+      player.stepThrowQueue();
+      if (player.posX >= this.canvas.cameraX - px(20)) return;
+      this.canvas.showResult(true);
+      return;
+    }
+    if (LevelScene.cutsceneState[1] !== 9) return;
+    if (LevelScene.cutsceneStep === 0) {
+      ++LevelScene.cutsceneStep;
+      PlayerActor.throwCooldownQueue[0][0] = 2048;
+      PlayerActor.throwCooldownQueue[0][1] = 1;
+      PlayerActor.throwCooldownQueue[0][2] = 6;
+      PlayerActor.throwCooldownQueue[1][0] = 2;
+      LevelScene.cutsceneState[4] = LevelScene.cutsceneState[4] << 14;
+      PlayerActor.throwCooldownQueue[1][1] = ((LevelScene.cutsceneState[4] - player.posX + px(126)) / px(8)) | 0;
+      PlayerActor.throwCooldownQueue[1][2] = 2;
+      PlayerActor.throwCooldownQueue[2][0] = 16;
+      PlayerActor.throwCooldownQueue[2][1] = 1;
+      PlayerActor.throwCooldownQueue[2][2] = 2;
+      PlayerActor.throwCooldownQueue[3][0] = 8;
+      PlayerActor.throwCooldownQueue[3][1] = 2;
+      PlayerActor.throwCooldownQueue[3][2] = 0;
+      player.currentWeaponIndex = 1;
+      if (PlayerActor.ammoCurrent[player.currentWeaponIndex] === PlayerActor.ammoInitTable[player.currentWeaponIndex]) {
+        return;
+      }
+      if (PlayerActor.ammoReserve[player.currentWeaponIndex] > 0) return;
+      PlayerActor.ammoReserve[player.currentWeaponIndex] = 1;
+      return;
+    }
+    if (LevelScene.cutsceneStep === 1) {
+      if (player.stepThrowQueue() !== 3) return;
+      ++LevelScene.cutsceneStep;
+      return;
+    }
+    if (LevelScene.cutsceneStep === 3) {
+      if (player.stepThrowQueue() !== 0) return;
+      ++LevelScene.cutsceneStep;
+      return;
+    }
+    if (pkg(player).frameGroupIndex !== 0) return;
+    if (LevelScene.cutsceneStep === 4) {
+      LevelScene.dialogState[0] = 0;
+      LevelScene.dialogState[1] = 0;
+      LevelScene.dialogState[2] = 1;
+      this.setSubState(LevelSubState.MissionDialog);
+      return;
+    }
+    if (LevelScene.cutsceneStep !== 2) return;
+    PlayerActor.throwCooldownQueue[0][0] = 2;
+    PlayerActor.throwCooldownQueue[0][1] = 4;
+    PlayerActor.throwCooldownQueue[0][2] = 2;
+    ++LevelScene.cutsceneStep;
+    return;
+  }
+
+  /** cutsceneState[0]===2。原退出外层 switch 的 break 已改 return。 */
+  private runCutsceneScene2(player: PlayerActor): void {
+    if (LevelScene.cutsceneState[1] === 0) {
+      if (LevelScene.cutsceneStep === 0) {
+        ++LevelScene.cutsceneStep;
+        player.setAction(0x1E | player.actionHighByte);
+        return;
+      }
+      if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) return;
+      this.canvas.enterBriefing();
+      return;
+    }
+    if (LevelScene.cutsceneState[1] !== 9) return;
+    if (++LevelScene.cutsceneStep === 10) {
+      player.setAction(0x1E | player.actionHighByte);
+      return;
+    }
+    if (pkg(player).frameGroupIndex !== 0) return;
+    this.canvas.showResult(true);
+    return;
+  }
+
+  /** cutsceneState[0]===3。原退出外层 switch 的 break 已改 return。 */
+  private runCutsceneScene3(player: PlayerActor): void {
+    if (LevelScene.cutsceneState[1] === 0) {
+      if (LevelScene.cutsceneStep === 0) {
+        ++LevelScene.cutsceneStep;
+        player.setAction(0x1E | player.actionHighByte);
+        return;
+      }
+      if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) return;
+      LevelScene.dialogState[0] = 0;
+      LevelScene.dialogState[1] = 1;
+      LevelScene.dialogState[2] = 0;
+      this.setSubState(LevelSubState.MissionDialog);
+      return;
+    }
+    if (LevelScene.cutsceneState[1] === 1) {
+      if (LevelScene.cutsceneStep === 0) {
+        ++LevelScene.cutsceneStep;
+        PlayerActor.throwCooldownQueue[0][0] = 2;
+        PlayerActor.throwCooldownQueue[0][1] = 50;
+        PlayerActor.throwCooldownQueue[0][2] = 0;
+        LevelScene.cutsceneState[2] = 1;
+        return;
+      }
+      player.stepThrowQueue();
+      if (player.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(20)) return;
+      player.targetVelX = 0;
+      player.setAction(0 | player.actionHighByte);
+      this.setSubState(LevelSubState.MissionDialog);
+      return;
+    }
+    if (LevelScene.cutsceneState[1] !== 9) return;
+    if (LevelScene.cutsceneStep === 0) {
+      ++LevelScene.cutsceneStep;
+      player.setAction(0x1E | player.actionHighByte);
+      return;
+    }
+    if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) return;
+    this.canvas.showResult(true);
+    return;
+  }
+
+  /** cutsceneState[0]===4。原退出外层 switch 的 break 已改 return。 */
+  private runCutsceneScene4(player: PlayerActor): void {
+    if (LevelScene.cutsceneState[1] === 0) {
+      if (LevelScene.cutsceneStep === 0) {
+        ++LevelScene.cutsceneStep;
+        player.setAction(0x1E | player.actionHighByte);
+        return;
+      }
+      if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) return;
+      LevelScene.dialogState[0] = 0;
+      LevelScene.dialogState[1] = 0;
+      LevelScene.dialogState[2] = 1;
+      this.setSubState(LevelSubState.MissionDialog);
+      return;
+    }
+    if (LevelScene.cutsceneState[1] === 1) {
+      if (LevelScene.cutsceneStep++ === 0) {
+        player.setAction(0);
+        return;
+      }
+      if (LevelScene.cutsceneStep <= 4) return;
+      this.canvas.enterBriefing();
+      return;
+    }
+    if (LevelScene.cutsceneState[1] !== 9) return;
+    if (LevelScene.cutsceneStep === 0) {
+      ++LevelScene.cutsceneStep;
+      player.setAction(0x1E | player.actionHighByte);
+      return;
+    }
+    if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 5) return;
+    this.canvas.showResult(true);
+    return;
+  }
+
+  /** cutsceneState[0]===5（直升机 Boss 登场 + 内层 switch(cutsceneStep)）。外层 break 已改 return；内层 switch 的 break 保留。 */
+  private runCutsceneScene5(player: PlayerActor): void {
+    if (LevelScene.cutsceneState[1] === 0) {
+      if (LevelScene.cutsceneStep === 0) {
+        ++LevelScene.cutsceneStep;
+        player.setAction(0x1E | player.actionHighByte);
+        return;
+      }
+      if (pkg(player).frameGroupIndex !== 0 || LevelScene.cutsceneStep++ <= 4) return;
+      LevelScene.dialogState[0] = 0;
+      LevelScene.dialogState[1] = 0;
+      LevelScene.dialogState[2] = 1;
+      this.setSubState(LevelSubState.MissionDialog);
+      return;
+    }
+    if (LevelScene.cutsceneState[1] === 1) {
+      if (LevelScene.cutsceneStep++ === 0) {
+        player.setAction(0 | (-2147483648)); // 0 | Integer.MIN_VALUE
+        return;
+      }
+      if (LevelScene.cutsceneStep <= 4) return;
+      this.canvas.enterBriefing();
+      return;
+    }
+    if (LevelScene.cutsceneState[1] === 2) {
+      if (LevelScene.cutsceneStep === 0) {
+        this.dialogActor = this.spawnActor(ActorType.HelicopterBoss, -1) as unknown as BossActor; // 原 (c)this.c(19,-1)
+        this.dialogActor!.resetBoss();
+      } else if (LevelScene.cutsceneStep < 22) {
+        this.dialogActor!.posY += px(4);
+      } else if (LevelScene.cutsceneStep === 22) {
+        LevelScene.dialogState[1] = 2;
+        LevelScene.dialogState[2] = 0;
+        this.setSubState(LevelSubState.MissionDialog);
+      }
+      ++LevelScene.cutsceneStep;
+      return;
+    }
+    if (LevelScene.cutsceneState[1] === 3) {
+      this.cameraTargetCacheX = this.canvas.cameraX;
+      this.cameraTargetCacheY = this.canvas.cameraY;
+      LevelScene.triggerParams[0] = this.dialogActor!.slotIndex;
+      LevelScene.triggerParams[1] = 0;
+      LevelScene.triggerParams[2] = 38;
+      LevelScene.triggerParams[3] = 0;
+      LevelScene.triggerParams[4] = 2;
+      LevelScene.triggerParams[5] = 100;
+      LevelScene.triggerParams[6] = 0;
+      this.setSubState(LevelSubState.BattleWave);
+      this.dialogActor!.dormant = false;
+      return;
+    }
+    if (LevelScene.cutsceneState[1] === 4) {
+      switch (LevelScene.cutsceneStep) {
+        case 0: {
+          let dy: number;
+          let dx: number;
+          this.cameraTargetCacheX = this.dialogActor!.posX - ((this.canvas.viewportWidth / 3) | 0);
+          this.cameraTargetCacheY = this.dialogActor!.posY - ((this.canvas.viewportHeight / 4) | 0);
+          if (this.canvas.globalFrame % 2 === 0) {
+            dx = (5 + GameMIDlet.randomBelow(3)) << 13;
+            dy = GameMIDlet.randomBelow(3) << 13;
+            ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.dialogActor!.posX - dx, this.dialogActor!.posY - dy, 0, null as unknown as Int32Array);
+          }
+          if (LevelScene.cutsceneSubStep === 0) {
+            LevelScene.cutsceneSubStep = 1;
+            dx = 0x130000 - this.dialogActor!.posX;
+            dy = px(602) - this.dialogActor!.posY;
+            this.dialogActor!.targetVelX = (dx / 20) | 0;
+            this.dialogActor!.targetVelY = (dy / 20) | 0;
+            break;
+          }
+          if (this.dialogActor!.posY <= px(602)) break;
+          this.dialogActor!.targetVelX = 0;
+          this.dialogActor!.targetVelY = 0;
+          this.dialogActor!.setAction(-2147483647);
+          LevelScene.cutsceneStep = 1;
+          break;
+        }
+        case 1: {
+          this.dialogActor!.posY = this.dialogActor!.posY + (LevelScene.cutsceneSubStep % 1 === 1 ? px(-2) : px(2));
+          if (LevelScene.cutsceneSubStep++ <= 5) break;
+          LevelScene.cutsceneStep = 2;
+          this.dialogActor!.targetVelX = px(10);
+          break;
+        }
+        case 2: {
+          if (this.dialogActor!.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(60)) break;
+          this.dialogActor!.targetVelX = 0;
+          this.cameraTargetCacheX = player.posX - ((this.canvas.viewportWidth / 2) | 0);
+          LevelScene.cutsceneState[1] = 5;
+          LevelScene.cutsceneState[2] = 1;
+          this.setSubState(LevelSubState.Cutscene);
+        }
+      }
+      return;
+    }
+    if (LevelScene.cutsceneState[1] !== 5) return;
+    if (LevelScene.cutsceneStep === 0) {
+      if (this.canvas.cameraX !== this.cameraTargetCacheX) return;
+      ++LevelScene.cutsceneStep;
+      player.setAction(0);
+      PlayerActor.throwCooldownQueue[0][0] = 2;
+      PlayerActor.throwCooldownQueue[0][1] = ((0x109000 - player.posX) / px(8)) | 0;
+      PlayerActor.throwCooldownQueue[0][2] = 0;
+      PlayerActor.throwCooldownQueue[1][0] = 128;
+      PlayerActor.throwCooldownQueue[1][1] = 2;
+      PlayerActor.throwCooldownQueue[1][2] = 0;
+      PlayerActor.throwCooldownQueue[2][0] = 2;
+      PlayerActor.throwCooldownQueue[2][1] = 50;
+      PlayerActor.throwCooldownQueue[2][2] = 0;
+      LevelScene.cutsceneState[2] = 0;
+      return;
+    }
+    if (LevelScene.cutsceneStep === 1) {
+      const throwResult: number = player.stepThrowQueue();
+      if (throwResult === 0) {
+        this.cameraTargetCacheX = this.canvas.cameraX;
+        LevelScene.cutsceneState[2] = 1;
+        return;
+      }
+      if (throwResult !== 1) return;
+      player.spawnEntryEffect();
+      ++LevelScene.cutsceneStep;
+      return;
+    }
+    if (LevelScene.cutsceneStep !== 2) return;
+    player.stepThrowQueue();
+    if (player.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(50)) return;
+    this.canvas.showResult(true);
+    return;
+  }
+
+  /** cutsceneState[0]===6（终局：投雷→坠落→水花特效）。原退出外层 switch 的 break 已改 return；末尾自然落出（末路径原本无 break）。 */
+  private runCutsceneScene6(player: PlayerActor): void {
+    if (LevelScene.cutsceneState[1] === 0) {
+      if (LevelScene.cutsceneStep === 0) {
+        ++LevelScene.cutsceneStep;
+        PlayerActor.throwCooldownQueue[0][0] = 2;
+        PlayerActor.throwCooldownQueue[0][1] = 10;
+        PlayerActor.throwCooldownQueue[0][2] = 0;
+        return;
+      }
+      if (LevelScene.cutsceneStep !== 1) return;
+      if (player.stepThrowQueue() === 0) {
+        player.targetVelX = 0;
+        LevelScene.dialogState[0] = 0;
+        LevelScene.dialogState[1] = 0;
+        LevelScene.dialogState[2] = 2;
+        this.setSubState(LevelSubState.MissionDialog);
+        return;
+      }
+      player.targetVelX = px(10);
+      return;
+    }
+    if (LevelScene.cutsceneState[1] === 1) {
+      if (!player.publicFlagA) return;
+      this.dialogActor!.kill();
+      this.dialogActor = null;
+      LevelScene.dialogState[1] = 0;
+      LevelScene.dialogState[2] = 3;
+      this.setSubState(LevelSubState.MissionDialog);
+      return;
+    }
+    if (LevelScene.cutsceneState[1] !== 2) return;
+    if (LevelScene.cutsceneStep === 0) {
+      player.targetVelX = 0;
+      player.targetVelY = px(12);
+      player.publicFlagB = true;
+      ++LevelScene.cutsceneStep;
+      return;
+    }
+    if (LevelScene.cutsceneStep === 2) {
+      if (player.publicFlagC) {
+        ++LevelScene.cutsceneStep;
+      } else {
+        LevelScene.dialogState[1] = 3;
+        LevelScene.dialogState[2] = 0;
+        this.setSubState(LevelSubState.MissionDialog);
+      }
+      player.companionEffect!.kill();
+      player.kill();
+      return;
+    }
+    if (LevelScene.cutsceneStep === 3) {
+      this.canvas.showResult(false);
+      return;
+    }
+    if (player.posY <= 132 << 10) return;
+    let i: number = 0;
+    while (i < 8) {
+      const splash: ActorBase | null = this.spawnActor(ActorType.SplashEffect, -1);
+      if (splash != null) {
+        splash.posX = player.posX + (pkg(player).boxLeft << 10) + i % 4 * px(14) + ((i / 4) | 0) * px(8);
+        splash.posY = player.posY + px(14) + ((i / 4) | 0) * px(8);
+        splash.setAction(0);
+      }
+      ++i;
+    }
+    ++LevelScene.cutsceneStep;
   }
 
   /**
@@ -1202,93 +1223,16 @@ export class LevelScene {
   fireTrigger(triggerIndex: number, hit: boolean): void {
     const triggerType: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 0, 1);
     if (hit) {
+      // 命中：按触发器类型分派（原 CFR 每 case 末尾退出 switch 的 break == 其后紧邻的 return，故 helper 内改 return）。
       switch (triggerType) {
-        case 0: {
-          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
-          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
-          if (LevelScene.triggerParams[0] < 0) {
-            LevelScene.triggerParams[0] = LevelScene.triggerParams[0] + 256;
-          }
-          if (LevelScene.triggerParams[1] < 0) {
-            LevelScene.triggerParams[1] = LevelScene.triggerParams[1] + 256;
-          }
-          this.canvas.player!.triggerSwitch(true);
-          break;
-        }
-        case 1: {
-          this.triggerFiredFlags[triggerIndex] = true;
-          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
-          this.cameraTargetCacheY = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
-          if (this.cameraTargetCacheX < 0) {
-            this.cameraTargetCacheX += 256;
-          }
-          if (this.cameraTargetCacheY < 0) {
-            this.cameraTargetCacheY += 256;
-          }
-          this.cameraTargetCacheX <<= 14;
-          this.cameraTargetCacheY <<= 14;
-          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
-          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21, 1);
-          LevelScene.triggerParams[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 22, 1);
-          LevelScene.triggerParams[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 23, 1);
-          LevelScene.triggerParams[4] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 24, 1);
-          LevelScene.triggerParams[5] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 25, 1);
-          LevelScene.triggerParams[6] = LevelScene.triggerParams[5];
-          this.setSubState(LevelSubState.BattleWave);
-          break;
-        }
-        case 2: {
-          if (this.canvas.levelIndex === 5 && (this.canvas.player!.reserved & 1) === 0) {
-            return;
-          }
-          LevelScene.cutsceneState[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
-          if (LevelScene.cutsceneState[3] > 0 && LevelScene.activeActors[LevelScene.cutsceneState[3]] != null) {
-            LevelScene.cutsceneState[4] = LevelScene.activeActors[LevelScene.cutsceneState[3]]!.posX >> 14;
-            if (pkg(LevelScene.activeActors[LevelScene.cutsceneState[3]]!).isAlive()) {
-              return;
-            }
-          }
-          this.triggerFiredFlags[triggerIndex] = true;
-          LevelScene.cutsceneState[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
-          LevelScene.cutsceneState[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
-          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 14, 2);
-          this.cameraTargetCacheX <<= 10;
-          this.cameraTargetCacheX -= this.canvas.viewportWidth;
-          if (this.cameraTargetCacheX < 0) {
-            this.cameraTargetCacheX = 0;
-          }
-          this.cameraTargetCacheY = this.canvas.cameraY;
-          LevelScene.cutsceneState[1] = LevelScene.cutsceneState[0] % 10;
-          LevelScene.cutsceneState[0] = (LevelScene.cutsceneState[0] / 10) | 0;
-          this.setSubState(LevelSubState.BossScript);
-          break;
-        }
-        case 3: {
-          if (LevelScene.formationState[0] !== -1) {
-            return;
-          }
-          let baseX: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
-          let baseY: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
-          baseX <<= 14;
-          baseY <<= 14;
-          const count: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
-          LevelScene.formationState[0] = triggerIndex;
-          let i: number = 0;
-          while (i < count) {
-            const marker: ActorBase | null = this.spawnActor(ActorType.GrappleMarker, -1);
-            if (marker != null) {
-              marker.posX = baseX + i * px(16);
-              marker.posY = baseY;
-              marker.setAction(GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21 + i, 1));
-              LevelScene.formationState[i + 1] = marker.slotIndex;
-            }
-            ++i;
-          }
-          break;
-        }
+        case 0: this.fireTriggerCameraPoint(triggerIndex); return;
+        case 1: this.fireTriggerBattleWave(triggerIndex); return;
+        case 2: this.fireTriggerBossScript(triggerIndex); return;
+        case 3: this.fireTriggerFormation(triggerIndex); return;
       }
       return;
     }
+    // 未命中：仅类型 3（多段机关）离开其区域时，清理已生成的成组 actor 并复位编队。
     if (triggerType === 3 && triggerIndex === LevelScene.formationState[0]) {
       const clearCount: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
       let j: number = 0;
@@ -1300,6 +1244,97 @@ export class LevelScene {
       }
       LevelScene.formationState[0] = -1;
     }
+  }
+
+  /** 触发器类型 0：相机点，读开关坐标（<0 补 256 还原无符号字节）并置玩家开关。原退出外层 switch 的 break 已改 return。 */
+  private fireTriggerCameraPoint(triggerIndex: number): void {
+    LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+    LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
+    if (LevelScene.triggerParams[0] < 0) {
+      LevelScene.triggerParams[0] = LevelScene.triggerParams[0] + 256;
+    }
+    if (LevelScene.triggerParams[1] < 0) {
+      LevelScene.triggerParams[1] = LevelScene.triggerParams[1] + 256;
+    }
+    this.canvas.player!.triggerSwitch(true);
+    return;
+  }
+
+  /** 触发器类型 1：战斗波，填 {@link LevelScene.triggerParams} 并切到 BattleWave。原退出外层 switch 的 break 已改 return。 */
+  private fireTriggerBattleWave(triggerIndex: number): void {
+    this.triggerFiredFlags[triggerIndex] = true;
+    this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+    this.cameraTargetCacheY = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
+    if (this.cameraTargetCacheX < 0) {
+      this.cameraTargetCacheX += 256;
+    }
+    if (this.cameraTargetCacheY < 0) {
+      this.cameraTargetCacheY += 256;
+    }
+    this.cameraTargetCacheX <<= 14;
+    this.cameraTargetCacheY <<= 14;
+    LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+    LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21, 1);
+    LevelScene.triggerParams[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 22, 1);
+    LevelScene.triggerParams[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 23, 1);
+    LevelScene.triggerParams[4] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 24, 1);
+    LevelScene.triggerParams[5] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 25, 1);
+    LevelScene.triggerParams[6] = LevelScene.triggerParams[5];
+    this.setSubState(LevelSubState.BattleWave);
+    return;
+  }
+
+  /** 触发器类型 2：剧情演出，填 {@link LevelScene.cutsceneState} 并切到 BossScript。含两处早退守卫；原退出外层 switch 的 break 已改 return。 */
+  private fireTriggerBossScript(triggerIndex: number): void {
+    if (this.canvas.levelIndex === 5 && (this.canvas.player!.reserved & 1) === 0) {
+      return;
+    }
+    LevelScene.cutsceneState[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
+    if (LevelScene.cutsceneState[3] > 0 && LevelScene.activeActors[LevelScene.cutsceneState[3]] != null) {
+      LevelScene.cutsceneState[4] = LevelScene.activeActors[LevelScene.cutsceneState[3]]!.posX >> 14;
+      if (pkg(LevelScene.activeActors[LevelScene.cutsceneState[3]]!).isAlive()) {
+        return;
+      }
+    }
+    this.triggerFiredFlags[triggerIndex] = true;
+    LevelScene.cutsceneState[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+    LevelScene.cutsceneState[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+    this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 14, 2);
+    this.cameraTargetCacheX <<= 10;
+    this.cameraTargetCacheX -= this.canvas.viewportWidth;
+    if (this.cameraTargetCacheX < 0) {
+      this.cameraTargetCacheX = 0;
+    }
+    this.cameraTargetCacheY = this.canvas.cameraY;
+    LevelScene.cutsceneState[1] = LevelScene.cutsceneState[0] % 10;
+    LevelScene.cutsceneState[0] = (LevelScene.cutsceneState[0] / 10) | 0;
+    this.setSubState(LevelSubState.BossScript);
+    return;
+  }
+
+  /** 触发器类型 3：多段机关，生成一排抓钩标记 actor 并记入 {@link LevelScene.formationState}。含早退守卫；原退出外层 switch 的 break 已改 return。 */
+  private fireTriggerFormation(triggerIndex: number): void {
+    if (LevelScene.formationState[0] !== -1) {
+      return;
+    }
+    let baseX: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+    let baseY: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
+    baseX <<= 14;
+    baseY <<= 14;
+    const count: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+    LevelScene.formationState[0] = triggerIndex;
+    let i: number = 0;
+    while (i < count) {
+      const marker: ActorBase | null = this.spawnActor(ActorType.GrappleMarker, -1);
+      if (marker != null) {
+        marker.posX = baseX + i * px(16);
+        marker.posY = baseY;
+        marker.setAction(GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21 + i, 1));
+        LevelScene.formationState[i + 1] = marker.slotIndex;
+      }
+      ++i;
+    }
+    return;
   }
 
   /**
