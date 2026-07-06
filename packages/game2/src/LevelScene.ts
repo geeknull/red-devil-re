@@ -1195,17 +1195,17 @@ export class LevelScene {
    * 执行触发器动作（CFR j.java `a(int,boolean)`）。由 {@link runTrigger} 调用，从 {@link triggerTable}[n] 读类型与参数。
    * 触发器类型：0=相机点（设玩家开关）、1=战斗波（填 {@link LevelScene.triggerParams} 并切到 BattleWave）、
    * 2=剧情演出（填 {@link LevelScene.cutsceneState} 并切到 BossScript）、3=多段机关（生成成组 actor 并记入 {@link LevelScene.formationState}）。
-   * @param n  触发器索引。
-   * @param bl 是否命中：命中（true）走对应类型分支；未命中（false）用于类型 3 的离开/清理逻辑。
+   * @param triggerIndex 触发器索引。
+   * @param hit 是否命中：命中（true）走对应类型分支；未命中（false）用于类型 3 的离开/清理逻辑。
    */
   // public final void a(int,boolean);  → a_IZ
-  fireTrigger(n: number, bl: boolean): void {
-    const n2: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 0, 1);
-    if (bl) {
-      switch (n2) {
+  fireTrigger(triggerIndex: number, hit: boolean): void {
+    const triggerType: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 0, 1);
+    if (hit) {
+      switch (triggerType) {
         case 0: {
-          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[n]!, 18, 1);
-          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[n]!, 19, 1);
+          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
           if (LevelScene.triggerParams[0] < 0) {
             LevelScene.triggerParams[0] = LevelScene.triggerParams[0] + 256;
           }
@@ -1216,9 +1216,9 @@ export class LevelScene {
           break;
         }
         case 1: {
-          this.triggerFiredFlags[n] = true;
-          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[n]!, 18, 1);
-          this.cameraTargetCacheY = GameMIDlet.readIntLE(this.triggerTable[n]!, 19, 1);
+          this.triggerFiredFlags[triggerIndex] = true;
+          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+          this.cameraTargetCacheY = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
           if (this.cameraTargetCacheX < 0) {
             this.cameraTargetCacheX += 256;
           }
@@ -1227,12 +1227,12 @@ export class LevelScene {
           }
           this.cameraTargetCacheX <<= 14;
           this.cameraTargetCacheY <<= 14;
-          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[n]!, 20, 1);
-          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[n]!, 21, 1);
-          LevelScene.triggerParams[2] = GameMIDlet.readIntLE(this.triggerTable[n]!, 22, 1);
-          LevelScene.triggerParams[3] = GameMIDlet.readIntLE(this.triggerTable[n]!, 23, 1);
-          LevelScene.triggerParams[4] = GameMIDlet.readIntLE(this.triggerTable[n]!, 24, 1);
-          LevelScene.triggerParams[5] = GameMIDlet.readIntLE(this.triggerTable[n]!, 25, 1);
+          LevelScene.triggerParams[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+          LevelScene.triggerParams[1] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21, 1);
+          LevelScene.triggerParams[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 22, 1);
+          LevelScene.triggerParams[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 23, 1);
+          LevelScene.triggerParams[4] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 24, 1);
+          LevelScene.triggerParams[5] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 25, 1);
           LevelScene.triggerParams[6] = LevelScene.triggerParams[5];
           this.setSubState(LevelSubState.BattleWave);
           break;
@@ -1241,17 +1241,17 @@ export class LevelScene {
           if (this.canvas.levelIndex === 5 && (this.canvas.player!.reserved & 1) === 0) {
             return;
           }
-          LevelScene.cutsceneState[3] = GameMIDlet.readIntLE(this.triggerTable[n]!, 19, 1);
+          LevelScene.cutsceneState[3] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
           if (LevelScene.cutsceneState[3] > 0 && LevelScene.activeActors[LevelScene.cutsceneState[3]] != null) {
             LevelScene.cutsceneState[4] = LevelScene.activeActors[LevelScene.cutsceneState[3]]!.posX >> 14;
             if (pkg(LevelScene.activeActors[LevelScene.cutsceneState[3]]!).isAlive()) {
               return;
             }
           }
-          this.triggerFiredFlags[n] = true;
-          LevelScene.cutsceneState[0] = GameMIDlet.readIntLE(this.triggerTable[n]!, 18, 1);
-          LevelScene.cutsceneState[2] = GameMIDlet.readIntLE(this.triggerTable[n]!, 20, 1);
-          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[n]!, 14, 2);
+          this.triggerFiredFlags[triggerIndex] = true;
+          LevelScene.cutsceneState[0] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+          LevelScene.cutsceneState[2] = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+          this.cameraTargetCacheX = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 14, 2);
           this.cameraTargetCacheX <<= 10;
           this.cameraTargetCacheX -= this.canvas.viewportWidth;
           if (this.cameraTargetCacheX < 0) {
@@ -1267,36 +1267,36 @@ export class LevelScene {
           if (LevelScene.formationState[0] !== -1) {
             return;
           }
-          let n3: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 18, 1);
-          let n4: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 19, 1);
-          n3 <<= 14;
-          n4 <<= 14;
-          const n5: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 20, 1);
-          LevelScene.formationState[0] = n;
-          let n6: number = 0;
-          while (n6 < n5) {
-            const h2: ActorBase | null = this.spawnActor(ActorType.GrappleMarker, -1);
-            if (h2 != null) {
-              h2.posX = n3 + n6 * px(16);
-              h2.posY = n4;
-              h2.setAction(GameMIDlet.readIntLE(this.triggerTable[n]!, 21 + n6, 1));
-              LevelScene.formationState[n6 + 1] = h2.slotIndex;
+          let baseX: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 18, 1);
+          let baseY: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 19, 1);
+          baseX <<= 14;
+          baseY <<= 14;
+          const count: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+          LevelScene.formationState[0] = triggerIndex;
+          let i: number = 0;
+          while (i < count) {
+            const marker: ActorBase | null = this.spawnActor(ActorType.GrappleMarker, -1);
+            if (marker != null) {
+              marker.posX = baseX + i * px(16);
+              marker.posY = baseY;
+              marker.setAction(GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 21 + i, 1));
+              LevelScene.formationState[i + 1] = marker.slotIndex;
             }
-            ++n6;
+            ++i;
           }
           break;
         }
       }
       return;
     }
-    if (n2 === 3 && n === LevelScene.formationState[0]) {
-      const n7: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 20, 1);
-      let n8: number = 0;
-      while (n8 < n7) {
-        if (LevelScene.activeActors[LevelScene.formationState[n8 + 1]] != null) {
-          LevelScene.activeActors[LevelScene.formationState[n8 + 1]]!.kill();
+    if (triggerType === 3 && triggerIndex === LevelScene.formationState[0]) {
+      const clearCount: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 20, 1);
+      let j: number = 0;
+      while (j < clearCount) {
+        if (LevelScene.activeActors[LevelScene.formationState[j + 1]] != null) {
+          LevelScene.activeActors[LevelScene.formationState[j + 1]]!.kill();
         }
-        ++n8;
+        ++j;
       }
       LevelScene.formationState[0] = -1;
     }
@@ -1310,64 +1310,64 @@ export class LevelScene {
    */
   // public final void c();  → c_
   spawnWave(): void {
-    const n: number = LevelScene.triggerParams[2] << 4;
-    let n2: number = 0;
-    let n3: number = LevelScene.triggerParams[3];
-    let n4: number = LevelScene.triggerParams[4];
-    let n5: number = 0;
-    if (n4 === 0) {
-      n4 = 1 + GameMIDlet.randomBelow(3);
+    const spawnY: number = LevelScene.triggerParams[2] << 4;
+    let i: number = 0;
+    let enemyType: number = LevelScene.triggerParams[3];
+    let spawnCount: number = LevelScene.triggerParams[4];
+    let entryMode: number = 0;
+    if (spawnCount === 0) {
+      spawnCount = 1 + GameMIDlet.randomBelow(3);
     }
-    n5 = 1 + GameMIDlet.randomBelow(3);
-    if (n3 === 0) {
+    entryMode = 1 + GameMIDlet.randomBelow(3);
+    if (enemyType === 0) {
       const nArray: number[] = [1, 3, 4];
-      n3 = nArray[GameMIDlet.randomBelow(3)];
+      enemyType = nArray[GameMIDlet.randomBelow(3)];
     }
-    let n6: number = 0;
-    let n7: number = 0;
-    let n8: number = 0;
-    let n9: number = 0;
+    let spawnX: number = 0;
+    let facing: number = 0;
+    let leftCount: number = 0;
+    let rightCount: number = 0;
     this.waveSpawnCount = 0;
-    while (n2 < n4) {
-      const f2: EnemyActor = this.spawnActor(n3, -1) as unknown as EnemyActor; // Java 向下转型 (h)→f
-      if (f2 != null) {
-        let n10: number;
-        if (n5 === 3) {
+    while (i < spawnCount) {
+      const enemy: EnemyActor = this.spawnActor(enemyType, -1) as unknown as EnemyActor; // Java 向下转型 (h)→f
+      if (enemy != null) {
+        let side: number;
+        if (entryMode === 3) {
           if (this.diagonalFormationToggle > 0) {
-            n10 = 1;
+            side = 1;
             this.diagonalFormationToggle = 0;
           } else {
-            n10 = 2;
+            side = 2;
             this.diagonalFormationToggle = 1;
           }
         } else {
-          n10 = n5;
+          side = entryMode;
         }
-        if (n10 === 1) {
-          n6 = this.canvas.cameraX - ++n8 * px(15);
-          n7 = 0;
-        } else if (n10 === 2) {
-          n6 = this.canvas.cameraX + this.canvas.viewportWidth + ++n9 * 15060;
-          n7 = -128;
+        if (side === 1) {
+          spawnX = this.canvas.cameraX - ++leftCount * px(15);
+          facing = 0;
+        } else if (side === 2) {
+          spawnX = this.canvas.cameraX + this.canvas.viewportWidth + ++rightCount * 15060;
+          facing = -128;
         }
-        LevelScene.spawnBytes[0] = n3 & 0xff; // (byte)n3
-        LevelScene.spawnBytes[1] = (n6 = n6 >> 10) & 0xff; // (byte)(n6 >>= 10)
-        LevelScene.spawnBytes[2] = (n6 >> 8) & 0xff; // (byte)(n6 >> 8)
-        LevelScene.spawnBytes[3] = n & 0xff; // (byte)n
-        LevelScene.spawnBytes[4] = (n >> 8) & 0xff; // (byte)(n >> 8)
-        LevelScene.spawnBytes[5] = (0 | n7) & 0xff; // (byte)(0 | n7)
+        LevelScene.spawnBytes[0] = enemyType & 0xff; // (byte)n3
+        LevelScene.spawnBytes[1] = (spawnX = spawnX >> 10) & 0xff; // (byte)(n6 >>= 10)
+        LevelScene.spawnBytes[2] = (spawnX >> 8) & 0xff; // (byte)(n6 >> 8)
+        LevelScene.spawnBytes[3] = spawnY & 0xff; // (byte)n
+        LevelScene.spawnBytes[4] = (spawnY >> 8) & 0xff; // (byte)(n >> 8)
+        LevelScene.spawnBytes[5] = (0 | facing) & 0xff; // (byte)(0 | n7)
         LevelScene.spawnBytes[6] = 1;
         LevelScene.spawnBytes[7] = 60;
         LevelScene.spawnBytes[8] = 22;
         LevelScene.spawnBytes[9] = GameMIDlet.randomBelow(3) & 0xff; // (byte)GameMIDlet.a(3)
-        if (f2.spawnFromBytes(LevelScene.spawnBytes)) {
+        if (enemy.spawnFromBytes(LevelScene.spawnBytes)) {
           ++this.waveSpawnCount;
           if (LevelScene.triggerParams[6] > 0 && LevelScene.triggerParams[6] < 100) {
             LevelScene.triggerParams[5] = LevelScene.triggerParams[5] - 1;
           }
         }
       }
-      ++n2;
+      ++i;
     }
   }
 
