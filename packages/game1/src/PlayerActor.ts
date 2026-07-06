@@ -82,77 +82,75 @@ export class PlayerActor extends ActorBase {
   }
 
   // c(tjge.b) → c_Tb（覆写基类 c_Tb：玩家专用落地/侧壁检测）
-  collideGround(b2: TileMap): boolean {
+  collideGround(tileMap: TileMap): boolean {
     if (this.velY < 0) {
       return false;
     }
-    const bl = false;
-    void bl;
-    const bl2 = false;
-    void bl2;
-    const n = (this.posY + this.velY) >> 14;
-    const n2 = (((this.posX + this.velX) >> 10) + -5) >> 4;
-    const n3 = (((this.posX + this.velX) >> 10) + 5) >> 4;
-    let bl3 = false;
-    let bl4 = false;
-    if (b2.queryColumnTileAt(n2, n, true) === 1) {
-      bl3 = true;
+    const groundTileY = (this.posY + this.velY) >> 14;
+    const leftFootTileX = (((this.posX + this.velX) >> 10) + -5) >> 4;
+    const rightFootTileX = (((this.posX + this.velX) >> 10) + 5) >> 4;
+    let leftHit = false;
+    let rightHit = false;
+    if (tileMap.queryColumnTileAt(leftFootTileX, groundTileY, true) === 1) {
+      leftHit = true;
     }
-    if (b2.queryColumnTileAt(n3, n, true) === 1) {
-      bl4 = true;
+    if (tileMap.queryColumnTileAt(rightFootTileX, groundTileY, true) === 1) {
+      rightHit = true;
     }
-    if (bl3 && bl4) {
+    if (leftHit && rightHit) {
       this.targetVelY = 0;
       this.posY &= 0xfffffc00;
-      this.velY = (n << 14) - this.posY;
+      this.velY = (groundTileY << 14) - this.posY;
       return true;
     }
-    if (this.facingFlag !== 0 && (bl3 || bl4)) {
-      if (bl3 && !bl4) {
-        const n4 = (n2 << 4) + 16 - (((this.posX + this.velX) >> 10) + -5);
+    // edgeDist：脚像素到瓦片边沿的水平距（坡步阈值），各分支独立块作用域，忠实保留原偏移。
+    if (this.facingFlag !== 0 && (leftHit || rightHit)) {
+      if (leftHit && !rightHit) {
+        const edgeDist = (leftFootTileX << 4) + 16 - (((this.posX + this.velX) >> 10) + -5);
         this.targetVelX = 0;
-        if (n4 > 6 || (n4 >= 4 && (this.actionId === 4 || this.actionId === 3))) {
+        if (edgeDist > 6 || (edgeDist >= 4 && (this.actionId === 4 || this.actionId === 3))) {
           this.targetVelY = 0;
-          this.velX = (((n2 << 4) + 7) << 10) - this.posX;
-          this.velY = (n << 14) - this.posY;
+          this.velX = (((leftFootTileX << 4) + 7) << 10) - this.posX;
+          this.velY = (groundTileY << 14) - this.posY;
           return true;
         }
-        this.velX = (((n2 << 4) + 25) << 10) - this.posX;
-      } else if (!bl3 && bl4 && (this.stateFlags & 1) === 0) {
-        const n5 = (n3 << 4) - (((this.posX + this.velX) >> 10) + -5);
+        this.velX = (((leftFootTileX << 4) + 25) << 10) - this.posX;
+      } else if (!leftHit && rightHit && (this.stateFlags & 1) === 0) {
+        const edgeDist = (rightFootTileX << 4) - (((this.posX + this.velX) >> 10) + -5);
         this.targetVelX = 0;
-        if (n5 < 7) {
+        if (edgeDist < 7) {
           this.targetVelY = 0;
-          this.velX = (((n3 << 4) + 7) << 10) - this.posX;
-          this.velY = (n << 14) - this.posY;
+          this.velX = (((rightFootTileX << 4) + 7) << 10) - this.posX;
+          this.velY = (groundTileY << 14) - this.posY;
           return true;
         }
-        this.velX = (((n3 << 4) - 9) << 10) - this.posX;
-      } else if (!bl3 && bl4) {
+        this.velX = (((rightFootTileX << 4) - 9) << 10) - this.posX;
+      } else if (!leftHit && rightHit) {
         this.velY = px(2);
       }
-    } else if (this.facingFlag === 0 && (bl4 || bl3)) {
-      if (bl4 && !bl3) {
-        const n6 = ((this.posX + this.velX) >> 10) + 5 - (n3 << 4);
+    } else if (this.facingFlag === 0 && (rightHit || leftHit)) {
+      if (rightHit && !leftHit) {
+        const edgeDist = ((this.posX + this.velX) >> 10) + 5 - (rightFootTileX << 4);
         this.targetVelX = 0;
-        if (n6 > 6 || (n6 >= 4 && (this.actionId === 4 || this.actionId === 3))) {
+        if (edgeDist > 6 || (edgeDist >= 4 && (this.actionId === 4 || this.actionId === 3))) {
           this.targetVelY = 0;
-          this.velX = (((n3 << 4) + 7) << 10) - this.posX;
-          this.velY = (n << 14) - this.posY;
+          this.velX = (((rightFootTileX << 4) + 7) << 10) - this.posX;
+          this.velY = (groundTileY << 14) - this.posY;
           return true;
         }
-        this.velX = (((n3 << 4) - 9) << 10) - this.posX;
-      } else if (!bl4 && bl3 && (this.stateFlags & 1) === 0) {
-        const n7 = ((this.posX + this.velX) >> 10) + 5 - (n3 << 4);
+        this.velX = (((rightFootTileX << 4) - 9) << 10) - this.posX;
+      } else if (!rightHit && leftHit && (this.stateFlags & 1) === 0) {
+        // CFR 反编译特性：本(左命中)分支 edgeDist 用 rightFootTileX，而 velX 用 leftFootTileX，忠实保留。
+        const edgeDist = ((this.posX + this.velX) >> 10) + 5 - (rightFootTileX << 4);
         this.targetVelX = 0;
-        if (n7 < 7) {
+        if (edgeDist < 7) {
           this.targetVelY = 0;
-          this.velX = (((n2 << 4) + 9) << 10) - this.posX;
-          this.velY = (n << 14) - this.posY;
+          this.velX = (((leftFootTileX << 4) + 9) << 10) - this.posX;
+          this.velY = (groundTileY << 14) - this.posY;
           return true;
         }
-        this.velX = (((n2 << 4) + 25) << 10) - this.posX;
-      } else if (!bl4 && bl3) {
+        this.velX = (((leftFootTileX << 4) + 25) << 10) - this.posX;
+      } else if (!rightHit && leftHit) {
         this.velY = px(2);
       }
     }
@@ -161,55 +159,57 @@ export class PlayerActor extends ActorBase {
   }
 
   // e(tjge.b) → e_Tb（爬升顶部碰撞检测）
-  checkLedgeTop(b2: TileMap): boolean {
+  checkLedgeTop(tileMap: TileMap): boolean {
     if (this.velY < 0) {
       return false;
     }
-    const n = (this.posX + this.velX) >> 14;
-    const n2 = (this.posY - px(10)) >> 14;
-    let n3 = 0;
-    while (n3 < 3) {
-      if (b2.queryColumnTileAt(n, n2 + n3, true) === 1) {
+    const scanTileX = (this.posX + this.velX) >> 14;
+    const topRow = (this.posY - px(10)) >> 14;
+    let rowOffset = 0;
+    while (rowOffset < 3) {
+      if (tileMap.queryColumnTileAt(scanTileX, topRow + rowOffset, true) === 1) {
         return true;
       }
-      ++n3;
+      ++rowOffset;
     }
     return false;
   }
 
   // f(tjge.b) → f_Tb（前方贴墙检测）
-  checkWallAhead(b2: TileMap): boolean {
-    let n = this.facingLeft ? this.posX - px(2) : this.posX + px(2);
-    const n2 = ((this.posY >> 10) - 34) >> 4;
-    return b2.queryColumnTileAt((n >>= 14), n2, true) === 1;
+  checkWallAhead(tileMap: TileMap): boolean {
+    // n 双义拆分：先定点像素X(前方±px(2))，再 >>14 得瓦片列。
+    const probeFx = this.facingLeft ? this.posX - px(2) : this.posX + px(2);
+    const row = ((this.posY >> 10) - 34) >> 4;
+    return tileMap.queryColumnTileAt(probeFx >> 14, row, true) === 1;
   }
 
-  // a(tjge.b,boolean) → a_TbZ（侧向墙体碰撞）
-  checkLadderTile(b2: TileMap, bl: boolean): boolean {
-    let n = bl
+  // a(tjge.b,boolean) → a_TbZ（侧向墙体/梯子瓦片检测；probeAbove=true 探头顶上方）
+  checkLadderTile(tileMap: TileMap, probeAbove: boolean): boolean {
+    // n 双义：先是探测行(瓦片Y)，末尾梯子态里复用为定点Y位置写回 posY。
+    let probeRow = probeAbove
       ? (this.posY - px(30)) >> 14
       : (this.stateFlags & 0x2000) !== 0
         ? (this.posY + this.velY) >> 14
         : (this.posY + this.velY + px(20)) >> 14;
-    const n2 = ((this.posX >> 10) - 3) >> 4;
-    const n3 = ((this.posX >> 10) + 3) >> 4;
-    let n4 = n2;
-    while (n4 <= n3) {
-      const n5 = b2.queryColumnTileAt(n4, n, true);
-      if (n5 === 2) {
-        this.posX = ((n4 << 4) + 8) << 10;
+    const leftCol = ((this.posX >> 10) - 3) >> 4;
+    const rightCol = ((this.posX >> 10) + 3) >> 4;
+    let col = leftCol;
+    while (col <= rightCol) {
+      const tileValue = tileMap.queryColumnTileAt(col, probeRow, true);
+      if (tileValue === 2) {
+        this.posX = ((col << 4) + 8) << 10;
         this.velX = 0;
         this.targetVelX = 0;
         return true;
       }
-      ++n4;
+      ++col;
     }
     if ((this.stateFlags & 0x2000) !== 0) {
-      if (bl) {
-        ++n;
-        this.posY = (n <<= 14) + px(10);
+      if (probeAbove) {
+        ++probeRow;
+        this.posY = (probeRow << 14) + px(10);
       } else {
-        this.posY = n <<= 14;
+        this.posY = probeRow << 14;
       }
       this.targetVelY = 0;
     }
@@ -293,8 +293,9 @@ export class PlayerActor extends ActorBase {
         return;
       }
       case GameState.Playing: {
-        let n: number;
-        const n2 = GameScreen.viewWidthFx;
+        // n 的两处复用拆名：wallHit(墙体命中0/1) 与 alignOffset(posX%px(8) 8px对齐余量)。
+        let alignOffset: number;
+        const viewWidthFx = GameScreen.viewWidthFx;
         if (this.screen.levelIndex === 4) {
           if (this.screen.reinforceBudget-- > 25) {
             this.targetVelX = 0;
@@ -318,8 +319,8 @@ export class PlayerActor extends ActorBase {
             this.posX = this.screen.cameraX + px(20);
             return;
           }
-          if (this.posX - this.screen.cameraX <= n2 - px(20)) break;
-          this.posX = this.screen.cameraX + n2 - px(20);
+          if (this.posX - this.screen.cameraX <= viewWidthFx - px(20)) break;
+          this.posX = this.screen.cameraX + viewWidthFx - px(20);
           return;
         }
         if ((this.stateFlags & 0x2000) === 0) {
@@ -332,13 +333,13 @@ export class PlayerActor extends ActorBase {
             }
           } else {
             if (this.facingFlag !== 0) {
-              n = this.checkWallLeft(this.screen.tileMap!, 0) ? 1 : 0;
-              if (n !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
+              const wallHit = this.checkWallLeft(this.screen.tileMap!, 0) ? 1 : 0;
+              if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
                 this.setFrame(0 | this.facingFlag);
               }
             } else {
-              n = this.checkWallRight(this.screen.tileMap!, 0) ? 1 : 0;
-              if (n !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
+              const wallHit = this.checkWallRight(this.screen.tileMap!, 0) ? 1 : 0;
+              if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
                 this.setFrame(0);
               }
             }
@@ -367,14 +368,14 @@ export class PlayerActor extends ActorBase {
         if (
           (this.stateFlags & 1) !== 0 &&
           (this.actionId === 2 || this.actionId === 0) &&
-          (n = this.posX % px(8)) > px(2) &&
-          n < px(6)
+          (alignOffset = this.posX % px(8)) > px(2) &&
+          alignOffset < px(6)
         ) {
-          if (n > px(4)) {
-            n = px(8) - n;
-            this.posX += n;
+          if (alignOffset > px(4)) {
+            alignOffset = px(8) - alignOffset;
+            this.posX += alignOffset;
           } else {
-            this.posX -= n;
+            this.posX -= alignOffset;
           }
         }
         if (this.screen.scriptFlagL && this.screen.levelIndex !== 7 && this.screen.levelIndex !== 2) {
@@ -383,8 +384,8 @@ export class PlayerActor extends ActorBase {
             this.targetVelX = 0;
             return;
           }
-          if (this.posX <= this.screen.cameraX + n2 - px(10)) break;
-          this.posX = this.screen.cameraX + n2 - px(10);
+          if (this.posX <= this.screen.cameraX + viewWidthFx - px(10)) break;
+          this.posX = this.screen.cameraX + viewWidthFx - px(10);
           this.targetVelX = 0;
           return;
         }
@@ -1024,7 +1025,7 @@ export class PlayerActor extends ActorBase {
    * 按子状态 subState 选起跳动画帧，置竖直速度 n、恢复重力 accelY=4096、清着地位、标记移动中。
    */
   // b(int) → b_I（向左跳跃/落地动作分支设定）
-  startLeapLeft(n: number): void {
+  startLeapLeft(jumpVelY: number): void {
     if (this.subState === 2) {
       this.posX = this.climbTargetX + px(12);
       this.setFrame(-2147483626);
@@ -1033,7 +1034,7 @@ export class PlayerActor extends ActorBase {
     } else {
       this.setFrame(-2147483645);
     }
-    this.targetVelY = n;
+    this.targetVelY = jumpVelY;
     this.accelY = px(4);
     this.stateFlags &= 0xfffffffe;
     this.movingFlag = 1;
@@ -1044,7 +1045,7 @@ export class PlayerActor extends ActorBase {
    * 与 startLeapLeft() 镜像，@param n 同义（向上为负）。
    */
   // c(int) → c_I（向右跳跃/落地动作分支设定）
-  startLeapRight(n: number): void {
+  startLeapRight(jumpVelY: number): void {
     if (this.subState === 2) {
       this.posX = this.climbTargetX - px(12);
       this.setFrame(22);
@@ -1053,7 +1054,7 @@ export class PlayerActor extends ActorBase {
     } else {
       this.setFrame(3);
     }
-    this.targetVelY = n;
+    this.targetVelY = jumpVelY;
     this.accelY = px(4);
     this.stateFlags &= 0xfffffffe;
     this.movingFlag = 1;
@@ -1135,10 +1136,10 @@ export class PlayerActor extends ActorBase {
    * 消耗弹匣 magazineAmmo / 手雷 grenadeCount，设射击动画帧；火箭命中地形则爆开特效。
    * 蹲姿（actionId==5）时调整弹体高度与射击帧。开火音效 GameScreen.playSound(3,...)。
    */
-  // d(int) → d_I（开火/投掷，按武器类型 n 生成子弹/手雷）
-  fireWeapon(n: number): void {
-    let l2: ProjectileActor | null;
-    switch (n) {
+  // d(int) → d_I（开火/投掷，按武器/投射类型 weaponType 生成子弹/手雷）
+  fireWeapon(weaponType: number): void {
+    let projectile: ProjectileActor | null;
+    switch (weaponType) {
       case 10:
       case 21: {
         if (this.magazineAmmo <= 0) {
@@ -1150,32 +1151,32 @@ export class PlayerActor extends ActorBase {
           return;
         }
         if (this.weaponIndex === 0) {
-          let n2 = !this.facingLeft ? 25 : -25;
-          n2 = n2 << 10;
-          l2 = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | this.facingFlag, 0, this.posX + n2, this.posY - px(20), 0);
+          let muzzleOffsetX = !this.facingLeft ? 25 : -25;
+          muzzleOffsetX = muzzleOffsetX << 10;
+          projectile = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | this.facingFlag, 0, this.posX + muzzleOffsetX, this.posY - px(20), 0);
         } else {
-          let n3 = !this.facingLeft ? 35 : -35;
-          n3 = n3 << 10;
-          l2 = this.screen.spawnProjectile(
+          let muzzleOffsetX = !this.facingLeft ? 35 : -35;
+          muzzleOffsetX = muzzleOffsetX << 10;
+          projectile = this.screen.spawnProjectile(
             ActorType.PlayerBounceShot,
             0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0),
             1,
-            this.posX + n3,
+            this.posX + muzzleOffsetX,
             this.posY - px(23),
             0,
           );
         }
-        if (l2 !== null) {
+        if (projectile !== null) {
           if (this.actionId === 5) {
-            l2.posY += px(5);
+            projectile.posY += px(5);
             this.setFrame(9 | this.facingFlag);
           } else {
             this.setFrame(6 | this.facingFlag);
           }
-          if (this.screen.levelIndex !== 4 && this.weaponIndex === 0 && l2.advanceAndCollide(this.facingLeft)) {
-            l2.setFrame(1);
+          if (this.screen.levelIndex !== 4 && this.weaponIndex === 0 && projectile.advanceAndCollide(this.facingLeft)) {
+            projectile.setFrame(1);
           } else if (this.weaponIndex === 0) {
-            l2.targetVelX = l2.targetVelX + (!this.facingLeft ? px(12) : px(-12));
+            projectile.targetVelX = projectile.targetVelX + (!this.facingLeft ? px(12) : px(-12));
           }
           --this.magazineAmmo;
         }
@@ -1186,21 +1187,21 @@ export class PlayerActor extends ActorBase {
         if (this.grenadeCount === 0 && this.screen.levelIndex !== 4) {
           return;
         }
-        l2 = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - px(35), 0);
-        if (l2 === null) break;
+        projectile = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - px(35), 0);
+        if (projectile === null) break;
         if (--this.grenadeCount < 0) {
           this.grenadeCount = 0;
         }
         if (this.actionId === 5) {
-          l2.posY += px(4);
+          projectile.posY += px(4);
           this.setFrame(0xa | this.facingFlag);
         } else {
           this.setFrame(7 | this.facingFlag);
         }
-        l2.targetVelX = l2.targetVelX + (!this.facingLeft ? px(8) : px(-8));
-        l2.targetVelY = -6656;
-        l2.accelY = 1128;
-        l2.maxVelY = px(15);
+        projectile.targetVelX = projectile.targetVelX + (!this.facingLeft ? px(8) : px(-8));
+        projectile.targetVelY = -6656;
+        projectile.accelY = 1128;
+        projectile.maxVelY = px(15);
         break;
       }
       case 15: {
@@ -1212,26 +1213,26 @@ export class PlayerActor extends ActorBase {
           this.setFrame(0x1d | this.facingFlag);
           return;
         }
-        let n4 = !this.facingLeft ? 40 : -40;
-        l2 = this.screen.spawnProjectile(ActorType.GrenadeProjectile, 0 | this.facingFlag, 0, this.posX + (n4 = n4 << 10), this.posY - px(18), 0);
-        if (l2 === null) break;
+        let muzzleOffsetX = !this.facingLeft ? 40 : -40;
+        projectile = this.screen.spawnProjectile(ActorType.GrenadeProjectile, 0 | this.facingFlag, 0, this.posX + (muzzleOffsetX = muzzleOffsetX << 10), this.posY - px(18), 0);
+        if (projectile === null) break;
         --this.magazineAmmo;
         if (this.actionId === 5) {
-          l2.posY += px(4);
+          projectile.posY += px(4);
           this.setFrame(9 | this.facingFlag);
         } else {
           this.setFrame(6 | this.facingFlag);
         }
-        if (this.screen.levelIndex !== 4 && l2.advanceAndCollide(this.facingLeft)) {
-          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY, 0);
-          l2.deactivate();
+        if (this.screen.levelIndex !== 4 && projectile.advanceAndCollide(this.facingLeft)) {
+          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, projectile.posX, projectile.posY, 0);
+          projectile.deactivate();
           break;
         }
-        l2.computeHomingTrajectory();
+        projectile.computeHomingTrajectory();
       }
     }
-    l2 = null;
-    void l2;
+    projectile = null;
+    void projectile;
   }
 
   /**
@@ -1242,14 +1243,14 @@ export class PlayerActor extends ActorBase {
    * 由 onProjectileHit() 等命中逻辑调用。
    */
   // e(int) → e_I（受击：扣血并进入受击动作）
-  takeDamage(n: number): void {
+  takeDamage(damage: number): void {
     if (this.screen.state !== GameState.Playing) {
       return;
     }
     if (this.actionId === 13 || this.actionId === 19 || this.actionId === 15 || this.actionId === 16 || this.invulnTimer > 0) {
       return;
     }
-    this.health -= n;
+    this.health -= damage;
     this.frameTimer = 0;
     this.invulnTimer = 5;
     this.stateFlags &= 0xffffdfff;
@@ -1261,43 +1262,37 @@ export class PlayerActor extends ActorBase {
 
   /**
    * 攀爬/翻越检测（SYMBOLS: checkClimbable）。对应 CFR `g(tjge.b)` → 契约 g_Tb。
-   * @param b2 当前关卡瓦片地图。
+   * @param tileMap 当前关卡瓦片地图。
    * 扫描朝向前方一列瓦片，按命中高度把攀爬类型写入 climbResult（n：0=无,1/2/3/4=不同高度档），
    * 并记录落点 climbTargetX/Y（S/T）。返回是否可攀爬。供动作状态机与输入逻辑判定能否翻越/上爬。
    */
   // g(tjge.b) → g_Tb（爬升/攀爬检测，结果写入 n/S/T）
-  checkClimbable(b2: TileMap): boolean {
-    const bl = false;
-    void bl;
-    const bl2 = false;
-    void bl2;
-    const bl3 = false;
-    void bl3;
-    const n = (((this.posY + this.velY) >> 10) + -56) >> 4;
-    const n2 = (((this.posY + this.velY) >> 10) - 3) >> 4;
-    let n3 = (this.posX + this.velX) >> 10;
-    n3 += this.facingLeft ? -16 : 16;
-    n3 >>= 4;
-    let n4 = n;
-    while (n4 <= n2) {
-      const n5 = b2.queryColumnTileAt(n3, n4, true);
-      if (n5 === 1) {
-        if (n4 < n + 1) {
+  checkClimbable(tileMap: TileMap): boolean {
+    // 扫描列自上(-56)而下(-3)找可攀爬瓦片；scanTileX 由像素X±16(朝向)右移得列。
+    const topRow = (((this.posY + this.velY) >> 10) + -56) >> 4;
+    const bottomRow = (((this.posY + this.velY) >> 10) - 3) >> 4;
+    const scanPixelX = ((this.posX + this.velX) >> 10) + (this.facingLeft ? -16 : 16);
+    const scanTileX = scanPixelX >> 4;
+    let row = topRow;
+    while (row <= bottomRow) {
+      const tileValue = tileMap.queryColumnTileAt(scanTileX, row, true);
+      if (tileValue === 1) {
+        if (row < topRow + 1) {
           this.climbResult = 4;
           return true;
         }
-        if (n4 < n + 2 || n4 < n + 3) {
-          this.climbTargetX = this.facingLeft ? ((n3 << 4) + 16) << 10 : n3 << 14;
-          this.climbTargetY = n4 << 14;
-          this.climbResult = n4 === n + 1 ? 3 : 2;
+        if (row < topRow + 2 || row < topRow + 3) {
+          this.climbTargetX = this.facingLeft ? ((scanTileX << 4) + 16) << 10 : scanTileX << 14;
+          this.climbTargetY = row << 14;
+          this.climbResult = row === topRow + 1 ? 3 : 2;
           return true;
         }
-        if (n4 < n + 4) {
+        if (row < topRow + 4) {
           this.climbResult = 1;
           return true;
         }
       }
-      ++n4;
+      ++row;
     }
     this.climbResult = 0;
     return false;
@@ -1395,74 +1390,74 @@ export class PlayerActor extends ActorBase {
     }
   }
 
-  // a(tjge.b,int) → a_TbI（向左侧地形碰撞，n=偏移；n==100 表示忽略 E 方向限制）
-  checkWallLeft(b2: TileMap, n: number): boolean {
-    if (n !== 100) {
+  // a(tjge.b,int) → a_TbI（向左侧地形碰撞，probeMargin=探测偏移；==100 表示忽略 E 方向限制）
+  checkWallLeft(tileMap: TileMap, probeMargin: number): boolean {
+    if (probeMargin !== 100) {
       if (this.velX > 0) {
         return false;
       }
     } else {
-      n = 0;
+      probeMargin = 0;
     }
-    let n2 = this.boundsTop;
-    const bl = false;
-    void bl;
+    // n2：碰撞箱上沿相对像素Y的偏移，梯子态(0x2000)固定为 -20（对应 CFR z 字段）
+    let boxTopOffset = this.boundsTop;
     if ((this.stateFlags & 0x2000) !== 0) {
-      n2 = -20;
+      boxTopOffset = -20;
     }
-    let n3 = (this.posY + this.velY) >> 10;
-    const n4 = (((this.posX + this.velX) >> 10) + -9 - n) >> 4;
-    const n5 = (n3 + n2 - 2) >> 4;
-    const n6 = (n3 - 10) >> 4;
-    let n7 = n5;
-    while (n7 <= n6) {
-      n3 = b2.queryColumnTileAt(n4, n7, true);
-      if (n3 === 1) {
-        n3 = b2.queryColumnTileAt(n4 + 1, n7, true);
-        if (n3 !== 1) {
+    // 拆 CFR 的 n3 双义：先是像素Y（算行范围），循环内复用为瓦片值。
+    const pixelY = (this.posY + this.velY) >> 10;
+    const wallTileX = (((this.posX + this.velX) >> 10) + -9 - probeMargin) >> 4;
+    const topRow = (pixelY + boxTopOffset - 2) >> 4;
+    const bottomRow = (pixelY - 10) >> 4;
+    let row = topRow;
+    while (row <= bottomRow) {
+      let tileValue = tileMap.queryColumnTileAt(wallTileX, row, true);
+      if (tileValue === 1) {
+        tileValue = tileMap.queryColumnTileAt(wallTileX + 1, row, true);
+        if (tileValue !== 1) {
           this.targetVelX = 0;
           this.posX &= 0xfffffc00;
-          this.velX = (((n4 << 4) + 25) << 10) - this.posX;
+          this.velX = (((wallTileX << 4) + 25) << 10) - this.posX;
         }
         return true;
       }
-      ++n7;
+      ++row;
     }
     return false;
   }
 
-  // b(tjge.b,int) → b_TbI（向右侧地形碰撞，n=偏移；n==100 表示忽略 E 方向限制）
-  checkWallRight(b2: TileMap, n: number): boolean {
-    if (n !== 100) {
+  // b(tjge.b,int) → b_TbI（向右侧地形碰撞，probeMargin=探测偏移；==100 表示忽略 E 方向限制）
+  checkWallRight(tileMap: TileMap, probeMargin: number): boolean {
+    if (probeMargin !== 100) {
       if (this.velX < 0) {
         return false;
       }
     } else {
-      n = 0;
+      probeMargin = 0;
     }
-    let n2 = this.boundsTop;
-    const bl = false;
-    void bl;
+    // n2：碰撞箱上沿相对像素Y的偏移，梯子态(0x2000)固定为 -20（对应 CFR z 字段）
+    let boxTopOffset = this.boundsTop;
     if ((this.stateFlags & 0x2000) !== 0) {
-      n2 = -20;
+      boxTopOffset = -20;
     }
-    let n3 = (this.posY + this.velY) >> 10;
-    const n4 = (((this.posX + this.velX) >> 10) + 9 + n) >> 4;
-    const n5 = (n3 + n2 - 2) >> 4;
-    const n6 = (n3 - 10) >> 4;
-    let n7 = n5;
-    while (n7 <= n6) {
-      n3 = b2.queryColumnTileAt(n4, n7, true);
-      if (n3 === 1) {
-        n3 = b2.queryColumnTileAt(n4 - 1, n7, true);
-        if (n3 !== 1) {
+    // 拆 CFR 的 n3 双义：先是像素Y（算行范围），循环内复用为瓦片值。
+    const pixelY = (this.posY + this.velY) >> 10;
+    const wallTileX = (((this.posX + this.velX) >> 10) + 9 + probeMargin) >> 4;
+    const topRow = (pixelY + boxTopOffset - 2) >> 4;
+    const bottomRow = (pixelY - 10) >> 4;
+    let row = topRow;
+    while (row <= bottomRow) {
+      let tileValue = tileMap.queryColumnTileAt(wallTileX, row, true);
+      if (tileValue === 1) {
+        tileValue = tileMap.queryColumnTileAt(wallTileX - 1, row, true);
+        if (tileValue !== 1) {
           this.targetVelX = 0;
           this.posX &= 0xfffffc00;
-          this.velX = (((n4 << 4) - 10) << 10) - this.posX;
+          this.velX = (((wallTileX << 4) - 10) << 10) - this.posX;
         }
         return true;
       }
-      ++n7;
+      ++row;
     }
     return false;
   }
@@ -1475,26 +1470,26 @@ export class PlayerActor extends ActorBase {
    * 由 GameScreen 碰撞遍历在弹体击中玩家包围盒时调用。
    */
   // a(tjge.l) → a_Tl（被子弹/拾取物命中处理，覆写基类 a_Tl）
-  onProjectileHit(l2: ProjectileActor): void {
+  onProjectileHit(projectile: ProjectileActor): void {
     if (this.actionId !== 19 && this.actionId !== 23 && this.actionId !== 15 && this.actionId !== 16) {
-      switch (l2.typeId) {
+      switch (projectile.typeId) {
         case ActorType.GuidedMissileProjectile: {
-          if (this.facingLeft && l2.targetVelX < 0) {
+          if (this.facingLeft && projectile.targetVelX < 0) {
             this.facingFlag = 0;
             this.facingLeft = false;
-          } else if (!this.facingLeft && l2.targetVelX > 0) {
+          } else if (!this.facingLeft && projectile.targetVelX > 0) {
             this.facingFlag = MIRROR_FLAG; // Integer.MIN_VALUE
             this.facingLeft = true;
           }
-          if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
+          if ((projectile.frameIndex & SEQUENCE_MASK) !== 0) break;
           this.takeDamage(1);
-          l2.deactivate();
+          projectile.deactivate();
           return;
         }
         case ActorType.FallingBombProjectile: {
-          const n = l2.targetVelX > 0 ? px(8) : px(-8);
-          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX + n, l2.posY + px(8), l2.mode);
-          l2.deactivate();
+          const spawnOffsetX = projectile.targetVelX > 0 ? px(8) : px(-8);
+          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, projectile.posX + spawnOffsetX, projectile.posY + px(8), projectile.mode);
+          projectile.deactivate();
           GameScreen.playSound(5, 1, 220);
           return;
         }
@@ -1511,46 +1506,46 @@ export class PlayerActor extends ActorBase {
    * 在三把武器（0/1/2）间轮转选出有弹药的一把，命中条件时切换换弹动画帧（蹲姿用 0x1c，站姿用 1）。
    * 备弹 ammoReserveB/C 与当前弹匣 magazineAmmo 由调用方在调用前后更新。
    */
-  // f(int) → f_I（换弹/切换武器，n=武器类型；k=当前武器，l=弹匣，h/i=备弹）
-  switchOrReloadWeapon(n: number): void {
-    let bl = false;
+  // f(int) → f_I（换弹/切换武器，triggerAction=触发键 32切换/其余换弹；k=当前武器，l=弹匣，h/i=备弹）
+  switchOrReloadWeapon(triggerAction: number): void {
+    let resolved = false;
     if (this.weaponIndex > 2) {
       this.weaponIndex = 0;
     }
-    while (!bl) {
+    while (!resolved) {
       if (this.weaponIndex === 1) {
-        if (n === 32) {
+        if (triggerAction === 32) {
           if (this.ammoReserveB <= 0) {
             this.weaponIndex = 2;
           } else {
-            bl = true;
+            resolved = true;
           }
         } else {
           if (this.magazineAmmo >= 3 || this.ammoReserveB <= 0) break;
-          bl = true;
+          resolved = true;
         }
       }
       if (this.weaponIndex === 2) {
-        if (n === 32) {
+        if (triggerAction === 32) {
           if (this.ammoReserveC === 0) {
             this.weaponIndex = 0;
           } else {
-            bl = true;
+            resolved = true;
           }
         } else {
           if (this.magazineAmmo >= 1 || this.ammoReserveC <= 0) break;
-          bl = true;
+          resolved = true;
         }
       }
       if (this.weaponIndex !== 0) continue;
-      if (n === 32) {
-        bl = true;
+      if (triggerAction === 32) {
+        resolved = true;
         continue;
       }
       if (this.magazineAmmo >= 10) break;
-      bl = true;
+      resolved = true;
     }
-    if (bl) {
+    if (resolved) {
       if (this.actionId === 5 || this.actionId === 28) {
         this.setFrame(0x1c | this.facingFlag);
         return;
@@ -1580,8 +1575,8 @@ export class PlayerActor extends ActorBase {
    */
   // n() → n_（换弹回收：将当前弹匣余弹归还备弹池）
   reloadFromReserve(): void {
-    let n = 0;
-    void n;
+    let ammoNeeded = 0;
+    void ammoNeeded; // 反编译产物：对应 CFR `int n = 0;` 声明，实值在 case1/2 重算后使用
     if (this.magazineAmmo < 0) {
       this.magazineAmmo = 0;
     }
@@ -1591,9 +1586,9 @@ export class PlayerActor extends ActorBase {
         return;
       }
       case 1: {
-        n = 3 - this.magazineAmmo;
-        if (this.ammoReserveB > n) {
-          this.ammoReserveB -= n;
+        ammoNeeded = 3 - this.magazineAmmo;
+        if (this.ammoReserveB > ammoNeeded) {
+          this.ammoReserveB -= ammoNeeded;
           this.magazineAmmo = 3;
           return;
         }
@@ -1602,9 +1597,9 @@ export class PlayerActor extends ActorBase {
         return;
       }
       case 2: {
-        n = 1 - this.magazineAmmo;
-        if (this.ammoReserveC > n) {
-          this.ammoReserveC -= n;
+        ammoNeeded = 1 - this.magazineAmmo;
+        if (this.ammoReserveC > ammoNeeded) {
+          this.ammoReserveC -= ammoNeeded;
           this.magazineAmmo = 1;
           return;
         }
