@@ -269,6 +269,26 @@ export class PlayerActor extends ActorBase {
     this.facingFlag = this.frameIndex & FACING_MASK;
     --this.invulnTimer;
     this.advanceAnimation();
+    this.integrateVelocityWithCaps();
+    switch (this.screen.state) {
+      case GameState.LevelEnter:
+      case GameState.GoalCutscene: {
+        this.posX += this.velX;
+        this.posY += this.velY;
+        return;
+      }
+      case GameState.Playing: {
+        if (this.screen.levelIndex === 4) {
+          this.stepVehicleLevel();
+          return;
+        }
+        this.stepGroundedPhysics();
+      }
+    }
+  }
+
+  // 速度积分（CFR e() 206-221）：velX/velY←目标速度，目标速度按加速度累加并钳到上限。
+  private integrateVelocityWithCaps(): void {
     this.velX = this.targetVelX;
     this.velY = this.targetVelY;
     this.targetVelX += this.accelX;
@@ -285,121 +305,119 @@ export class PlayerActor extends ActorBase {
     if (this.accelY < 0 && this.targetVelY < this.maxVelY) {
       this.targetVelY = this.maxVelY;
     }
-    switch (this.screen.state) {
-      case GameState.LevelEnter:
-      case GameState.GoalCutscene: {
-        this.posX += this.velX;
-        this.posY += this.velY;
-        return;
+  }
+
+  // 关卡4 载具专属推进（CFR e() case10 内 ab.x==4 分支 232-252）。
+  // 原退出外层 switch(state) 的 break（=结束本帧、不再算相机）→ helper 内 return（语义等价：case 后无代码）。
+  private stepVehicleLevel(): void {
+    const viewWidthFx = GameScreen.viewWidthFx;
+    if (this.screen.reinforceBudget-- > 25) {
+      this.targetVelX = 0;
+    } else if (this.screen.reinforceBudget > 12) {
+      this.targetVelX = px(10);
+    } else if (this.screen.reinforceBudget <= 12) {
+      this.screen.cameraVelX = px(8);
+    }
+    if (
+      this.screen.boss!.active &&
+      this.linkedBoss!.intersectsActor(this.screen.boss!) &&
+      ((this.linkedBoss!.posX < this.screen.boss!.posX && this.targetVelX > this.screen.cameraVelX) ||
+        (this.linkedBoss!.posX > this.screen.boss!.posX && this.targetVelX < this.screen.cameraVelX))
+    ) {
+      this.targetVelX = this.screen.cameraVelX;
+      this.velX = this.screen.cameraVelX;
+    }
+    this.posX += this.velX;
+    if (this.screen.cameraVelX <= 0) return;
+    if (this.posX < this.screen.cameraX + px(20)) {
+      this.posX = this.screen.cameraX + px(20);
+      return;
+    }
+    if (this.posX - this.screen.cameraX <= viewWidthFx - px(20)) return;
+    this.posX = this.screen.cameraX + viewWidthFx - px(20);
+  }
+
+  // 正常关卡地面物理（CFR e() case10 非载具主体 254-311）：天花板/侧壁/落地/登梯 + 8px对齐 + 脚本相机钳制 + 相机跟随。
+  // 原退出外层 switch(state) 的 break（脚本钳制内 posX 在界内=结束本帧、跳过末尾相机跟随）→ helper 内 return（语义等价）。
+  private stepGroundedPhysics(): void {
+    // alignOffset = posX%px(8) 的 8px 对齐余量（原 CFR e() 里复用 n 的第二义）。
+    let alignOffset: number;
+    const viewWidthFx = GameScreen.viewWidthFx;
+    if ((this.stateFlags & 0x2000) === 0) {
+      if (this.collideCeiling(this.screen.tileMap!)) {
+        if (!this.collideGround(this.screen.tileMap!)) {
+          this.targetVelY = px(5);
+          this.beginFall();
+        } else {
+          this.setFrame(5 | this.facingFlag);
+        }
+      } else {
+        if (this.facingFlag !== 0) {
+          const wallHit = this.checkWallLeft(this.screen.tileMap!, 0) ? 1 : 0;
+          if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
+            this.setFrame(0 | this.facingFlag);
+          }
+        } else {
+          const wallHit = this.checkWallRight(this.screen.tileMap!, 0) ? 1 : 0;
+          if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
+            this.setFrame(0);
+          }
+        }
+        if (this.collideGround(this.screen.tileMap!)) {
+          this.land();
+        } else {
+          this.beginFall();
+        }
       }
-      case GameState.Playing: {
-        // n 的两处复用拆名：wallHit(墙体命中0/1) 与 alignOffset(posX%px(8) 8px对齐余量)。
-        let alignOffset: number;
-        const viewWidthFx = GameScreen.viewWidthFx;
-        if (this.screen.levelIndex === 4) {
-          if (this.screen.reinforceBudget-- > 25) {
-            this.targetVelX = 0;
-          } else if (this.screen.reinforceBudget > 12) {
-            this.targetVelX = px(10);
-          } else if (this.screen.reinforceBudget <= 12) {
-            this.screen.cameraVelX = px(8);
-          }
-          if (
-            this.screen.boss!.active &&
-            this.linkedBoss!.intersectsActor(this.screen.boss!) &&
-            ((this.linkedBoss!.posX < this.screen.boss!.posX && this.targetVelX > this.screen.cameraVelX) ||
-              (this.linkedBoss!.posX > this.screen.boss!.posX && this.targetVelX < this.screen.cameraVelX))
-          ) {
-            this.targetVelX = this.screen.cameraVelX;
-            this.velX = this.screen.cameraVelX;
-          }
-          this.posX += this.velX;
-          if (this.screen.cameraVelX <= 0) break;
-          if (this.posX < this.screen.cameraX + px(20)) {
-            this.posX = this.screen.cameraX + px(20);
-            return;
-          }
-          if (this.posX - this.screen.cameraX <= viewWidthFx - px(20)) break;
-          this.posX = this.screen.cameraX + viewWidthFx - px(20);
-          return;
-        }
-        if ((this.stateFlags & 0x2000) === 0) {
-          if (this.collideCeiling(this.screen.tileMap!)) {
-            if (!this.collideGround(this.screen.tileMap!)) {
-              this.targetVelY = px(5);
-              this.beginFall();
-            } else {
-              this.setFrame(5 | this.facingFlag);
-            }
-          } else {
-            if (this.facingFlag !== 0) {
-              const wallHit = this.checkWallLeft(this.screen.tileMap!, 0) ? 1 : 0;
-              if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
-                this.setFrame(0 | this.facingFlag);
-              }
-            } else {
-              const wallHit = this.checkWallRight(this.screen.tileMap!, 0) ? 1 : 0;
-              if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
-                this.setFrame(0);
-              }
-            }
-            if (this.collideGround(this.screen.tileMap!)) {
-              this.land();
-            } else {
-              this.beginFall();
-            }
-          }
-          if (
-            (this.actionId === 3 || this.actionId === 4 || this.actionId === 17) &&
-            (this.stateFlags & 1) === 0 &&
-            this.subState !== 5 &&
-            this.checkLadderTile(this.screen.tileMap!, true)
-          ) {
-            this.actionId = 18;
-            this.stateFlags |= 0x2000;
-            this.movingFlag = 0;
-            this.targetVelX = 0;
-            this.targetVelY = 0;
-            this.setFrame(0x12 | this.facingFlag);
-          }
-        }
-        this.posX += this.velX;
-        this.posY += this.velY;
-        if (
-          (this.stateFlags & 1) !== 0 &&
-          (this.actionId === 2 || this.actionId === 0) &&
-          (alignOffset = this.posX % px(8)) > px(2) &&
-          alignOffset < px(6)
-        ) {
-          if (alignOffset > px(4)) {
-            alignOffset = px(8) - alignOffset;
-            this.posX += alignOffset;
-          } else {
-            this.posX -= alignOffset;
-          }
-        }
-        if (this.screen.scriptFlagL && this.screen.levelIndex !== 7 && this.screen.levelIndex !== 2) {
-          if (this.posX < this.screen.cameraX + px(10)) {
-            this.posX = this.screen.cameraX + px(10);
-            this.targetVelX = 0;
-            return;
-          }
-          if (this.posX <= this.screen.cameraX + viewWidthFx - px(10)) break;
-          this.posX = this.screen.cameraX + viewWidthFx - px(10);
-          this.targetVelX = 0;
-          return;
-        }
-        this.screen.cameraVelX =
-          this.facingFlag === 0
-            ? this.posX > (((GameScreen.screenWidth / 5) | 0) << 10)
-              ? this.targetVelX + px(14)
-              : 0
-            : this.posX < ((this.screen.tileMap!.getPixelWidth() - ((GameScreen.screenWidth / 5) | 0)) << 10)
-              ? this.targetVelX + px(-14)
-              : 0;
-        this.screen.cameraVelY = px(-4);
+      if (
+        (this.actionId === 3 || this.actionId === 4 || this.actionId === 17) &&
+        (this.stateFlags & 1) === 0 &&
+        this.subState !== 5 &&
+        this.checkLadderTile(this.screen.tileMap!, true)
+      ) {
+        this.actionId = 18;
+        this.stateFlags |= 0x2000;
+        this.movingFlag = 0;
+        this.targetVelX = 0;
+        this.targetVelY = 0;
+        this.setFrame(0x12 | this.facingFlag);
       }
     }
+    this.posX += this.velX;
+    this.posY += this.velY;
+    if (
+      (this.stateFlags & 1) !== 0 &&
+      (this.actionId === 2 || this.actionId === 0) &&
+      (alignOffset = this.posX % px(8)) > px(2) &&
+      alignOffset < px(6)
+    ) {
+      if (alignOffset > px(4)) {
+        alignOffset = px(8) - alignOffset;
+        this.posX += alignOffset;
+      } else {
+        this.posX -= alignOffset;
+      }
+    }
+    if (this.screen.scriptFlagL && this.screen.levelIndex !== 7 && this.screen.levelIndex !== 2) {
+      if (this.posX < this.screen.cameraX + px(10)) {
+        this.posX = this.screen.cameraX + px(10);
+        this.targetVelX = 0;
+        return;
+      }
+      if (this.posX <= this.screen.cameraX + viewWidthFx - px(10)) return;
+      this.posX = this.screen.cameraX + viewWidthFx - px(10);
+      this.targetVelX = 0;
+      return;
+    }
+    this.screen.cameraVelX =
+      this.facingFlag === 0
+        ? this.posX > (((GameScreen.screenWidth / 5) | 0) << 10)
+          ? this.targetVelX + px(14)
+          : 0
+        : this.posX < ((this.screen.tileMap!.getPixelWidth() - ((GameScreen.screenWidth / 5) | 0)) << 10)
+          ? this.targetVelX + px(-14)
+          : 0;
+    this.screen.cameraVelY = px(-4);
   }
 
   /**
@@ -425,238 +443,314 @@ export class PlayerActor extends ActorBase {
    * 翻滚/突进（19/20/21）、被捕/死亡（13/15/16/23）等。每个动作 id 是一组分支，子状态推进动画阶段。
    * 与 handleInput() 配合：输入设动作 id，本方法据 id 推进对应动画/状态收尾。
    */
-  // g() → g_（动作状态机）
+  // g() → g_（动作状态机分派器：按 actionId 分派到各 stepAction* 私有方法）
+  // 拆法：外层 switch(actionId) 每 case body 抽为 helper；原退出外层 switch 的 break→helper 内 return；
+  // 内层 switch 的 break、case17 sub0→sub2/3/4 落穿、case22 void n 副作用均随体迁入 helper 原样保留。
   runActionStateMachine(): void {
     switch (this.actionId) {
-      case 3: {
-        switch (this.subState) {
-          case 0: {
-            this.checkClimbable(this.screen.tileMap!);
-            if (this.climbResult === 2 && this.canClimb) {
-              this.posX = this.facingLeft ? this.climbTargetX + px(10) : this.climbTargetX - px(10);
-              this.posY = this.climbTargetY + px(36);
-              this.subState = 3;
-              this.setFrame(0x16 | this.facingFlag);
-              return;
-            }
-            if (this.targetVelY <= -3120) break;
-            this.setFrame(4 | this.facingFlag);
-            break;
-          }
-          case 1: {
-            if ((this.stateFlags & 1) === 0) break;
-            this.accelY = 0;
-            this.targetVelX = 0;
-            this.setFrame(0 | this.facingFlag);
-            break;
-          }
-          case 3: {
-            this.checkClimbable(this.screen.tileMap!);
-            if (this.climbResult !== 2 || !this.canClimb) break;
-            this.posX = this.facingLeft ? this.climbTargetX + px(10) : this.climbTargetX - px(10);
-            this.posY = this.climbTargetY + px(36);
-            this.setFrame(0x16 | this.facingFlag);
-            break;
-          }
-          case 4: {
-            if (this.targetVelY <= 3120) break;
-            this.setFrame(0x11 | this.facingFlag);
-          }
-        }
+      case 3:
+        this.stepDashLeft();
         return;
-      }
-      case 4: {
-        switch (this.subState) {
-          case 0: {
-            if (this.targetVelY <= 3120) break;
-            this.setFrame(0x11 | this.facingFlag);
-            break;
-          }
-          case 2:
-          case 3: {
-            if (this.posY >= this.climbTargetY) break;
-            this.targetVelX =
-              this.subState === 3 ? (this.facingLeft ? px(-8) : px(8)) : this.facingLeft ? px(-4) : px(4);
-            this.setFrame(0x11 | this.facingFlag);
-          }
-        }
+      case 4:
+        this.stepDashRight();
         return;
-      }
-      case 17: {
-        switch (this.subState) {
-          case 0: {
-            this.checkClimbable(this.screen.tileMap!);
-            if (this.climbResult === 2 && !this.checkLedgeTop(this.screen.tileMap!) && this.canClimb) {
-              this.subState = 6;
-              return;
-            }
-            // fall through
-          }
-          case 2:
-          case 3:
-          case 4: {
-            if ((this.stateFlags & 1) === 0) break;
-            this.targetVelX = 0;
-            this.setFrame(0 | this.facingFlag);
-            break;
-          }
-          case 5: {
-            if (this.frameTimer++ <= 0) break;
-            this.frameTimer = 0;
-            this.targetVelX = 0;
-            this.subState = 0;
-            break;
-          }
-          case 6: {
-            this.posX = this.facingLeft ? this.climbTargetX + px(10) : this.climbTargetX - px(10);
-            this.posY = this.climbTargetY + px(36);
-            this.targetVelY = px(-4);
-            this.subState = 3;
-            this.setFrame(0x16 | this.facingFlag);
-          }
-        }
+      case 17:
+        this.stepJumpClimbMount();
         return;
-      }
-      case 22: {
-        if (this.subState !== 2 && this.subState !== 3) break;
-        this.canClimb = false;
-        this.accelY = px(4);
-        const n = (this.targetVelX = this.facingLeft ? px(-4) : px(4));
-        void n;
-        if (this.subState === 3) {
-          this.targetVelY = px(-15);
-        }
-        this.setFrame(4 | this.facingFlag);
+      case 22:
+        this.stepDashJump();
         return;
-      }
       case 1:
-      case 28: {
-        if (!this.isAnimationDone()) break;
-        this.reloadFromReserve();
-        if (this.actionId === 1) {
-          this.setFrame(0 | this.facingFlag);
-          return;
-        }
-        this.setFrame(5 | this.facingFlag);
+      case 28:
+        this.stepReloadFinish();
         return;
-      }
       case 6:
       case 8:
-      case 29: {
-        if (!this.isAnimationDone()) break;
-        this.setFrame(0 | this.facingFlag);
+      case 29:
+        this.stepFireToIdle();
         return;
-      }
-      case 7: {
-        if (!this.isAnimationDone()) break;
-        this.setFrame(8 | this.facingFlag);
+      case 7:
+        this.stepFireToAim();
         return;
-      }
       case 9:
       case 11:
-      case 30: {
-        if (!this.isAnimationDone()) break;
-        this.setFrame(5 | this.facingFlag);
+      case 30:
+        this.stepFireToRun();
         return;
-      }
-      case 10: {
-        if (!this.isAnimationDone()) break;
-        this.setFrame(0xb | this.facingFlag);
+      case 10:
+        this.stepFireRecover10();
         return;
-      }
-      case 20: {
-        if (this.frameTimer++ <= 1) break;
-        this.frameTimer = 0;
-        this.setFrame(0x15 | this.facingFlag);
+      case 20:
+        this.stepTransition20();
         return;
-      }
-      case 21: {
-        if (this.frameTimer++ <= 1) break;
-        this.frameTimer = 0;
-        this.setFrame(0 | this.facingFlag);
+      case 21:
+        this.stepTransition21();
         return;
-      }
-      case 13: {
-        this.screen.state = GameState.CaptureCutscene;
+      case 13:
+        this.stepEnterCapture();
         return;
-      }
-      case 19: {
-        if (this.frameTimer++ <= 5) break;
-        if (this.checkWallAhead(this.screen.tileMap!)) {
-          this.setFrame(5 | this.facingFlag);
-        } else {
-          this.setFrame(0 | this.facingFlag);
-        }
-        this.movingFlag = 0;
-        this.frameTimer = 0;
-        this.targetVelX = 0;
-        this.lastInputDir = 0;
-        this.inputHoldCount = 0;
+      case 19:
+        this.stepLandAction();
         return;
-      }
       case 18:
       case 24:
       case 25:
-      case 26: {
-        if (!this.climbAdvance) {
+      case 26:
+        this.stepClimbRotate();
+        return;
+      case 27:
+        this.stepLedgeGrab();
+        return;
+      case 23:
+        this.stepDeathSettle();
+        return;
+      case 15:
+        this.stepHitStagger();
+        return;
+      case 16:
+        this.stepHitToCapture();
+        return;
+    }
+  }
+
+  // actionId 3 (DASH_LEFT)：CFR g case 3——左冲刺/跳跃空中态，探测攀爬（内层 break 保留=跳出 subState switch）
+  private stepDashLeft(): void {
+    switch (this.subState) {
+      case 0: {
+        this.checkClimbable(this.screen.tileMap!);
+        if (this.climbResult === 2 && this.canClimb) {
+          this.posX = this.facingLeft ? this.climbTargetX + px(10) : this.climbTargetX - px(10);
+          this.posY = this.climbTargetY + px(36);
+          this.subState = 3;
+          this.setFrame(0x16 | this.facingFlag);
           return;
         }
-        switch (this.climbAnimState) {
-          case 18: {
-            this.climbAnimState = 24;
-            break;
-          }
-          case 24: {
-            this.climbAnimState = 25;
-            break;
-          }
-          case 25: {
-            this.climbAnimState = 26;
-            break;
-          }
-          case 26: {
-            this.climbAnimState = 18;
-          }
-        }
-        this.climbAdvance = false;
-        if ((this.frameIndex & SEQUENCE_MASK) === 23) break;
-        this.setFrame(this.climbAnimState | this.facingFlag);
-        return;
+        if (this.targetVelY <= -3120) break;
+        this.setFrame(4 | this.facingFlag);
+        break;
       }
-      case 27: {
-        if (!this.ledgeGrabFlag) {
-          this.climbAnimState = 24;
-          this.setFrame(this.climbAnimState | this.facingFlag);
-        } else {
-          this.accelY = px(4);
-          this.posY -= px(25);
-          this.stateFlags &= 0xffffdfff;
-          this.setFrame(0 | this.facingFlag);
-        }
-        this.climbAdvance = false;
-        return;
-      }
-      case 23: {
-        if (this.screen.levelIndex !== 4 && (this.stateFlags & 1) === 0) break;
-        if (this.health <= 0) {
-          this.setFrame(0xf | this.facingFlag);
-          GameScreen.playSound(4, 1, 200);
-          return;
-        }
+      case 1: {
+        if ((this.stateFlags & 1) === 0) break;
+        this.accelY = 0;
+        this.targetVelX = 0;
         this.setFrame(0 | this.facingFlag);
-        return;
+        break;
       }
-      case 15: {
-        if (this.frameTimer++ <= 2) break;
-        this.setFrame(0x10 | this.facingFlag);
-        return;
+      case 3: {
+        this.checkClimbable(this.screen.tileMap!);
+        if (this.climbResult !== 2 || !this.canClimb) break;
+        this.posX = this.facingLeft ? this.climbTargetX + px(10) : this.climbTargetX - px(10);
+        this.posY = this.climbTargetY + px(36);
+        this.setFrame(0x16 | this.facingFlag);
+        break;
       }
-      case 16: {
-        if (this.frameTimer++ <= 4) break;
-        this.frameTimer = 0;
-        this.screen.state = GameState.CaptureCutscene;
+      case 4: {
+        if (this.targetVelY <= 3120) break;
+        this.setFrame(0x11 | this.facingFlag);
       }
     }
+  }
+
+  // actionId 4 (DASH_RIGHT)：CFR g case 4
+  private stepDashRight(): void {
+    switch (this.subState) {
+      case 0: {
+        if (this.targetVelY <= 3120) break;
+        this.setFrame(0x11 | this.facingFlag);
+        break;
+      }
+      case 2:
+      case 3: {
+        if (this.posY >= this.climbTargetY) break;
+        this.targetVelX =
+          this.subState === 3 ? (this.facingLeft ? px(-8) : px(8)) : this.facingLeft ? px(-4) : px(4);
+        this.setFrame(0x11 | this.facingFlag);
+      }
+    }
+  }
+
+  // actionId 17 (JUMP)：CFR g case 17——起跳/翻越登顶；sub0 命中攀爬后有意落穿 sub2/3/4（保留 // fall through）
+  private stepJumpClimbMount(): void {
+    switch (this.subState) {
+      case 0: {
+        this.checkClimbable(this.screen.tileMap!);
+        if (this.climbResult === 2 && !this.checkLedgeTop(this.screen.tileMap!) && this.canClimb) {
+          this.subState = 6;
+          return;
+        }
+        // fall through
+      }
+      case 2:
+      case 3:
+      case 4: {
+        if ((this.stateFlags & 1) === 0) break;
+        this.targetVelX = 0;
+        this.setFrame(0 | this.facingFlag);
+        break;
+      }
+      case 5: {
+        if (this.frameTimer++ <= 0) break;
+        this.frameTimer = 0;
+        this.targetVelX = 0;
+        this.subState = 0;
+        break;
+      }
+      case 6: {
+        this.posX = this.facingLeft ? this.climbTargetX + px(10) : this.climbTargetX - px(10);
+        this.posY = this.climbTargetY + px(36);
+        this.targetVelY = px(-4);
+        this.subState = 3;
+        this.setFrame(0x16 | this.facingFlag);
+      }
+    }
+  }
+
+  // actionId 22 (DASH_JUMP)：CFR g case 22——原退出外层 switch 的 break→return；const n 空壳保留 targetVelX 赋值副作用
+  private stepDashJump(): void {
+    if (this.subState !== 2 && this.subState !== 3) return;
+    this.canClimb = false;
+    this.accelY = px(4);
+    const n = (this.targetVelX = this.facingLeft ? px(-4) : px(4));
+    void n;
+    if (this.subState === 3) {
+      this.targetVelY = px(-15);
+    }
+    this.setFrame(4 | this.facingFlag);
+  }
+
+  // actionId 1/28 (LAND_RELOAD / 攀爬换弹)：CFR g case 1/28
+  private stepReloadFinish(): void {
+    if (!this.isAnimationDone()) return;
+    this.reloadFromReserve();
+    if (this.actionId === 1) {
+      this.setFrame(0 | this.facingFlag);
+      return;
+    }
+    this.setFrame(5 | this.facingFlag);
+  }
+
+  // actionId 6/8/29 (FIRE_* 回中→站立帧0)：CFR g case 6/8/29
+  private stepFireToIdle(): void {
+    if (!this.isAnimationDone()) return;
+    this.setFrame(0 | this.facingFlag);
+  }
+
+  // actionId 7 (FIRE 回中→瞄准帧8)：CFR g case 7
+  private stepFireToAim(): void {
+    if (!this.isAnimationDone()) return;
+    this.setFrame(8 | this.facingFlag);
+  }
+
+  // actionId 9/11/30 (FIRE 回中→奔跑帧5)：CFR g case 9/11/30
+  private stepFireToRun(): void {
+    if (!this.isAnimationDone()) return;
+    this.setFrame(5 | this.facingFlag);
+  }
+
+  // actionId 10 (FIRE 回中→帧0xb)：CFR g case 10
+  private stepFireRecover10(): void {
+    if (!this.isAnimationDone()) return;
+    this.setFrame(0xb | this.facingFlag);
+  }
+
+  // actionId 20 (TRANSITION→帧0x15)：CFR g case 20
+  private stepTransition20(): void {
+    if (this.frameTimer++ <= 1) return;
+    this.frameTimer = 0;
+    this.setFrame(0x15 | this.facingFlag);
+  }
+
+  // actionId 21 (TRANSITION→帧0)：CFR g case 21
+  private stepTransition21(): void {
+    if (this.frameTimer++ <= 1) return;
+    this.frameTimer = 0;
+    this.setFrame(0 | this.facingFlag);
+  }
+
+  // actionId 13：CFR g case 13——切到被捕过场
+  private stepEnterCapture(): void {
+    this.screen.state = GameState.CaptureCutscene;
+  }
+
+  // actionId 19 (LAND_ACTION)：CFR g case 19
+  private stepLandAction(): void {
+    if (this.frameTimer++ <= 5) return;
+    if (this.checkWallAhead(this.screen.tileMap!)) {
+      this.setFrame(5 | this.facingFlag);
+    } else {
+      this.setFrame(0 | this.facingFlag);
+    }
+    this.movingFlag = 0;
+    this.frameTimer = 0;
+    this.targetVelX = 0;
+    this.lastInputDir = 0;
+    this.inputHoldCount = 0;
+  }
+
+  // actionId 18/24/25/26 (CLIMB_*)：CFR g case 18/24/25/26——攀爬动画帧轮转
+  // 内层 climbAnimState switch 的 break 保留；原退出外层 switch 的 break(帧==23)→return
+  private stepClimbRotate(): void {
+    if (!this.climbAdvance) {
+      return;
+    }
+    switch (this.climbAnimState) {
+      case 18: {
+        this.climbAnimState = 24;
+        break;
+      }
+      case 24: {
+        this.climbAnimState = 25;
+        break;
+      }
+      case 25: {
+        this.climbAnimState = 26;
+        break;
+      }
+      case 26: {
+        this.climbAnimState = 18;
+      }
+    }
+    this.climbAdvance = false;
+    if ((this.frameIndex & SEQUENCE_MASK) === 23) return;
+    this.setFrame(this.climbAnimState | this.facingFlag);
+  }
+
+  // actionId 27 (LEDGE_GRAB)：CFR g case 27
+  private stepLedgeGrab(): void {
+    if (!this.ledgeGrabFlag) {
+      this.climbAnimState = 24;
+      this.setFrame(this.climbAnimState | this.facingFlag);
+    } else {
+      this.accelY = px(4);
+      this.posY -= px(25);
+      this.stateFlags &= 0xffffdfff;
+      this.setFrame(0 | this.facingFlag);
+    }
+    this.climbAdvance = false;
+  }
+
+  // actionId 23 (DEATH)：CFR g case 23——原退出外层 switch 的 break(关卡!=4且未着地)→return
+  private stepDeathSettle(): void {
+    if (this.screen.levelIndex !== 4 && (this.stateFlags & 1) === 0) return;
+    if (this.health <= 0) {
+      this.setFrame(0xf | this.facingFlag);
+      GameScreen.playSound(4, 1, 200);
+      return;
+    }
+    this.setFrame(0 | this.facingFlag);
+  }
+
+  // actionId 15 (HIT)：CFR g case 15
+  private stepHitStagger(): void {
+    if (this.frameTimer++ <= 2) return;
+    this.setFrame(0x10 | this.facingFlag);
+  }
+
+  // actionId 16 (HIT_END)：CFR g case 16——原为末 case 自然退出 switch（无 break/return），helper 内自然结束
+  private stepHitToCapture(): void {
+    if (this.frameTimer++ <= 4) return;
+    this.frameTimer = 0;
+    this.screen.state = GameState.CaptureCutscene;
   }
 
   /**
