@@ -1133,10 +1133,10 @@ export class PlayerActor extends ActorBase {
    * 消耗弹匣 magazineAmmo / 手雷 grenadeCount，设射击动画帧；火箭命中地形则爆开特效。
    * 蹲姿（actionId==5）时调整弹体高度与射击帧。开火音效 GameScreen.playSound(3,...)。
    */
-  // d(int) → d_I（开火/投掷，按武器类型 n 生成子弹/手雷）
-  fireWeapon(n: number): void {
-    let l2: ProjectileActor | null;
-    switch (n) {
+  // d(int) → d_I（开火/投掷，按武器/投射类型 weaponType 生成子弹/手雷）
+  fireWeapon(weaponType: number): void {
+    let projectile: ProjectileActor | null;
+    switch (weaponType) {
       case 10:
       case 21: {
         if (this.magazineAmmo <= 0) {
@@ -1148,32 +1148,32 @@ export class PlayerActor extends ActorBase {
           return;
         }
         if (this.weaponIndex === 0) {
-          let n2 = !this.facingLeft ? 25 : -25;
-          n2 = n2 << 10;
-          l2 = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | this.facingFlag, 0, this.posX + n2, this.posY - px(20), 0);
+          let muzzleOffsetX = !this.facingLeft ? 25 : -25;
+          muzzleOffsetX = muzzleOffsetX << 10;
+          projectile = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | this.facingFlag, 0, this.posX + muzzleOffsetX, this.posY - px(20), 0);
         } else {
-          let n3 = !this.facingLeft ? 35 : -35;
-          n3 = n3 << 10;
-          l2 = this.screen.spawnProjectile(
+          let muzzleOffsetX = !this.facingLeft ? 35 : -35;
+          muzzleOffsetX = muzzleOffsetX << 10;
+          projectile = this.screen.spawnProjectile(
             ActorType.PlayerBounceShot,
             0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0),
             1,
-            this.posX + n3,
+            this.posX + muzzleOffsetX,
             this.posY - px(23),
             0,
           );
         }
-        if (l2 !== null) {
+        if (projectile !== null) {
           if (this.actionId === 5) {
-            l2.posY += px(5);
+            projectile.posY += px(5);
             this.setFrame(9 | this.facingFlag);
           } else {
             this.setFrame(6 | this.facingFlag);
           }
-          if (this.screen.levelIndex !== 4 && this.weaponIndex === 0 && l2.advanceAndCollide(this.facingLeft)) {
-            l2.setFrame(1);
+          if (this.screen.levelIndex !== 4 && this.weaponIndex === 0 && projectile.advanceAndCollide(this.facingLeft)) {
+            projectile.setFrame(1);
           } else if (this.weaponIndex === 0) {
-            l2.targetVelX = l2.targetVelX + (!this.facingLeft ? px(12) : px(-12));
+            projectile.targetVelX = projectile.targetVelX + (!this.facingLeft ? px(12) : px(-12));
           }
           --this.magazineAmmo;
         }
@@ -1184,21 +1184,21 @@ export class PlayerActor extends ActorBase {
         if (this.grenadeCount === 0 && this.screen.levelIndex !== 4) {
           return;
         }
-        l2 = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - px(35), 0);
-        if (l2 === null) break;
+        projectile = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - px(35), 0);
+        if (projectile === null) break;
         if (--this.grenadeCount < 0) {
           this.grenadeCount = 0;
         }
         if (this.actionId === 5) {
-          l2.posY += px(4);
+          projectile.posY += px(4);
           this.setFrame(0xa | this.facingFlag);
         } else {
           this.setFrame(7 | this.facingFlag);
         }
-        l2.targetVelX = l2.targetVelX + (!this.facingLeft ? px(8) : px(-8));
-        l2.targetVelY = -6656;
-        l2.accelY = 1128;
-        l2.maxVelY = px(15);
+        projectile.targetVelX = projectile.targetVelX + (!this.facingLeft ? px(8) : px(-8));
+        projectile.targetVelY = -6656;
+        projectile.accelY = 1128;
+        projectile.maxVelY = px(15);
         break;
       }
       case 15: {
@@ -1210,26 +1210,26 @@ export class PlayerActor extends ActorBase {
           this.setFrame(0x1d | this.facingFlag);
           return;
         }
-        let n4 = !this.facingLeft ? 40 : -40;
-        l2 = this.screen.spawnProjectile(ActorType.GrenadeProjectile, 0 | this.facingFlag, 0, this.posX + (n4 = n4 << 10), this.posY - px(18), 0);
-        if (l2 === null) break;
+        let muzzleOffsetX = !this.facingLeft ? 40 : -40;
+        projectile = this.screen.spawnProjectile(ActorType.GrenadeProjectile, 0 | this.facingFlag, 0, this.posX + (muzzleOffsetX = muzzleOffsetX << 10), this.posY - px(18), 0);
+        if (projectile === null) break;
         --this.magazineAmmo;
         if (this.actionId === 5) {
-          l2.posY += px(4);
+          projectile.posY += px(4);
           this.setFrame(9 | this.facingFlag);
         } else {
           this.setFrame(6 | this.facingFlag);
         }
-        if (this.screen.levelIndex !== 4 && l2.advanceAndCollide(this.facingLeft)) {
-          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY, 0);
-          l2.deactivate();
+        if (this.screen.levelIndex !== 4 && projectile.advanceAndCollide(this.facingLeft)) {
+          this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, projectile.posX, projectile.posY, 0);
+          projectile.deactivate();
           break;
         }
-        l2.computeHomingTrajectory();
+        projectile.computeHomingTrajectory();
       }
     }
-    l2 = null;
-    void l2;
+    projectile = null;
+    void projectile;
   }
 
   /**
