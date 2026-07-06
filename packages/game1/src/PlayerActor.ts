@@ -82,7 +82,7 @@ export class PlayerActor extends ActorBase {
   }
 
   // c(tjge.b) → c_Tb（覆写基类 c_Tb：玩家专用落地/侧壁检测）
-  collideGround(b2: TileMap): boolean {
+  collideGround(tileMap: TileMap): boolean {
     if (this.velY < 0) {
       return false;
     }
@@ -91,10 +91,10 @@ export class PlayerActor extends ActorBase {
     const rightFootTileX = (((this.posX + this.velX) >> 10) + 5) >> 4;
     let leftHit = false;
     let rightHit = false;
-    if (b2.queryColumnTileAt(leftFootTileX, groundTileY, true) === 1) {
+    if (tileMap.queryColumnTileAt(leftFootTileX, groundTileY, true) === 1) {
       leftHit = true;
     }
-    if (b2.queryColumnTileAt(rightFootTileX, groundTileY, true) === 1) {
+    if (tileMap.queryColumnTileAt(rightFootTileX, groundTileY, true) === 1) {
       rightHit = true;
     }
     if (leftHit && rightHit) {
@@ -159,7 +159,7 @@ export class PlayerActor extends ActorBase {
   }
 
   // e(tjge.b) → e_Tb（爬升顶部碰撞检测）
-  checkLedgeTop(b2: TileMap): boolean {
+  checkLedgeTop(tileMap: TileMap): boolean {
     if (this.velY < 0) {
       return false;
     }
@@ -167,7 +167,7 @@ export class PlayerActor extends ActorBase {
     const topRow = (this.posY - px(10)) >> 14;
     let rowOffset = 0;
     while (rowOffset < 3) {
-      if (b2.queryColumnTileAt(scanTileX, topRow + rowOffset, true) === 1) {
+      if (tileMap.queryColumnTileAt(scanTileX, topRow + rowOffset, true) === 1) {
         return true;
       }
       ++rowOffset;
@@ -176,15 +176,15 @@ export class PlayerActor extends ActorBase {
   }
 
   // f(tjge.b) → f_Tb（前方贴墙检测）
-  checkWallAhead(b2: TileMap): boolean {
+  checkWallAhead(tileMap: TileMap): boolean {
     // n 双义拆分：先定点像素X(前方±px(2))，再 >>14 得瓦片列。
     const probeFx = this.facingLeft ? this.posX - px(2) : this.posX + px(2);
     const row = ((this.posY >> 10) - 34) >> 4;
-    return b2.queryColumnTileAt(probeFx >> 14, row, true) === 1;
+    return tileMap.queryColumnTileAt(probeFx >> 14, row, true) === 1;
   }
 
   // a(tjge.b,boolean) → a_TbZ（侧向墙体/梯子瓦片检测；probeAbove=true 探头顶上方）
-  checkLadderTile(b2: TileMap, probeAbove: boolean): boolean {
+  checkLadderTile(tileMap: TileMap, probeAbove: boolean): boolean {
     // n 双义：先是探测行(瓦片Y)，末尾梯子态里复用为定点Y位置写回 posY。
     let probeRow = probeAbove
       ? (this.posY - px(30)) >> 14
@@ -195,7 +195,7 @@ export class PlayerActor extends ActorBase {
     const rightCol = ((this.posX >> 10) + 3) >> 4;
     let col = leftCol;
     while (col <= rightCol) {
-      const tileValue = b2.queryColumnTileAt(col, probeRow, true);
+      const tileValue = tileMap.queryColumnTileAt(col, probeRow, true);
       if (tileValue === 2) {
         this.posX = ((col << 4) + 8) << 10;
         this.velX = 0;
@@ -1262,12 +1262,12 @@ export class PlayerActor extends ActorBase {
 
   /**
    * 攀爬/翻越检测（SYMBOLS: checkClimbable）。对应 CFR `g(tjge.b)` → 契约 g_Tb。
-   * @param b2 当前关卡瓦片地图。
+   * @param tileMap 当前关卡瓦片地图。
    * 扫描朝向前方一列瓦片，按命中高度把攀爬类型写入 climbResult（n：0=无,1/2/3/4=不同高度档），
    * 并记录落点 climbTargetX/Y（S/T）。返回是否可攀爬。供动作状态机与输入逻辑判定能否翻越/上爬。
    */
   // g(tjge.b) → g_Tb（爬升/攀爬检测，结果写入 n/S/T）
-  checkClimbable(b2: TileMap): boolean {
+  checkClimbable(tileMap: TileMap): boolean {
     // 扫描列自上(-56)而下(-3)找可攀爬瓦片；scanTileX 由像素X±16(朝向)右移得列。
     const topRow = (((this.posY + this.velY) >> 10) + -56) >> 4;
     const bottomRow = (((this.posY + this.velY) >> 10) - 3) >> 4;
@@ -1275,7 +1275,7 @@ export class PlayerActor extends ActorBase {
     const scanTileX = scanPixelX >> 4;
     let row = topRow;
     while (row <= bottomRow) {
-      const tileValue = b2.queryColumnTileAt(scanTileX, row, true);
+      const tileValue = tileMap.queryColumnTileAt(scanTileX, row, true);
       if (tileValue === 1) {
         if (row < topRow + 1) {
           this.climbResult = 4;
@@ -1391,7 +1391,7 @@ export class PlayerActor extends ActorBase {
   }
 
   // a(tjge.b,int) → a_TbI（向左侧地形碰撞，probeMargin=探测偏移；==100 表示忽略 E 方向限制）
-  checkWallLeft(b2: TileMap, probeMargin: number): boolean {
+  checkWallLeft(tileMap: TileMap, probeMargin: number): boolean {
     if (probeMargin !== 100) {
       if (this.velX > 0) {
         return false;
@@ -1411,9 +1411,9 @@ export class PlayerActor extends ActorBase {
     const bottomRow = (pixelY - 10) >> 4;
     let row = topRow;
     while (row <= bottomRow) {
-      let tileValue = b2.queryColumnTileAt(wallTileX, row, true);
+      let tileValue = tileMap.queryColumnTileAt(wallTileX, row, true);
       if (tileValue === 1) {
-        tileValue = b2.queryColumnTileAt(wallTileX + 1, row, true);
+        tileValue = tileMap.queryColumnTileAt(wallTileX + 1, row, true);
         if (tileValue !== 1) {
           this.targetVelX = 0;
           this.posX &= 0xfffffc00;
@@ -1427,7 +1427,7 @@ export class PlayerActor extends ActorBase {
   }
 
   // b(tjge.b,int) → b_TbI（向右侧地形碰撞，probeMargin=探测偏移；==100 表示忽略 E 方向限制）
-  checkWallRight(b2: TileMap, probeMargin: number): boolean {
+  checkWallRight(tileMap: TileMap, probeMargin: number): boolean {
     if (probeMargin !== 100) {
       if (this.velX < 0) {
         return false;
@@ -1447,9 +1447,9 @@ export class PlayerActor extends ActorBase {
     const bottomRow = (pixelY - 10) >> 4;
     let row = topRow;
     while (row <= bottomRow) {
-      let tileValue = b2.queryColumnTileAt(wallTileX, row, true);
+      let tileValue = tileMap.queryColumnTileAt(wallTileX, row, true);
       if (tileValue === 1) {
-        tileValue = b2.queryColumnTileAt(wallTileX - 1, row, true);
+        tileValue = tileMap.queryColumnTileAt(wallTileX - 1, row, true);
         if (tileValue !== 1) {
           this.targetVelX = 0;
           this.posX &= 0xfffffc00;
