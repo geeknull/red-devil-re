@@ -269,6 +269,26 @@ export class PlayerActor extends ActorBase {
     this.facingFlag = this.frameIndex & FACING_MASK;
     --this.invulnTimer;
     this.advanceAnimation();
+    this.integrateVelocityWithCaps();
+    switch (this.screen.state) {
+      case GameState.LevelEnter:
+      case GameState.GoalCutscene: {
+        this.posX += this.velX;
+        this.posY += this.velY;
+        return;
+      }
+      case GameState.Playing: {
+        if (this.screen.levelIndex === 4) {
+          this.stepVehicleLevel();
+          return;
+        }
+        this.stepGroundedPhysics();
+      }
+    }
+  }
+
+  // 速度积分（CFR e() 206-221）：velX/velY←目标速度，目标速度按加速度累加并钳到上限。
+  private integrateVelocityWithCaps(): void {
     this.velX = this.targetVelX;
     this.velY = this.targetVelY;
     this.targetVelX += this.accelX;
@@ -285,121 +305,119 @@ export class PlayerActor extends ActorBase {
     if (this.accelY < 0 && this.targetVelY < this.maxVelY) {
       this.targetVelY = this.maxVelY;
     }
-    switch (this.screen.state) {
-      case GameState.LevelEnter:
-      case GameState.GoalCutscene: {
-        this.posX += this.velX;
-        this.posY += this.velY;
-        return;
+  }
+
+  // 关卡4 载具专属推进（CFR e() case10 内 ab.x==4 分支 232-252）。
+  // 原退出外层 switch(state) 的 break（=结束本帧、不再算相机）→ helper 内 return（语义等价：case 后无代码）。
+  private stepVehicleLevel(): void {
+    const viewWidthFx = GameScreen.viewWidthFx;
+    if (this.screen.reinforceBudget-- > 25) {
+      this.targetVelX = 0;
+    } else if (this.screen.reinforceBudget > 12) {
+      this.targetVelX = px(10);
+    } else if (this.screen.reinforceBudget <= 12) {
+      this.screen.cameraVelX = px(8);
+    }
+    if (
+      this.screen.boss!.active &&
+      this.linkedBoss!.intersectsActor(this.screen.boss!) &&
+      ((this.linkedBoss!.posX < this.screen.boss!.posX && this.targetVelX > this.screen.cameraVelX) ||
+        (this.linkedBoss!.posX > this.screen.boss!.posX && this.targetVelX < this.screen.cameraVelX))
+    ) {
+      this.targetVelX = this.screen.cameraVelX;
+      this.velX = this.screen.cameraVelX;
+    }
+    this.posX += this.velX;
+    if (this.screen.cameraVelX <= 0) return;
+    if (this.posX < this.screen.cameraX + px(20)) {
+      this.posX = this.screen.cameraX + px(20);
+      return;
+    }
+    if (this.posX - this.screen.cameraX <= viewWidthFx - px(20)) return;
+    this.posX = this.screen.cameraX + viewWidthFx - px(20);
+  }
+
+  // 正常关卡地面物理（CFR e() case10 非载具主体 254-311）：天花板/侧壁/落地/登梯 + 8px对齐 + 脚本相机钳制 + 相机跟随。
+  // 原退出外层 switch(state) 的 break（脚本钳制内 posX 在界内=结束本帧、跳过末尾相机跟随）→ helper 内 return（语义等价）。
+  private stepGroundedPhysics(): void {
+    // alignOffset = posX%px(8) 的 8px 对齐余量（原 CFR e() 里复用 n 的第二义）。
+    let alignOffset: number;
+    const viewWidthFx = GameScreen.viewWidthFx;
+    if ((this.stateFlags & 0x2000) === 0) {
+      if (this.collideCeiling(this.screen.tileMap!)) {
+        if (!this.collideGround(this.screen.tileMap!)) {
+          this.targetVelY = px(5);
+          this.beginFall();
+        } else {
+          this.setFrame(5 | this.facingFlag);
+        }
+      } else {
+        if (this.facingFlag !== 0) {
+          const wallHit = this.checkWallLeft(this.screen.tileMap!, 0) ? 1 : 0;
+          if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
+            this.setFrame(0 | this.facingFlag);
+          }
+        } else {
+          const wallHit = this.checkWallRight(this.screen.tileMap!, 0) ? 1 : 0;
+          if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
+            this.setFrame(0);
+          }
+        }
+        if (this.collideGround(this.screen.tileMap!)) {
+          this.land();
+        } else {
+          this.beginFall();
+        }
       }
-      case GameState.Playing: {
-        // n 的两处复用拆名：wallHit(墙体命中0/1) 与 alignOffset(posX%px(8) 8px对齐余量)。
-        let alignOffset: number;
-        const viewWidthFx = GameScreen.viewWidthFx;
-        if (this.screen.levelIndex === 4) {
-          if (this.screen.reinforceBudget-- > 25) {
-            this.targetVelX = 0;
-          } else if (this.screen.reinforceBudget > 12) {
-            this.targetVelX = px(10);
-          } else if (this.screen.reinforceBudget <= 12) {
-            this.screen.cameraVelX = px(8);
-          }
-          if (
-            this.screen.boss!.active &&
-            this.linkedBoss!.intersectsActor(this.screen.boss!) &&
-            ((this.linkedBoss!.posX < this.screen.boss!.posX && this.targetVelX > this.screen.cameraVelX) ||
-              (this.linkedBoss!.posX > this.screen.boss!.posX && this.targetVelX < this.screen.cameraVelX))
-          ) {
-            this.targetVelX = this.screen.cameraVelX;
-            this.velX = this.screen.cameraVelX;
-          }
-          this.posX += this.velX;
-          if (this.screen.cameraVelX <= 0) break;
-          if (this.posX < this.screen.cameraX + px(20)) {
-            this.posX = this.screen.cameraX + px(20);
-            return;
-          }
-          if (this.posX - this.screen.cameraX <= viewWidthFx - px(20)) break;
-          this.posX = this.screen.cameraX + viewWidthFx - px(20);
-          return;
-        }
-        if ((this.stateFlags & 0x2000) === 0) {
-          if (this.collideCeiling(this.screen.tileMap!)) {
-            if (!this.collideGround(this.screen.tileMap!)) {
-              this.targetVelY = px(5);
-              this.beginFall();
-            } else {
-              this.setFrame(5 | this.facingFlag);
-            }
-          } else {
-            if (this.facingFlag !== 0) {
-              const wallHit = this.checkWallLeft(this.screen.tileMap!, 0) ? 1 : 0;
-              if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
-                this.setFrame(0 | this.facingFlag);
-              }
-            } else {
-              const wallHit = this.checkWallRight(this.screen.tileMap!, 0) ? 1 : 0;
-              if (wallHit !== 0 && (this.stateFlags & 1) !== 0 && this.actionId !== 19 && this.actionId !== 0 && this.actionId !== 5) {
-                this.setFrame(0);
-              }
-            }
-            if (this.collideGround(this.screen.tileMap!)) {
-              this.land();
-            } else {
-              this.beginFall();
-            }
-          }
-          if (
-            (this.actionId === 3 || this.actionId === 4 || this.actionId === 17) &&
-            (this.stateFlags & 1) === 0 &&
-            this.subState !== 5 &&
-            this.checkLadderTile(this.screen.tileMap!, true)
-          ) {
-            this.actionId = 18;
-            this.stateFlags |= 0x2000;
-            this.movingFlag = 0;
-            this.targetVelX = 0;
-            this.targetVelY = 0;
-            this.setFrame(0x12 | this.facingFlag);
-          }
-        }
-        this.posX += this.velX;
-        this.posY += this.velY;
-        if (
-          (this.stateFlags & 1) !== 0 &&
-          (this.actionId === 2 || this.actionId === 0) &&
-          (alignOffset = this.posX % px(8)) > px(2) &&
-          alignOffset < px(6)
-        ) {
-          if (alignOffset > px(4)) {
-            alignOffset = px(8) - alignOffset;
-            this.posX += alignOffset;
-          } else {
-            this.posX -= alignOffset;
-          }
-        }
-        if (this.screen.scriptFlagL && this.screen.levelIndex !== 7 && this.screen.levelIndex !== 2) {
-          if (this.posX < this.screen.cameraX + px(10)) {
-            this.posX = this.screen.cameraX + px(10);
-            this.targetVelX = 0;
-            return;
-          }
-          if (this.posX <= this.screen.cameraX + viewWidthFx - px(10)) break;
-          this.posX = this.screen.cameraX + viewWidthFx - px(10);
-          this.targetVelX = 0;
-          return;
-        }
-        this.screen.cameraVelX =
-          this.facingFlag === 0
-            ? this.posX > (((GameScreen.screenWidth / 5) | 0) << 10)
-              ? this.targetVelX + px(14)
-              : 0
-            : this.posX < ((this.screen.tileMap!.getPixelWidth() - ((GameScreen.screenWidth / 5) | 0)) << 10)
-              ? this.targetVelX + px(-14)
-              : 0;
-        this.screen.cameraVelY = px(-4);
+      if (
+        (this.actionId === 3 || this.actionId === 4 || this.actionId === 17) &&
+        (this.stateFlags & 1) === 0 &&
+        this.subState !== 5 &&
+        this.checkLadderTile(this.screen.tileMap!, true)
+      ) {
+        this.actionId = 18;
+        this.stateFlags |= 0x2000;
+        this.movingFlag = 0;
+        this.targetVelX = 0;
+        this.targetVelY = 0;
+        this.setFrame(0x12 | this.facingFlag);
       }
     }
+    this.posX += this.velX;
+    this.posY += this.velY;
+    if (
+      (this.stateFlags & 1) !== 0 &&
+      (this.actionId === 2 || this.actionId === 0) &&
+      (alignOffset = this.posX % px(8)) > px(2) &&
+      alignOffset < px(6)
+    ) {
+      if (alignOffset > px(4)) {
+        alignOffset = px(8) - alignOffset;
+        this.posX += alignOffset;
+      } else {
+        this.posX -= alignOffset;
+      }
+    }
+    if (this.screen.scriptFlagL && this.screen.levelIndex !== 7 && this.screen.levelIndex !== 2) {
+      if (this.posX < this.screen.cameraX + px(10)) {
+        this.posX = this.screen.cameraX + px(10);
+        this.targetVelX = 0;
+        return;
+      }
+      if (this.posX <= this.screen.cameraX + viewWidthFx - px(10)) return;
+      this.posX = this.screen.cameraX + viewWidthFx - px(10);
+      this.targetVelX = 0;
+      return;
+    }
+    this.screen.cameraVelX =
+      this.facingFlag === 0
+        ? this.posX > (((GameScreen.screenWidth / 5) | 0) << 10)
+          ? this.targetVelX + px(14)
+          : 0
+        : this.posX < ((this.screen.tileMap!.getPixelWidth() - ((GameScreen.screenWidth / 5) | 0)) << 10)
+          ? this.targetVelX + px(-14)
+          : 0;
+    this.screen.cameraVelY = px(-4);
   }
 
   /**
