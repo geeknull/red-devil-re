@@ -161,6 +161,28 @@ export class EnemyActor extends ActorBase {
     }
     this.facingFlag = this.frameIndex & FACING_MASK;
     this.actionLow24 = this.frameIndex & SEQUENCE_MASK;
+    if (this.handleKnockback()) {
+      return;
+    }
+    switch (this.typeId) {
+      case ActorType.ReconScoutEnemy:
+      case ActorType.MeleeBomberEnemy: {
+        if (this.isPatroller) {
+          this.patrolUpdate();
+          return;
+        }
+        this.airUpdate();
+        return;
+      }
+      case ActorType.ScrollChaserHeavy: {
+        this.scrollChaserUpdate();
+      }
+    }
+  }
+
+  // update 前置：玩家翻滚(19)撞到敌人→击退玩家并早退(return true)；已被击退(knockedBack)则据玩家后续动作
+  // 结算反伤(21→本敌进硬直9/归零命数)或解除标记。触发击退返 true 让 update 早退，否则返 false 继续按 typeId 分派。
+  private handleKnockback(): boolean {
     if (this.target.actionId === 19 && this.aiState !== 4 && this.intersectsActor(this.target)) {
       this.target.frameTimer = 0;
       this.target.targetVelX = 0;
@@ -168,7 +190,7 @@ export class EnemyActor extends ActorBase {
       this.knockedBack = true;
       this.target.posX = this.target.posX + (this.target.facingLeft ? px(8) : px(-8));
       this.target.setFrame(0x14 | this.target.facingFlag);
-      return;
+      return true;
     }
     if (this.knockedBack) {
       if (this.target.actionId === 21 && this.aiState !== 4 && Math.abs(this.posX - this.target.posX) < px(40)) {
@@ -187,20 +209,7 @@ export class EnemyActor extends ActorBase {
         this.knockedBack = false;
       }
     }
-    switch (this.typeId) {
-      case ActorType.ReconScoutEnemy:
-      case ActorType.MeleeBomberEnemy: {
-        if (this.isPatroller) {
-          this.patrolUpdate();
-          return;
-        }
-        this.airUpdate();
-        return;
-      }
-      case ActorType.ScrollChaserHeavy: {
-        this.scrollChaserUpdate();
-      }
-    }
+    return false;
   }
 
   /**
@@ -490,10 +499,41 @@ export class EnemyActor extends ActorBase {
    */
   // g() → g_
   airUpdate(): void {
+    this.syncTrailEffect();
+    this.airDriftAndAim();
+    if (this.airDestroyIfOffscreen()) {
+      return;
+    }
+    if (this.airSettleIfLanded()) {
+      return;
+    }
+    this.airBounceOffBoss();
+    switch (this.aiState) {
+      case 0:
+        this.airIdle();
+        return;
+      case 5:
+        this.airAttack();
+        return;
+      case 9:
+        this.airHurtFall();
+        return;
+      case 4:
+        this.airDeath();
+        return;
+    }
+  }
+
+  // airUpdate 前置：拖尾特效跟随本体（悬于头顶上方 30px）。
+  private syncTrailEffect(): void {
     if (this.trailEffect !== null && this.trailEffect.active) {
       this.trailEffect.posX = this.posX;
       this.trailEffect.posY = this.posY - px(30);
     }
+  }
+
+  // airUpdate 前置：仅 aiState 0（游荡）时——朝向玩家、随机横向漂移、满足纵横距+节奏则进攻击态 5。无早退。
+  private airDriftAndAim(): void {
     if (this.aiState === 0) {
       if (this.facingFlag === 0 && this.posX < this.target.posX) {
         this.facingFlag = MIRROR_FLAG; // Integer.MIN_VALUE
@@ -518,13 +558,22 @@ export class EnemyActor extends ActorBase {
         this.aiState = 5;
       }
     }
+  }
+
+  // airUpdate 前置：飞出屏幕横向范围则销毁+计数，返回 true 让主体早退。
+  private airDestroyIfOffscreen(): boolean {
     if (this.posX < this.screen.cameraX || this.posX > this.screen.cameraX + GameScreen.viewWidthFx) {
       this.deactivate();
       this.killTrailEffect();
       ++this.screen.killCount;
       --this.screen.enemyAliveCount;
-      return;
+      return true;
     }
+    return false;
+  }
+
+  // airUpdate 前置：坠到玩家脚下且仍下坠则触地停住（aiState9→死亡4，否则站立），返回 true 让主体早退。
+  private airSettleIfLanded(): boolean {
     if (this.posY >= this.target.posY + px(25) && this.targetVelY > 0) {
       this.targetVelY = 0;
       this.targetVelX = 0;
@@ -532,11 +581,16 @@ export class EnemyActor extends ActorBase {
       if (this.aiState === 9) {
         this.setFrame(5 | this.facingFlag);
         this.aiState = 4;
-        return;
+        return true;
       }
       this.setFrame(0 | this.facingFlag);
-      return;
+      return true;
     }
+    return false;
+  }
+
+  // airUpdate 前置：非死亡/硬直态撞上玩家载具 Boss 时进硬直坠落态 9。无早退。
+  private airBounceOffBoss(): void {
     if (this.aiState !== 4 && this.aiState !== 9 && this.intersectsActor(this.target.linkedBoss!)) {
       this.aiState = 9;
       this.targetVelX = 0;
@@ -545,51 +599,55 @@ export class EnemyActor extends ActorBase {
       this.lives = 0;
       this.setFrame(7 | this.facingFlag);
     }
-    switch (this.aiState) {
-      case 0: {
-        if (!this.isAnimationDone()) break;
-        this.setFrame(0 | this.facingFlag);
-        return;
-      }
-      case 5: {
-        switch (this.typeId) {
-          case ActorType.MeleeBomberEnemy: {
-            if (this.actionLow24 === 2) {
-              if (this.isAnimationDone()) {
-                this.setFrame(3 | this.facingFlag);
-              }
-              return;
-            }
-            if (this.actionLow24 === 3) {
-              this.aiState = 0;
-              this.setFrame(0 | this.facingFlag);
-              return;
-            }
-            this.spawnMeleeHitbox();
-            break;
-          }
-          case ActorType.ReconScoutEnemy: {
-            const projectile: ProjectileActor | null = this.fireProjectile(28);
-            if (projectile === null) break;
-            this.aiState = 0;
-            projectile.targetVelX = projectile.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
+  }
+
+  // aiState 0：游荡待机——动画放完归站立帧。原退出 switch 的 break（动画未完）→ return。
+  private airIdle(): void {
+    if (!this.isAnimationDone()) return;
+    this.setFrame(0 | this.facingFlag);
+  }
+
+  // aiState 5：攻击——type2 近战 spawnMeleeHitbox、type1 远程 fireProjectile。
+  // 内层 switch(typeId) 的 break 保留（跳内层 switch 非外层 aiState switch）。
+  private airAttack(): void {
+    switch (this.typeId) {
+      case ActorType.MeleeBomberEnemy: {
+        if (this.actionLow24 === 2) {
+          if (this.isAnimationDone()) {
             this.setFrame(3 | this.facingFlag);
-            this.rhythmThreshold = 12;
           }
+          return;
         }
-        return;
+        if (this.actionLow24 === 3) {
+          this.aiState = 0;
+          this.setFrame(0 | this.facingFlag);
+          return;
+        }
+        this.spawnMeleeHitbox();
+        break;
       }
-      case 9: {
-        this.killTrailEffect();
-        if (this.targetVelY <= 0 || this.targetVelY >= px(12)) break;
-        this.targetVelY = px(12);
-        return;
-      }
-      case 4: {
-        if (this.actionLow24 !== 5 || this.timerB++ <= 1) break;
-        this.setFrame(6 | this.facingFlag);
+      case ActorType.ReconScoutEnemy: {
+        const projectile: ProjectileActor | null = this.fireProjectile(28);
+        if (projectile === null) break;
+        this.aiState = 0;
+        projectile.targetVelX = projectile.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
+        this.setFrame(3 | this.facingFlag);
+        this.rhythmThreshold = 12;
       }
     }
+  }
+
+  // aiState 9：受击坠落——保持拖尾清除并把坠速抬到 px(12)。原退出 switch 的 break（坠速已在区间外）→ return。
+  private airHurtFall(): void {
+    this.killTrailEffect();
+    if (this.targetVelY <= 0 || this.targetVelY >= px(12)) return;
+    this.targetVelY = px(12);
+  }
+
+  // aiState 4：死亡——放完坠落动画后切死亡帧。原为末 case 无 break/return 的有意落空，helper 内自然结束。
+  private airDeath(): void {
+    if (this.actionLow24 !== 5 || this.timerB++ <= 1) return;
+    this.setFrame(6 | this.facingFlag);
   }
 
   // i() → i_
@@ -629,6 +687,35 @@ export class EnemyActor extends ActorBase {
    */
   // h() → h_（旧名 bossUpdate 系误导名，18 型实为卷轴追逼重甲敌非 Boss）
   scrollChaserUpdate(): void {
+    this.scrollChaserDecideAction();
+    switch (this.aiState) {
+      case 0:
+        this.scrollChaserIdle();
+        return;
+      case 1:
+        this.scrollChaserTurn();
+        return;
+      case 3:
+        this.scrollChaserPatrol();
+        return;
+      case 5:
+        this.scrollChaserSummon();
+        return;
+      case 6:
+        this.scrollChaserCharge();
+        return;
+      case 10:
+        this.scrollChaserWaitPlayer();
+        return;
+      case 4:
+      case 9:
+        this.scrollChaserHitCheck();
+        return;
+    }
+  }
+
+  // scrollChaser 前置：距玩家 <128px 且处于 0/1/3 态时，据纵向位置选择冲撞(进6)或召唤增援(进5)。无早退。
+  private scrollChaserDecideAction(): void {
     if ((this.aiState === 0 || this.aiState === 1 || this.aiState === 3) && Math.abs(this.posX - this.target.posX) < px(128)) {
       if (this.target.posY < this.posY + px(60) && this.target.posY > this.posY - px(10) && Math.abs(this.posX - this.target.posX) < px(80)) {
         this.targetVelX = px(4);
@@ -642,68 +729,73 @@ export class EnemyActor extends ActorBase {
         this.setFrame(2);
       }
     }
-    switch (this.aiState) {
-      case 0: {
-        if (this.isAnimationDone()) {
-          this.setFrame(0 | this.facingFlag);
-        }
-        if (this.timerB++ <= 10) break;
-        this.timerB = 0;
-        this.aiState = 3;
-        this.targetVelX = this.facingFlag === 0 ? -2560 : 2560;
-        this.setFrame(1 | this.facingFlag);
-        return;
-      }
-      case 1: {
-        if (this.timerB++ <= 20) break;
-        this.timerB = 0;
-        this.aiState = 3;
-        this.facingFlag = this.facingFlag === 0 ? MIRROR_FLAG : 0; // Integer.MIN_VALUE
-        this.targetVelX = this.facingFlag === 0 ? -2560 : 2560;
-        this.setFrame(1 | this.facingFlag);
-        return;
-      }
-      case 3: {
-        if ((this.facingFlag !== 0 || this.posX >= this.patrolLeftBound) && (this.facingFlag === 0 || this.posX <= this.patrolRightBound)) break;
-        this.targetVelX = 0;
-        this.aiState = 1;
-        this.setFrame(0 | this.facingFlag);
-        return;
-      }
-      case 5: {
-        if (!this.isAnimationDone()) break;
-        this.aiState = 0;
-        const waveSpawnY: number = px(320);
-        this.screen.spawnEnemyWave(1, 3, this.screen.cameraX + GameScreen.viewWidthFx, waveSpawnY, 1, 1);
-        return;
-      }
-      case 6: {
-        if (this.posX <= this.screen.cameraX + GameScreen.viewWidthFx + px(20)) break;
-        this.targetVelX = 0;
-        this.facingFlag = 0;
-        this.aiState = 10;
-        this.setFrame(0 | this.facingFlag);
-        return;
-      }
-      case 10: {
-        if (this.target.posY - this.posY <= px(70)) break;
-        this.aiState = 0;
-        this.timerB = 11;
-        return;
-      }
-      case 4:
-      case 9: {
-        if (this.actionLow24 === 3 && this.timerB++ > 2) {
-          if ((this.target.stateFlags & 1) === 0) break;
-          this.hurtBlinkTimer = 10;
-          this.setFrame(4 | this.facingFlag);
-          this.screen.state = GameState.GoalCutscene;
-          return;
-        }
-        if (this.actionLow24 !== 4 || this.hurtBlinkTimer !== 0) break;
-        this.deactivate();
-      }
+  }
+
+  // aiState 0：待机踱步——计满后起步走(进3)。原退出 switch 的 break（timerB<=10）→ return。
+  private scrollChaserIdle(): void {
+    if (this.isAnimationDone()) {
+      this.setFrame(0 | this.facingFlag);
     }
+    if (this.timerB++ <= 10) return;
+    this.timerB = 0;
+    this.aiState = 3;
+    this.targetVelX = this.facingFlag === 0 ? -2560 : 2560;
+    this.setFrame(1 | this.facingFlag);
+  }
+
+  // aiState 1：转身——计满后翻朝向起步走(进3)。原退出 switch 的 break（timerB<=20）→ return。
+  private scrollChaserTurn(): void {
+    if (this.timerB++ <= 20) return;
+    this.timerB = 0;
+    this.aiState = 3;
+    this.facingFlag = this.facingFlag === 0 ? MIRROR_FLAG : 0; // Integer.MIN_VALUE
+    this.targetVelX = this.facingFlag === 0 ? -2560 : 2560;
+    this.setFrame(1 | this.facingFlag);
+  }
+
+  // aiState 3：巡逻折返——撞边界则停转身(进1)。原退出 switch 的 break（仍在界内）→ return。
+  private scrollChaserPatrol(): void {
+    if ((this.facingFlag !== 0 || this.posX >= this.patrolLeftBound) && (this.facingFlag === 0 || this.posX <= this.patrolRightBound)) return;
+    this.targetVelX = 0;
+    this.aiState = 1;
+    this.setFrame(0 | this.facingFlag);
+  }
+
+  // aiState 5：召唤——放完动画后经 spawnEnemyWave 刷一波小怪并回待机(进0)。原退出 switch 的 break（动画未完）→ return。
+  private scrollChaserSummon(): void {
+    if (!this.isAnimationDone()) return;
+    this.aiState = 0;
+    const waveSpawnY: number = px(320);
+    this.screen.spawnEnemyWave(1, 3, this.screen.cameraX + GameScreen.viewWidthFx, waveSpawnY, 1, 1);
+  }
+
+  // aiState 6：冲出屏幕——冲过屏右边界后停并等待玩家(进10)。原退出 switch 的 break（未冲出）→ return。
+  private scrollChaserCharge(): void {
+    if (this.posX <= this.screen.cameraX + GameScreen.viewWidthFx + px(20)) return;
+    this.targetVelX = 0;
+    this.facingFlag = 0;
+    this.aiState = 10;
+    this.setFrame(0 | this.facingFlag);
+  }
+
+  // aiState 10：等待玩家靠近——玩家进入纵向范围则回待机(进0)。原退出 switch 的 break（玩家仍远）→ return。
+  private scrollChaserWaitPlayer(): void {
+    if (this.target.posY - this.posY <= px(70)) return;
+    this.aiState = 0;
+    this.timerB = 11;
+  }
+
+  // aiState 4/9：受击后判定——玩家攻击命中→切过场 GoalCutscene；动画到位且不闪则销毁。原退出 switch 的 break → return。
+  private scrollChaserHitCheck(): void {
+    if (this.actionLow24 === 3 && this.timerB++ > 2) {
+      if ((this.target.stateFlags & 1) === 0) return;
+      this.hurtBlinkTimer = 10;
+      this.setFrame(4 | this.facingFlag);
+      this.screen.state = GameState.GoalCutscene;
+      return;
+    }
+    if (this.actionLow24 !== 4 || this.hurtBlinkTimer !== 0) return;
+    this.deactivate();
   }
 
   /**
