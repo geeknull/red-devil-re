@@ -1039,69 +1039,19 @@ export class PlayerActor extends ActorBase {
     }
     // block92:
     if (this.screen.heldKeyAction === 16) {
-      if ((this.stateFlags & 8192) !== 0) {
-        return;
-      }
-      if (this.inputHoldCount === 0) {
-        ++this.inputHoldCount;
-        return;
-      }
-      switch (this.weaponIndex) {
-        case 0:
-        case 1: {
-          this.fireWeapon(21);
-          break;
-        }
-        case 2: {
-          this.fireWeapon(15);
-        }
-      }
-      this.inputHoldCount = 0;
-      this.targetVelX = 0;
-      this.screen.heldKeyAction &= -17;
+      this.handleFireInput();
       return;
     }
     if (this.screen.heldKeyAction === 32) {
-      if ((this.stateFlags & 8192) === 0 && this.inputHoldCount > 1) {
-        switch (this.weaponIndex) {
-          case 0: {
-            if (this.ammoReserveB !== 0 || this.ammoReserveC !== 0) break;
-            return;
-          }
-          case 1: {
-            this.ammoReserveB += this.magazineAmmo;
-            break;
-          }
-          case 2: {
-            this.ammoReserveC += this.magazineAmmo;
-          }
-        }
-        this.inputHoldCount = 0;
-        this.magazineAmmo = 0;
-        ++this.weaponIndex;
-        this.switchOrReloadWeapon(32);
-      }
-      this.targetVelX = 0;
-      this.screen.heldKeyAction &= -33;
+      this.handleSwitchWeaponInput();
       return;
     }
     if (this.screen.heldKeyAction === 2048) {
-      if (this.actionId !== 1 && this.actionId !== 28 && (this.stateFlags & 8192) === 0 && this.inputHoldCount > 1) {
-        this.switchOrReloadWeapon(2048);
-        this.inputHoldCount = 0;
-      }
-      this.targetVelX = 0;
-      this.screen.heldKeyAction &= -2049;
+      this.handleReloadInput();
       return;
     }
     if (this.screen.heldKeyAction === 1024) {
-      if ((this.stateFlags & 8192) !== 0 || this.inputHoldCount === 0) {
-        return;
-      }
-      this.fireWeapon(20);
-      this.inputHoldCount = 0;
-      this.targetVelX = 0;
-      this.screen.heldKeyAction &= -1025;
+      this.handleGrenadeInput();
       return;
     }
     ++this.inputHoldCount;
@@ -1111,6 +1061,76 @@ export class PlayerActor extends ActorBase {
     if (this.actionId === 2 && (this.stateFlags & 1) !== 0) {
       this.setFrame(0 | this.facingFlag);
     }
+  }
+
+  // 开火键(heldKeyAction===16)：CFR h() block92 后 ab.q==16 分支。梯子态不开火；首帧只累计蓄力。
+  private handleFireInput(): void {
+    if ((this.stateFlags & 8192) !== 0) {
+      return;
+    }
+    if (this.inputHoldCount === 0) {
+      ++this.inputHoldCount;
+      return;
+    }
+    switch (this.weaponIndex) {
+      case 0:
+      case 1: {
+        this.fireWeapon(21);
+        break;
+      }
+      case 2: {
+        this.fireWeapon(15);
+      }
+    }
+    this.inputHoldCount = 0;
+    this.targetVelX = 0;
+    this.screen.heldKeyAction &= -17;
+  }
+
+  // 切武器键(heldKeyAction===32)：CFR h() ab.q==32 分支。weaponIndex0 无备弹则内层 return（跳过末尾清键）。
+  private handleSwitchWeaponInput(): void {
+    if ((this.stateFlags & 8192) === 0 && this.inputHoldCount > 1) {
+      switch (this.weaponIndex) {
+        case 0: {
+          if (this.ammoReserveB !== 0 || this.ammoReserveC !== 0) break;
+          return;
+        }
+        case 1: {
+          this.ammoReserveB += this.magazineAmmo;
+          break;
+        }
+        case 2: {
+          this.ammoReserveC += this.magazineAmmo;
+        }
+      }
+      this.inputHoldCount = 0;
+      this.magazineAmmo = 0;
+      ++this.weaponIndex;
+      this.switchOrReloadWeapon(32);
+    }
+    this.targetVelX = 0;
+    this.screen.heldKeyAction &= -33;
+  }
+
+  // 换弹键(heldKeyAction===2048)：CFR h() ab.q==2048 分支。
+  private handleReloadInput(): void {
+    if (this.actionId !== 1 && this.actionId !== 28 && (this.stateFlags & 8192) === 0 && this.inputHoldCount > 1) {
+      this.switchOrReloadWeapon(2048);
+      this.inputHoldCount = 0;
+    }
+    this.targetVelX = 0;
+    this.screen.heldKeyAction &= -2049;
+  }
+
+  // 手雷键(heldKeyAction===1024)：CFR h() ab.q==1024 分支。梯子态或未蓄力则 return。
+  private handleGrenadeInput(): void {
+    if ((this.stateFlags & 8192) !== 0 || this.inputHoldCount === 0) {
+      return;
+    }
+    this.fireWeapon(20);
+    this.inputHoldCount = 0;
+    this.targetVelX = 0;
+    this.screen.heldKeyAction &= -1025;
   }
 
   /**
