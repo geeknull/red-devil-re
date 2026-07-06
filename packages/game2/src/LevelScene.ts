@@ -991,54 +991,54 @@ export class LevelScene {
    * 复位波刷计数、子状态回 Normal，清触发器命中/已触发标志、清活动 actor 表与 actor 池存活位，
    * 然后生成全局常驻 actor（{@link globalActors}，含主角）与本格的常驻 actor（{@link cellActors}），
    * 设当前格号 {@link currentCell}、相机对焦、复位编队状态，并据关号判定是否纵向卷屏关。
-   * @param n  目标格的地图像素 x。
-   * @param n2 目标格的地图像素 y。
+   * @param mapX 目标格的地图像素 x。
+   * @param mapY 目标格的地图像素 y。
    */
   // public final void a(int,int);  → a_II
-  loadCell(n: number, n2: number): void {
+  loadCell(mapX: number, mapY: number): void {
     this.waveSpawnCount = 0;
     this.reservedD = 0;
     this.subState = LevelSubState.Normal;
-    const n3: number = ((n2 / this.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / this.cellWidth) | 0) + ((n / this.cellWidth) | 0);
-    let n4: number = 0;
-    while (n4 < this.triggerHitFlags.length) {
-      this.triggerHitFlags[n4] = false;
-      ++n4;
+    const cellIndex: number = ((mapY / this.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / this.cellWidth) | 0) + ((mapX / this.cellWidth) | 0);
+    let i: number = 0;
+    while (i < this.triggerHitFlags.length) {
+      this.triggerHitFlags[i] = false;
+      ++i;
     }
-    n4 = 0;
-    while (n4 < this.triggerFiredFlags.length) {
-      this.triggerFiredFlags[n4] = false;
-      ++n4;
+    i = 0;
+    while (i < this.triggerFiredFlags.length) {
+      this.triggerFiredFlags[i] = false;
+      ++i;
     }
-    n4 = 0;
-    while (n4 < LevelScene.activeActors.length) {
-      LevelScene.activeActors[n4] = null;
-      ++n4;
+    i = 0;
+    while (i < LevelScene.activeActors.length) {
+      LevelScene.activeActors[i] = null;
+      ++i;
     }
-    n4 = 0;
-    while (n4 < LevelScene.actorPool.length) {
-      if (LevelScene.actorPool[n4] != null) {
-        let n5: number = 0;
-        while (n5 < LevelScene.actorPool[n4].length) {
-          LevelScene.actorPool[n4][n5]!.alive = false;
-          ++n5;
+    i = 0;
+    while (i < LevelScene.actorPool.length) {
+      if (LevelScene.actorPool[i] != null) {
+        let j: number = 0;
+        while (j < LevelScene.actorPool[i].length) {
+          LevelScene.actorPool[i][j]!.alive = false;
+          ++j;
         }
       }
-      ++n4;
+      ++i;
     }
-    n4 = 0;
-    while (n4 < this.globalActors.length) {
-      this.spawnActor(-1, this.globalActors[n4]);
-      ++n4;
+    i = 0;
+    while (i < this.globalActors.length) {
+      this.spawnActor(-1, this.globalActors[i]);
+      ++i;
     }
-    n4 = 0;
-    while (this.cellActors[n3] != null && n4 < this.cellActors[n3]!.length) {
-      this.spawnActor(-1, this.cellActors[n3]![n4]);
-      ++n4;
+    i = 0;
+    while (this.cellActors[cellIndex] != null && i < this.cellActors[cellIndex]!.length) {
+      this.spawnActor(-1, this.cellActors[cellIndex]![i]);
+      ++i;
     }
-    this.currentCell = n3;
+    this.currentCell = cellIndex;
     LevelScene.camera.resetDrawnBounds();
-    LevelScene.camera.setCameraPosition(n, n2);
+    LevelScene.camera.setCameraPosition(mapX, mapY);
     this.verticalScrollY = 0;
     LevelScene.formationState[0] = -1;
     this.isVerticalScrollLevel = this.canvas.levelIndex === 6;
@@ -1048,142 +1048,145 @@ export class LevelScene {
    * 处理单个触发器（CFR j.java `b(int)`）。由 {@link buildDrawList} 对当前格触发器列表逐个调用。
    * 已触发（{@link triggerFiredFlags}）则跳过；否则从 {@link triggerTable} 读 AABB 区域，
    * 判定玩家是否命中后转 {@link fireTrigger}（命中传 true，否则 false）。
-   * @param n 触发器索引。
+   * @param triggerIndex 触发器索引。
    */
   // public final void b(int);  → b_I
-  runTrigger(n: number): void {
-    let n2: number;
-    let n3: number;
-    let n4: number;
-    if (this.triggerFiredFlags[n]) {
+  runTrigger(triggerIndex: number): void {
+    let rectBottom: number;
+    let rectRight: number;
+    let rectTop: number;
+    if (this.triggerFiredFlags[triggerIndex]) {
       return;
     }
-    const n5: number = GameMIDlet.readIntLE(this.triggerTable[n]!, 10, 2);
-    if (this.canvas.player!.intersectsRect(n5, n4 = GameMIDlet.readIntLE(this.triggerTable[n]!, 12, 2), n3 = GameMIDlet.readIntLE(this.triggerTable[n]!, 14, 2), n2 = GameMIDlet.readIntLE(this.triggerTable[n]!, 16, 2))) {
-      this.fireTrigger(n, true);
+    // AABB 从 triggerTable[triggerIndex] 读：offset10=left、12=top、14=right、16=bottom；
+    // 下面在 intersectsRect(left,top,right,bottom) 调用内按逆序内联赋值（CFR 反编译产物，保读取顺序）。
+    const rectLeft: number = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 10, 2);
+    if (this.canvas.player!.intersectsRect(rectLeft, rectTop = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 12, 2), rectRight = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 14, 2), rectBottom = GameMIDlet.readIntLE(this.triggerTable[triggerIndex]!, 16, 2))) {
+      this.fireTrigger(triggerIndex, true);
       return;
     }
-    this.fireTrigger(n, false);
+    this.fireTrigger(triggerIndex, false);
   }
 
   /**
    * 相机跨格时的屏块切换（CFR j.java `b(int,int)`）。由 {@link tick} 末尾按相机像素坐标调用。
    * 算出目标格号，若与 {@link currentCell} 不同则做差分：对比旧格/新格的常驻 actor 列表（{@link cellActors}），
    * 离开旧格的 actor（远离玩家的近距敌人会被回收）销毁，进入新格的 actor 经 {@link spawnActor} 生成，最后更新 {@link currentCell}。
-   * @param n  相机的地图像素 x。
-   * @param n2 相机的地图像素 y。
+   * @param camX 相机的地图像素 x。
+   * @param camY 相机的地图像素 y。
    */
   // public final void b(int,int);  → b_II
-  switchCell(n: number, n2: number): void {
-    let by: number;
-    const n3: number = ((n2 / this.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / this.cellWidth) | 0) + ((n / this.cellWidth) | 0);
-    if (n3 === this.currentCell) {
+  switchCell(camX: number, camY: number): void {
+    // actorSlot: 前半段作旧格 actor 槽 id（与 newCellActorId 归并比较），后半段复用为 cellSpawnBuffer 读游标（CFR 单变量复用）。
+    let actorSlot: number;
+    const cellIndex: number = ((camY / this.cellHeight) | 0) * ((LevelScene.camera.getMapWidth() / this.cellWidth) | 0) + ((camX / this.cellWidth) | 0);
+    if (cellIndex === this.currentCell) {
       return;
     }
-    let n4: number = 0;
-    let n5: number = 0;
-    let by2: number = 0;
-    while (this.cellActors[this.currentCell] != null && this.cellActors[n3] != null && n4 < this.cellActors[this.currentCell]!.length && n5 < this.cellActors[n3]!.length) {
-      by = this.cellActors[this.currentCell]![n4];
-      const by3: number = this.cellActors[n3]![n5];
-      if (by < by3) {
-        if (LevelScene.activeActors[by] != null) {
-          if (pkg(LevelScene.activeActors[by]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[by]!).typeId <= ActorType.TurretEmplacement) {
-            if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) >= px(176) || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) >= px(176)) {
-              LevelScene.activeActors[by]!.kill();
-              LevelScene.activeActors[by] = null;
+    let oldCursor: number = 0;
+    let newCursor: number = 0;
+    let spawnCount: number = 0;
+    while (this.cellActors[this.currentCell] != null && this.cellActors[cellIndex] != null && oldCursor < this.cellActors[this.currentCell]!.length && newCursor < this.cellActors[cellIndex]!.length) {
+      actorSlot = this.cellActors[this.currentCell]![oldCursor];
+      const newCellActorId: number = this.cellActors[cellIndex]![newCursor];
+      if (actorSlot < newCellActorId) {
+        if (LevelScene.activeActors[actorSlot] != null) {
+          if (pkg(LevelScene.activeActors[actorSlot]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[actorSlot]!).typeId <= ActorType.TurretEmplacement) {
+            if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posX - this.canvas.player!.posX) >= px(176) || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posY - this.canvas.player!.posY) >= px(176)) {
+              LevelScene.activeActors[actorSlot]!.kill();
+              LevelScene.activeActors[actorSlot] = null;
             }
           } else {
-            LevelScene.activeActors[by]!.kill();
-            LevelScene.activeActors[by] = null;
+            LevelScene.activeActors[actorSlot]!.kill();
+            LevelScene.activeActors[actorSlot] = null;
           }
         }
-        ++n4;
+        ++oldCursor;
         continue;
       }
-      if (by > by3) {
-        LevelScene.cellSpawnBuffer[by2++] = this.cellActors[n3]![n5++];
+      if (actorSlot > newCellActorId) {
+        LevelScene.cellSpawnBuffer[spawnCount++] = this.cellActors[cellIndex]![newCursor++];
         continue;
       }
-      ++n4;
-      ++n5;
-      if (LevelScene.activeActors[by] == null || LevelScene.activeActors[by]!.alive) continue;
-      if (pkg(LevelScene.activeActors[by]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[by]!).typeId <= ActorType.TurretEmplacement) {
-        if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) < px(176) && Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) < px(176)) continue;
-        LevelScene.activeActors[by] = null;
+      ++oldCursor;
+      ++newCursor;
+      if (LevelScene.activeActors[actorSlot] == null || LevelScene.activeActors[actorSlot]!.alive) continue;
+      if (pkg(LevelScene.activeActors[actorSlot]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[actorSlot]!).typeId <= ActorType.TurretEmplacement) {
+        if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posX - this.canvas.player!.posX) < px(176) && Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posY - this.canvas.player!.posY) < px(176)) continue;
+        LevelScene.activeActors[actorSlot] = null;
         continue;
       }
-      LevelScene.activeActors[by] = null;
+      LevelScene.activeActors[actorSlot] = null;
     }
-    while (this.cellActors[this.currentCell] != null && n4 < this.cellActors[this.currentCell]!.length) {
-      if (LevelScene.activeActors[this.cellActors[this.currentCell]![n4]] != null) {
-        if (pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!).typeId <= ActorType.TurretEmplacement) {
-          if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posX - this.canvas.player!.posX) >= px(176) || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.posY - this.canvas.player!.posY) >= px(176)) {
-            LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.kill();
-            LevelScene.activeActors[this.cellActors[this.currentCell]![n4]] = null;
+    while (this.cellActors[this.currentCell] != null && oldCursor < this.cellActors[this.currentCell]!.length) {
+      if (LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]] != null) {
+        if (pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!).typeId >= ActorType.RiflemanGrunt && pkg(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!).typeId <= ActorType.TurretEmplacement) {
+          if (Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posX - this.canvas.player!.posX) >= px(176) || Math.abs(LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.posY - this.canvas.player!.posY) >= px(176)) {
+            LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.kill();
+            LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]] = null;
           }
         } else {
-          LevelScene.activeActors[this.cellActors[this.currentCell]![n4]]!.kill();
-          LevelScene.activeActors[this.cellActors[this.currentCell]![n4]] = null;
+          LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]]!.kill();
+          LevelScene.activeActors[this.cellActors[this.currentCell]![oldCursor]] = null;
         }
       }
-      ++n4;
+      ++oldCursor;
     }
-    while (this.cellActors[n3] != null && n5 < this.cellActors[n3]!.length) {
-      if (this.cellActors[n3]![n5] !== 0) {
-        LevelScene.cellSpawnBuffer[by2++] = this.cellActors[n3]![n5];
+    while (this.cellActors[cellIndex] != null && newCursor < this.cellActors[cellIndex]!.length) {
+      if (this.cellActors[cellIndex]![newCursor] !== 0) {
+        LevelScene.cellSpawnBuffer[spawnCount++] = this.cellActors[cellIndex]![newCursor];
       }
-      ++n5;
+      ++newCursor;
     }
-    by = 0;
-    while (by < by2) {
-      if (LevelScene.activeActors[LevelScene.cellSpawnBuffer[by]] == null) {
-        this.spawnActor(-1, LevelScene.cellSpawnBuffer[by]);
+    actorSlot = 0;
+    while (actorSlot < spawnCount) {
+      if (LevelScene.activeActors[LevelScene.cellSpawnBuffer[actorSlot]] == null) {
+        this.spawnActor(-1, LevelScene.cellSpawnBuffer[actorSlot]);
       }
-      ++by;
+      ++actorSlot;
     }
-    this.currentCell = n3;
+    this.currentCell = cellIndex;
   }
 
   /**
    * 从 actor 池生成一个 actor 并登记到活动表（CFR j.java `c(int,int)`，全场生成的统一入口）。
    * 在类型 `n` 的对象池里找空闲槽复用（对象池模式，无 GC 压力）。
-   * @param n  actor 类型；传 <0 时表示按实例索引生成，类型从 {@link actorInstanceTable}[n2][0] 读取。
-   * @param n2 实例槽索引；>=0 时从 {@link actorInstanceTable} 反序列化实例（{@link ActorBase.spawnFromBytes}）并占用固定槽；
+   * @param actorType  actor 类型；传 <0 时表示按实例索引生成，类型从 {@link actorInstanceTable}[instanceSlot][0] 读取。
+   * @param instanceSlot 实例槽索引；>=0 时从 {@link actorInstanceTable} 反序列化实例（{@link ActorBase.spawnFromBytes}）并占用固定槽；
    *           <0 时分配到 {@link residentActorSlots} 之后的动态槽段并按类型设绘制层。
    * @returns 生成的 actor；池满或反序列化失败返回 null。
    */
   // public final tjge.h c(int,int);  → c_II
-  spawnActor(n: number, n2: number): ActorBase | null {
-    if (n < 0) {
-      n = this.actorInstanceTable[n2]![0];
+  spawnActor(actorType: number, instanceSlot: number): ActorBase | null {
+    if (actorType < 0) {
+      actorType = this.actorInstanceTable[instanceSlot]![0];
     }
-    let n3: number = 0;
-    while (n3 < LevelScene.actorPool[n].length) {
-      const h2: ActorBase = LevelScene.actorPool[n][n3]!;
-      if (!h2.alive) {
-        if (n2 >= 0) {
-          h2.slotIndex = n2;
-          if (!h2.spawnFromBytes(this.actorInstanceTable[n2]!)) {
+    let i: number = 0;
+    while (i < LevelScene.actorPool[actorType].length) {
+      const pooled: ActorBase = LevelScene.actorPool[actorType][i]!;
+      if (!pooled.alive) {
+        if (instanceSlot >= 0) {
+          pooled.slotIndex = instanceSlot;
+          if (!pooled.spawnFromBytes(this.actorInstanceTable[instanceSlot]!)) {
             return null;
           }
-          h2.alive = true;
-          LevelScene.activeActors[n2] = h2;
-          return h2;
+          pooled.alive = true;
+          LevelScene.activeActors[instanceSlot] = pooled;
+          return pooled;
         }
-        let n4: number = this.residentActorSlots;
-        while (n4 < LevelScene.activeActors.length) {
-          if (LevelScene.activeActors[n4] == null) {
-            h2.slotIndex = n4;
-            h2.alive = true;
-            LevelScene.activeActors[n4] = h2;
-            h2.layer = LevelScene.actorDrawLayer[n];
-            return h2;
+        let slot: number = this.residentActorSlots;
+        while (slot < LevelScene.activeActors.length) {
+          if (LevelScene.activeActors[slot] == null) {
+            pooled.slotIndex = slot;
+            pooled.alive = true;
+            LevelScene.activeActors[slot] = pooled;
+            pooled.layer = LevelScene.actorDrawLayer[actorType];
+            return pooled;
           }
-          ++n4;
+          ++slot;
         }
       }
-      ++n3;
+      ++i;
     }
     return null;
   }
