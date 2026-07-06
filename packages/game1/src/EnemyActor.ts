@@ -213,14 +213,59 @@ export class EnemyActor extends ActorBase {
    */
   // f() → f_
   patrolUpdate(): void {
-    if (this.screen.scriptFlagL && this.timerA-- > 0) {
+    if (this.isPatrolCutsceneFrozen()) {
       return;
     }
+    this.retargetTowardPlayer();
+    if (this.detectAttackTrigger()) {
+      return;
+    }
+    switch (this.aiState) {
+      case 0:
+        this.patrolScan();
+        return;
+      case 1:
+        this.patrolTurn();
+        return;
+      case 11:
+        this.patrolAttackRecover();
+        return;
+      case 3:
+        this.patrolWalk();
+        return;
+      case 5:
+      case 8:
+        this.patrolAttack();
+        return;
+      case 9:
+        this.patrolHurtStun();
+        return;
+      case 4:
+        this.patrolDeath();
+        return;
+      case 7:
+        this.patrolCharge();
+        return;
+    }
+  }
+
+  // patrolUpdate 相位1：过场脚本冻结时逐帧倒计 timerA 并早退（timerA-- 短路：仅 scriptFlagL 时自减）。
+  private isPatrolCutsceneFrozen(): boolean {
+    return this.screen.scriptFlagL && this.timerA-- > 0;
+  }
+
+  // patrolUpdate 相位2：与玩家背向且相交时翻转朝向（无早退，条件不满足则空过）。
+  private retargetTowardPlayer(): void {
     if (this.intersectsActor(this.target) && this.aiState !== 7 && (this.aiState !== 5 && this.aiState !== 9 && this.aiState !== 4 || this.aiState === 5 && this.timerB < this.rhythmThreshold) && (this.facingFlag !== 0 && this.target.posX < this.posX || this.facingFlag === 0 && this.posX < this.target.posX)) {
       this.facingFlag ^= MIRROR_FLAG; // Integer.MIN_VALUE
       this.setFrame(this.actionLow24 | this.facingFlag);
       this.timerB = 0;
     }
+  }
+
+  // patrolUpdate 相位3：aiState 0/1/3 时检测攻击触发。近战命中→进攻击态并 return true（调用方据此早退）；
+  // 否则据纵横距置警戒 aiming/子态、或清 aiming，返回 false 继续走状态机。
+  private detectAttackTrigger(): boolean {
     if (this.aiState === 0 || this.aiState === 3 || this.aiState === 1) {
       if ((this.facingFlag === 0 && this.posX > this.target.posX && this.posX - this.target.posX < px(30) || this.facingFlag !== 0 && this.target.posX > this.posX && this.target.posX - this.posX < px(30)) && Math.abs(this.target.posY - this.posY) < px(10) && this.target.actionId !== 23 && this.target.actionId !== 15 && this.target.actionId !== 16 && this.target.actionId !== 20 && this.target.actionId !== 21 && this.target.actionId !== 19) {
         this.attackMode = 1;
@@ -229,7 +274,7 @@ export class EnemyActor extends ActorBase {
         this.aiState = 5;
         this.aiming = false;
         this.setFrame(4 | this.facingFlag);
-        return;
+        return true;
       }
       if (this.target.posY < this.posY + this.attackRangeUpper && this.target.posY > this.posY + this.attackRangeLower) {
         const rangedTriggerX: number = px(140);
@@ -261,170 +306,179 @@ export class EnemyActor extends ActorBase {
         this.aiming = false;
       }
     }
-    switch (this.aiState) {
-      case 0: {
-        if (this.aiming) break;
-        this.timerB = 0;
-        if (!this.isAnimationDone()) break;
-        if (this.patrolRange > 0) {
-          if (this.facingFlag === 0 && this.posX > this.patrolLeftBound || this.facingFlag !== 0 && this.posX < this.patrolRightBound) {
-            this.targetVelX = this.facingFlag === 0 ? px(-3) : px(3);
-            this.setFrame(1 | this.facingFlag);
-          } else {
-            this.targetVelX = 0;
-            this.setFrame(0 | this.facingFlag);
-          }
-          this.aiState = 3;
-          return;
-        }
-        this.setFrame(0 | this.facingFlag);
-        return;
-      }
-      case 1: {
-        if (++this.timerB === 10) {
-          this.facingFlag = this.facingFlag === 0 ? MIRROR_FLAG : 0; // Integer.MIN_VALUE
-          this.setFrame(this.actionLow24 | this.facingFlag);
-          return;
-        }
-        if (this.timerB < 20) break;
-        this.timerB = 0;
-        this.aiState = 3;
+    return false;
+  }
+
+  // aiState 0：待机扫描——巡逻范围内起步走(进3)，否则站立。原退出 switch 的 break（aiming/动画未完）→ return。
+  private patrolScan(): void {
+    if (this.aiming) return;
+    this.timerB = 0;
+    if (!this.isAnimationDone()) return;
+    if (this.patrolRange > 0) {
+      if (this.facingFlag === 0 && this.posX > this.patrolLeftBound || this.facingFlag !== 0 && this.posX < this.patrolRightBound) {
         this.targetVelX = this.facingFlag === 0 ? px(-3) : px(3);
         this.setFrame(1 | this.facingFlag);
-        return;
-      }
-      case 11: {
-        if (this.isAnimationDone()) {
-          if (this.actionLow24 === 3) {
-            this.setFrame(2 | this.facingFlag);
-          } else if (this.actionLow24 === 9) {
-            this.setFrame(8 | this.facingFlag);
-          }
-        }
-        if (this.timerB++ <= 4) break;
-        this.timerB = 0;
-        this.aiState = 0;
-        return;
-      }
-      case 3: {
-        if ((this.facingFlag !== 0 || this.posX >= this.patrolLeftBound) && (this.facingFlag === 0 || this.posX <= this.patrolRightBound)) break;
+      } else {
         this.targetVelX = 0;
-        this.timerB = 0;
-        this.aiState = 1;
-        if (this.typeId === ActorType.MeleeBomberEnemy) {
-          this.setFrame(0 | this.facingFlag);
-          return;
-        }
-        this.setFrame(2 | this.facingFlag);
-        return;
-      }
-      case 5:
-      case 8: {
-        switch (this.attackMode) {
-          case 0: {
-            switch (this.typeId) {
-              case ActorType.MeleeBomberEnemy: {
-                if (this.aiState === 8) {
-                  this.setFrame(8 | this.facingFlag);
-                  if (this.timerB++ > 10) {
-                    this.timerB = 0;
-                    this.aiState = 0;
-                  }
-                  return;
-                }
-                if (this.actionLow24 === 2) {
-                  if (this.isAnimationDone()) {
-                    this.setFrame(3 | this.facingFlag);
-                  }
-                  return;
-                }
-                if (this.actionLow24 === 3) {
-                  this.aiState = 0;
-                  this.setFrame(0 | this.facingFlag);
-                  return;
-                }
-                this.spawnMeleeHitbox();
-                break;
-              }
-              case ActorType.ReconScoutEnemy: {
-                if (this.aiState === 8 && this.hitPoints === 1) {
-                  if (this.timerB++ > 10) {
-                    this.timerB = 0;
-                    this.aiState = 0;
-                  }
-                  return;
-                }
-                const projectile: ProjectileActor | null = this.fireProjectile(this.aiState === 5 ? 32 : 14);
-                if (projectile === null) break;
-                if (this.aiState === 5) {
-                  this.setFrame(3 | this.facingFlag);
-                } else {
-                  this.setFrame(9 | this.facingFlag);
-                }
-                if (projectile.advanceAndCollide(this.facingFlag === 0)) {
-                  projectile.setFrame(1);
-                } else {
-                  projectile.targetVelX = projectile.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
-                }
-                this.aiState = 11;
-                this.rhythmThreshold = this.hitPoints > 0 ? 12 : 15;
-              }
-            }
-            break;
-          }
-          case 1: {
-            if (!this.isAnimationDone()) break;
-            this.target.takeDamage(1);
-            if (this.posX <= this.target.posX && !this.target.checkWallRight(this.screen.tileMap!, 100) || this.posX >= this.target.posX && !this.target.checkWallLeft(this.screen.tileMap!, 100)) {
-              this.target.posX = this.target.posX + (this.posX >= this.target.posX ? px(-8) : px(8));
-            }
-            this.aiState = 0;
-            this.setFrame(0 | this.facingFlag);
-          }
-        }
-        return;
-      }
-      case 9: {
-        if (this.timerB++ <= 1) break;
-        this.timerB = 0;
-        if (this.lives <= 0) {
-          this.aiState = 4;
-          this.loopAnimation = false;
-          if (!this.fromSpawner) {
-            this.screen.levelLoader!.actorSpawned[this.extra] = true;
-          }
-          this.setFrame(5 | this.facingFlag);
-          return;
-        }
-        this.aiState = 0;
-        this.aiming = false;
-        this.facingFlag = this.posX < this.target.posX ? MIRROR_FLAG : 0; // Integer.MIN_VALUE
         this.setFrame(0 | this.facingFlag);
-        return;
       }
-      case 4: {
-        if (this.actionLow24 === 5) {
-          if (this.timerB++ <= 1) break;
-          this.hurtBlinkTimer = 15;
-          this.setFrame(6 | this.facingFlag);
-          return;
-        }
-        if (this.actionLow24 !== 6 || this.hurtBlinkTimer !== 0) break;
-        this.deactivate();
-        ++this.screen.killCount;
-        if (!this.fromSpawner) break;
-        --this.screen.enemyAliveCount;
-        return;
-      }
-      case 7: {
-        if (this.patrolDir === 0 && this.posX <= this.patrolRightBound || this.patrolDir !== 0 && this.posX >= this.patrolLeftBound) {
-          this.targetVelX = 0;
-          this.aiState = 0;
-          return;
-        }
-        this.targetVelX = this.patrolDir === 0 ? px(-4) : px(4);
+      this.aiState = 3;
+      return;
+    }
+    this.setFrame(0 | this.facingFlag);
+  }
+
+  // aiState 1：转身——计到 10 翻朝向、到 20 重新起步走(进3)。原退出 switch 的 break（timerB<20）→ return。
+  private patrolTurn(): void {
+    if (++this.timerB === 10) {
+      this.facingFlag = this.facingFlag === 0 ? MIRROR_FLAG : 0; // Integer.MIN_VALUE
+      this.setFrame(this.actionLow24 | this.facingFlag);
+      return;
+    }
+    if (this.timerB < 20) return;
+    this.timerB = 0;
+    this.aiState = 3;
+    this.targetVelX = this.facingFlag === 0 ? px(-3) : px(3);
+    this.setFrame(1 | this.facingFlag);
+  }
+
+  // aiState 11：攻击后摇——放完对应动画后回待机(进0)。原退出 switch 的 break（timerB<=4）→ return。
+  private patrolAttackRecover(): void {
+    if (this.isAnimationDone()) {
+      if (this.actionLow24 === 3) {
+        this.setFrame(2 | this.facingFlag);
+      } else if (this.actionLow24 === 9) {
+        this.setFrame(8 | this.facingFlag);
       }
     }
+    if (this.timerB++ <= 4) return;
+    this.timerB = 0;
+    this.aiState = 0;
+  }
+
+  // aiState 3：巡逻行走——撞到巡逻边界则停并转身(进1)。原退出 switch 的 break（仍在界内）→ return。
+  private patrolWalk(): void {
+    if ((this.facingFlag !== 0 || this.posX >= this.patrolLeftBound) && (this.facingFlag === 0 || this.posX <= this.patrolRightBound)) return;
+    this.targetVelX = 0;
+    this.timerB = 0;
+    this.aiState = 1;
+    if (this.typeId === ActorType.MeleeBomberEnemy) {
+      this.setFrame(0 | this.facingFlag);
+      return;
+    }
+    this.setFrame(2 | this.facingFlag);
+  }
+
+  // aiState 5/8：攻击执行——switch(attackMode){0=远程按 typeId 近战/发弹, 1=近战判伤}。
+  // 注意：内层 switch(attackMode)/switch(typeId) 的 break 全部保留（跳内层 switch 非外层 aiState switch）。
+  private patrolAttack(): void {
+    switch (this.attackMode) {
+      case 0: {
+        switch (this.typeId) {
+          case ActorType.MeleeBomberEnemy: {
+            if (this.aiState === 8) {
+              this.setFrame(8 | this.facingFlag);
+              if (this.timerB++ > 10) {
+                this.timerB = 0;
+                this.aiState = 0;
+              }
+              return;
+            }
+            if (this.actionLow24 === 2) {
+              if (this.isAnimationDone()) {
+                this.setFrame(3 | this.facingFlag);
+              }
+              return;
+            }
+            if (this.actionLow24 === 3) {
+              this.aiState = 0;
+              this.setFrame(0 | this.facingFlag);
+              return;
+            }
+            this.spawnMeleeHitbox();
+            break;
+          }
+          case ActorType.ReconScoutEnemy: {
+            if (this.aiState === 8 && this.hitPoints === 1) {
+              if (this.timerB++ > 10) {
+                this.timerB = 0;
+                this.aiState = 0;
+              }
+              return;
+            }
+            const projectile: ProjectileActor | null = this.fireProjectile(this.aiState === 5 ? 32 : 14);
+            if (projectile === null) break;
+            if (this.aiState === 5) {
+              this.setFrame(3 | this.facingFlag);
+            } else {
+              this.setFrame(9 | this.facingFlag);
+            }
+            if (projectile.advanceAndCollide(this.facingFlag === 0)) {
+              projectile.setFrame(1);
+            } else {
+              projectile.targetVelX = projectile.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
+            }
+            this.aiState = 11;
+            this.rhythmThreshold = this.hitPoints > 0 ? 12 : 15;
+          }
+        }
+        break;
+      }
+      case 1: {
+        if (!this.isAnimationDone()) break;
+        this.target.takeDamage(1);
+        if (this.posX <= this.target.posX && !this.target.checkWallRight(this.screen.tileMap!, 100) || this.posX >= this.target.posX && !this.target.checkWallLeft(this.screen.tileMap!, 100)) {
+          this.target.posX = this.target.posX + (this.posX >= this.target.posX ? px(-8) : px(8));
+        }
+        this.aiState = 0;
+        this.setFrame(0 | this.facingFlag);
+      }
+    }
+  }
+
+  // aiState 9：受击硬直——计满后据命数 lives 转死亡(进4,通知刷怪槽)或回待机(进0)。原退出 switch 的 break（timerB<=1）→ return。
+  private patrolHurtStun(): void {
+    if (this.timerB++ <= 1) return;
+    this.timerB = 0;
+    if (this.lives <= 0) {
+      this.aiState = 4;
+      this.loopAnimation = false;
+      if (!this.fromSpawner) {
+        this.screen.levelLoader!.actorSpawned[this.extra] = true;
+      }
+      this.setFrame(5 | this.facingFlag);
+      return;
+    }
+    this.aiState = 0;
+    this.aiming = false;
+    this.facingFlag = this.posX < this.target.posX ? MIRROR_FLAG : 0; // Integer.MIN_VALUE
+    this.setFrame(0 | this.facingFlag);
+  }
+
+  // aiState 4：死亡动画——放完销毁、计 killCount、刷怪来源的还减 enemyAliveCount。
+  // 原退出 switch 的 break（动画未到/仍闪烁/非刷怪来源）→ return（!fromSpawner 分支须跳过 --enemyAliveCount）。
+  private patrolDeath(): void {
+    if (this.actionLow24 === 5) {
+      if (this.timerB++ <= 1) return;
+      this.hurtBlinkTimer = 15;
+      this.setFrame(6 | this.facingFlag);
+      return;
+    }
+    if (this.actionLow24 !== 6 || this.hurtBlinkTimer !== 0) return;
+    this.deactivate();
+    ++this.screen.killCount;
+    if (!this.fromSpawner) return;
+    --this.screen.enemyAliveCount;
+  }
+
+  // aiState 7：冲撞——冲到巡逻边界则停(回0)，否则持续横向冲。原为末尾无 break/return 的有意落空，helper 内自然结束。
+  private patrolCharge(): void {
+    if (this.patrolDir === 0 && this.posX <= this.patrolRightBound || this.patrolDir !== 0 && this.posX >= this.patrolLeftBound) {
+      this.targetVelX = 0;
+      this.aiState = 0;
+      return;
+    }
+    this.targetVelX = this.patrolDir === 0 ? px(-4) : px(4);
   }
 
   /**
