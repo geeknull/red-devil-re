@@ -152,7 +152,7 @@ export class EnemyActor extends ActorBase {
    * 关卡卷动态（LevelScroll）直接跳过。先从动画状态恢复朝向位 {@link facingFlag}
    * 与动画低 24 位 {@link actionLow24}；再处理被玩家踩中(actionId 19)/被打飞(actionId 21)
    * 的反应（{@link knockedBack}）；最后按 {@link typeId} 分派 AI：
-   * 1/2 且 {@link isPatroller} 走 {@link patrolUpdate}，否则走 {@link airUpdate}；18 走 {@link bossUpdate}。
+   * 1/2 且 {@link isPatroller} 走 {@link patrolUpdate}，否则走 {@link airUpdate}；18 走 {@link scrollChaserUpdate}。
    */
   // a() → a_
   update(): void {
@@ -198,7 +198,7 @@ export class EnemyActor extends ActorBase {
         return;
       }
       case ActorType.ScrollChaserHeavy: {
-        this.bossUpdate();
+        this.scrollChaserUpdate();
       }
     }
   }
@@ -565,14 +565,15 @@ export class EnemyActor extends ActorBase {
   }
 
   /**
-   * 18 型 Boss AI 状态机（CFR h.java:507 `h()`，关卡4专用）。
-   * 当 {@link typeId}===18 时由 {@link update} 调用。距玩家足够近时按纵向位置选择
-   * 冲撞(进 6)或召唤增援(进 5)；状态分支：0=待机踱步、1/3=巡逻折返、5=放完动画后
+   * 18 型卷轴追逼重甲敌（{@link ActorType.ScrollChaserHeavy}）AI 状态机（CFR h.java:507 `h()`）。
+   * ⚠️名字纠偏：这**不是**真正的 Boss（真 Boss 是独立的 BossActor 类）——它是卷轴关卡里体型较大的
+   * 追逼型敌人，仍属 EnemyActor。当 {@link typeId}===18 时由 {@link update} 调用。距玩家足够近时按
+   * 纵向位置选择冲撞(进 6)或召唤增援(进 5)；状态分支：0=待机踱步、1/3=巡逻折返、5=放完动画后
    * 经 {@link GameScreen.spawnEnemyWave} 刷一波小怪、6=冲出屏幕、10=等待玩家靠近、
    * 4/9=受击后判定玩家攻击命中→切过场 GoalCutscene 或销毁。
    */
-  // h() → h_
-  bossUpdate(): void {
+  // h() → h_（旧名 bossUpdate 系误导名，18 型实为卷轴追逼重甲敌非 Boss）
+  scrollChaserUpdate(): void {
     if ((this.aiState === 0 || this.aiState === 1 || this.aiState === 3) && Math.abs(this.posX - this.target.posX) < px(128)) {
       if (this.target.posY < this.posY + px(60) && this.target.posY > this.posY - px(10) && Math.abs(this.posX - this.target.posX) < px(80)) {
         this.targetVelX = px(4);

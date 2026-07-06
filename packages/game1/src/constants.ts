@@ -105,7 +105,7 @@ export enum ActorType {
   ExplosionEffect = 16,
   /** 俯冲/突进危险物 */
   DivingHazard = 17,
-  /** 关4/7 卷轴追逼大型敌（走 bossUpdate，仍属 EnemyActor） */
+  /** 关4/7 卷轴追逼大型敌（走 scrollChaserUpdate，仍属 EnemyActor，非真 Boss） */
   ScrollChaserHeavy = 18,
   /** ★宝箱/木箱：无每帧逻辑的静态道具 */
   TreasureChestProp = 19,
