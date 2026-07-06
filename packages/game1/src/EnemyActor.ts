@@ -60,7 +60,7 @@ export class EnemyActor extends ActorBase {
   /**
    * 构造敌人实例（CFR h.java:46 `h(int,d,a)`）。
    * 由关卡加载器 LevelLoader（CFR tjge.j）从 s.bin 布置数据创建并填入实例池。
-   * @param n      类型 ID（透传给基类 ActorBase；1/2=地面敌、18=Boss）
+   * @param n      类型 ID（透传给基类 ActorBase；1/2=地面敌、18=卷轴追逼重甲敌非真Boss）
    * @param d2     精灵帧定义（SpriteDef，对应 tjge.d）
    * @param a2     所属关卡屏 GameScreen，存入 {@link screen}
    */
@@ -152,7 +152,7 @@ export class EnemyActor extends ActorBase {
    * 关卡卷动态（LevelScroll）直接跳过。先从动画状态恢复朝向位 {@link facingFlag}
    * 与动画低 24 位 {@link actionLow24}；再处理被玩家踩中(actionId 19)/被打飞(actionId 21)
    * 的反应（{@link knockedBack}）；最后按 {@link typeId} 分派 AI：
-   * 1/2 且 {@link isPatroller} 走 {@link patrolUpdate}，否则走 {@link airUpdate}；18 走 {@link bossUpdate}。
+   * 1/2 且 {@link isPatroller} 走 {@link patrolUpdate}，否则走 {@link airUpdate}；18 走 {@link scrollChaserUpdate}。
    */
   // a() → a_
   update(): void {
@@ -198,7 +198,7 @@ export class EnemyActor extends ActorBase {
         return;
       }
       case ActorType.ScrollChaserHeavy: {
-        this.bossUpdate();
+        this.scrollChaserUpdate();
       }
     }
   }
@@ -232,8 +232,8 @@ export class EnemyActor extends ActorBase {
         return;
       }
       if (this.target.posY < this.posY + this.attackRangeUpper && this.target.posY > this.posY + this.attackRangeLower) {
-        const n: number = px(140);
-        if (this.facingFlag === 0 && this.posX > this.target.posX && this.posX - this.target.posX < n || this.facingFlag !== 0 && this.posX < this.target.posX && this.target.posX - this.posX < n) {
+        const rangedTriggerX: number = px(140);
+        if (this.facingFlag === 0 && this.posX > this.target.posX && this.posX - this.target.posX < rangedTriggerX || this.facingFlag !== 0 && this.posX < this.target.posX && this.target.posX - this.posX < rangedTriggerX) {
           if (this.aiming && this.timerB++ > this.rhythmThreshold) {
             this.aiState = this.hitPoints > 0 && this.comboToggle ? 8 : 5;
             this.attackMode = 0;
@@ -354,17 +354,17 @@ export class EnemyActor extends ActorBase {
                   }
                   return;
                 }
-                const l2: ProjectileActor | null = this.fireProjectile(this.aiState === 5 ? 32 : 14);
-                if (l2 === null) break;
+                const projectile: ProjectileActor | null = this.fireProjectile(this.aiState === 5 ? 32 : 14);
+                if (projectile === null) break;
                 if (this.aiState === 5) {
                   this.setFrame(3 | this.facingFlag);
                 } else {
                   this.setFrame(9 | this.facingFlag);
                 }
-                if (l2.advanceAndCollide(this.facingFlag === 0)) {
-                  l2.setFrame(1);
+                if (projectile.advanceAndCollide(this.facingFlag === 0)) {
+                  projectile.setFrame(1);
                 } else {
-                  l2.targetVelX = l2.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
+                  projectile.targetVelX = projectile.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
                 }
                 this.aiState = 11;
                 this.rhythmThreshold = this.hitPoints > 0 ? 12 : 15;
@@ -450,7 +450,8 @@ export class EnemyActor extends ActorBase {
       }
       if (this.posY < this.target.posY && this.targetVelY > 0) {
         if (this.timerA++ % 60 === 0 && this.posX > this.screen.cameraX + px(60) && this.posX < this.screen.cameraX + GameScreen.viewWidthFx - px(60)) {
-          const n: number = (this.targetVelX = GameMIDlet.nextRandomMod(1) === 1 ? px(9) : px(7));
+          // 反编译死局部 const n=(targetVelX=..) 已删，保留有副作用的赋值本身。
+          this.targetVelX = GameMIDlet.nextRandomMod(1) === 1 ? px(9) : px(7);
         }
         if (this.posX < this.screen.cameraX + px(40)) {
           this.targetVelX = px(9);
@@ -514,10 +515,10 @@ export class EnemyActor extends ActorBase {
             break;
           }
           case ActorType.ReconScoutEnemy: {
-            const l2: ProjectileActor | null = this.fireProjectile(28);
-            if (l2 === null) break;
+            const projectile: ProjectileActor | null = this.fireProjectile(28);
+            if (projectile === null) break;
             this.aiState = 0;
-            l2.targetVelX = l2.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
+            projectile.targetVelX = projectile.targetVelX + (this.facingFlag === 0 ? px(-12) : px(12));
             this.setFrame(3 | this.facingFlag);
             this.rhythmThreshold = 12;
           }
@@ -539,22 +540,22 @@ export class EnemyActor extends ActorBase {
 
   // i() → i_
   private spawnMeleeHitbox(): void {
-    const l2: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - px(30), 1);
-    if (l2 !== null) {
+    const projectile: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX, this.posY - px(30), 1);
+    if (projectile !== null) {
       this.timerB = 0;
-      l2.launchArc(this.facingFlag !== 0 ? 1 : 0);
+      projectile.launchArc(this.facingFlag !== 0 ? 1 : 0);
       this.setFrame(2 | this.facingFlag);
       this.rhythmThreshold = this.hitPoints > 0 ? 12 : 15;
     }
   }
 
-  // b(int) → b_I
-  private fireProjectile(n: number): ProjectileActor | null {
-    let n2: number = px(29);
+  // b(int) → b_I（⚠️muzzleYPx=枪口Y偏移像素，随后 <<10 转定点——非子弹 type！与 fireWeapon 的 type 参数不同）
+  private fireProjectile(muzzleYPx: number): ProjectileActor | null {
+    let spawnDx: number = px(29);
     if (this.facingFlag === 0) {
-      n2 = px(-29);
+      spawnDx = px(-29);
     }
-    return this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0), 0, this.posX + n2, this.posY - (n << 10), 1); // Integer.MIN_VALUE
+    return this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, 0 | (this.facingFlag === 0 ? MIRROR_FLAG : 0), 0, this.posX + spawnDx, this.posY - (muzzleYPx << 10), 1); // Integer.MIN_VALUE
   }
 
   // j() → j_
@@ -565,14 +566,15 @@ export class EnemyActor extends ActorBase {
   }
 
   /**
-   * 18 型 Boss AI 状态机（CFR h.java:507 `h()`，关卡4专用）。
-   * 当 {@link typeId}===18 时由 {@link update} 调用。距玩家足够近时按纵向位置选择
-   * 冲撞(进 6)或召唤增援(进 5)；状态分支：0=待机踱步、1/3=巡逻折返、5=放完动画后
+   * 18 型卷轴追逼重甲敌（{@link ActorType.ScrollChaserHeavy}）AI 状态机（CFR h.java:507 `h()`）。
+   * ⚠️名字纠偏：这**不是**真正的 Boss（真 Boss 是独立的 BossActor 类）——它是卷轴关卡里体型较大的
+   * 追逼型敌人，仍属 EnemyActor。当 {@link typeId}===18 时由 {@link update} 调用。距玩家足够近时按
+   * 纵向位置选择冲撞(进 6)或召唤增援(进 5)；状态分支：0=待机踱步、1/3=巡逻折返、5=放完动画后
    * 经 {@link GameScreen.spawnEnemyWave} 刷一波小怪、6=冲出屏幕、10=等待玩家靠近、
    * 4/9=受击后判定玩家攻击命中→切过场 GoalCutscene 或销毁。
    */
-  // h() → h_
-  bossUpdate(): void {
+  // h() → h_（旧名 bossUpdate 系误导名，18 型实为卷轴追逼重甲敌非 Boss）
+  scrollChaserUpdate(): void {
     if ((this.aiState === 0 || this.aiState === 1 || this.aiState === 3) && Math.abs(this.posX - this.target.posX) < px(128)) {
       if (this.target.posY < this.posY + px(60) && this.target.posY > this.posY - px(10) && Math.abs(this.posX - this.target.posX) < px(80)) {
         this.targetVelX = px(4);
@@ -617,8 +619,8 @@ export class EnemyActor extends ActorBase {
       case 5: {
         if (!this.isAnimationDone()) break;
         this.aiState = 0;
-        const n: number = px(320);
-        this.screen.spawnEnemyWave(1, 3, this.screen.cameraX + GameScreen.viewWidthFx, n, 1, 1);
+        const waveSpawnY: number = px(320);
+        this.screen.spawnEnemyWave(1, 3, this.screen.cameraX + GameScreen.viewWidthFx, waveSpawnY, 1, 1);
         return;
       }
       case 6: {
@@ -655,37 +657,37 @@ export class EnemyActor extends ActorBase {
    * 已处于死亡/硬直/特殊态(aiState 4/9/10)或对方为 mode===1 的弹时忽略。按弹型 {@link ProjectileActor.typeId}
    * 结算：type21 扣 1 命中计数 {@link lives}、type10/16 即死、type15/20 生成 type16 爆炸并播音效。
    * 触发受击则转硬直态 9 并切动作(type18→3、其余→7)；{@link lives}<=0 时播死亡音效。
-   * @param l2 命中本敌人的弹体 ProjectileActor（对应 tjge.l）
+   * @param projectile 命中本敌人的弹体 ProjectileActor（对应 tjge.l）
    */
   // a(tjge.l) → a_Tl
-  onProjectileHit(l2: ProjectileActor): void {
-    if (l2.mode === 1 || this.aiState === 4 || this.aiState === 9 || this.aiState === 10) {
+  onProjectileHit(projectile: ProjectileActor): void {
+    if (projectile.mode === 1 || this.aiState === 4 || this.aiState === 9 || this.aiState === 10) {
       return;
     }
-    let bl: boolean = false;
-    switch (l2.typeId) {
+    let hit: boolean = false;
+    switch (projectile.typeId) {
       case ActorType.GuidedMissileProjectile: {
-        if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
-        l2.deactivate();
+        if ((projectile.frameIndex & SEQUENCE_MASK) !== 0) break;
+        projectile.deactivate();
         --this.lives;
-        bl = true;
+        hit = true;
         break;
       }
       case ActorType.PlayerBounceShot:
       case ActorType.ExplosionEffect: {
         this.lives = 0;
-        bl = true;
+        hit = true;
         break;
       }
       case ActorType.GrenadeProjectile:
       case ActorType.FallingBombProjectile: {
-        const n: number = l2.targetVelX > 0 ? px(8) : px(-8);
-        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX + n, l2.posY + px(8), 0);
-        l2.deactivate();
+        const knockbackDx: number = projectile.targetVelX > 0 ? px(8) : px(-8);
+        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, projectile.posX + knockbackDx, projectile.posY + px(8), 0);
+        projectile.deactivate();
         GameScreen.playSound(5, 1, 220);
       }
     }
-    if (bl) {
+    if (hit) {
       this.timerB = 0;
       this.targetVelX = 0;
       this.aiState = 9;
@@ -706,13 +708,13 @@ export class EnemyActor extends ActorBase {
    * {@link hurtBlinkTimer}===0（无闪烁）时正常绘；否则倒计该计时并仅在奇数帧绘制，
    * 形成受击一闪一闪的效果。
    * @param graphics 画布 Graphics
-   * @param n        绘制基准 X（相机偏移后）
-   * @param n2       绘制基准 Y（相机偏移后）
+   * @param screenX  绘制基准 X（相机偏移后）
+   * @param screenY  绘制基准 Y（相机偏移后）
    */
   // a(Graphics,int,int) → a_GII
-  paint(graphics: Graphics, n: number, n2: number): void {
+  paint(graphics: Graphics, screenX: number, screenY: number): void {
     if (this.hurtBlinkTimer === 0 || --this.hurtBlinkTimer > 0 && (this.hurtBlinkTimer & 1) !== 0) {
-      super.paint(graphics, n, n2);
+      super.paint(graphics, screenX, screenY);
     }
   }
 }
