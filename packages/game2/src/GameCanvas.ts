@@ -126,15 +126,15 @@ export class GameCanvas extends Canvas {
    *   0→PlayerActor（玩家，并缓存到 this.player）；1-5→EnemyActor（普通敌人）；
    *   11/13/17/19/21→BossActor（Boss）；6/7/14/15/18/20/22→ItemActor（道具/机关）；
    *   9/10/12/16→ProjectileActor（弹丸）；其余 ID→ActorBase（基类）。
-   * @param n actor 类型 ID
-   * @param d2 该类型的动作定义（SpriteDef，提供帧/动作数据）
+   * @param actorType actor 类型 ID
+   * @param spriteDef 该类型的动作定义（SpriteDef，提供帧/动作数据）
    * @returns 新建的 actor 实例
    */
   // a(int,tjge.d) → a_ITd（精灵/场景对象工厂）
-  createActor(n: number, d2: SpriteDef): ActorBase {
-    switch (n) {
+  createActor(actorType: number, spriteDef: SpriteDef): ActorBase {
+    switch (actorType) {
       case ActorType.Player: {
-        this.player = new PlayerActor(n, d2);
+        this.player = new PlayerActor(actorType, spriteDef);
         return this.player;
       }
       case ActorType.RiflemanGrunt:
@@ -142,14 +142,14 @@ export class GameCanvas extends Canvas {
       case ActorType.GrenadierGrunt:
       case ActorType.SentryGrunt:
       case ActorType.TurretEmplacement: {
-        return new EnemyActor(n, d2);
+        return new EnemyActor(actorType, spriteDef);
       }
       case ActorType.MobileGunEmplacement:
       case ActorType.DestructibleConsole:
       case ActorType.PatrolLauncher:
       case ActorType.HelicopterBoss:
       case ActorType.FinalBoss: {
-        return new BossActor(n, d2);
+        return new BossActor(actorType, spriteDef);
       }
       case ActorType.NavalOfficerNpc:
       case ActorType.ItemPickup:
@@ -158,16 +158,16 @@ export class GameCanvas extends Canvas {
       case ActorType.PlayerAttachedEffect:
       case ActorType.SplashEffect:
       case ActorType.GrappleMarker: {
-        return new ItemActor(n, d2);
+        return new ItemActor(actorType, spriteDef);
       }
       case ActorType.GuidedGrenade:
       case ActorType.DirectBullet:
       case ActorType.ExplosionDebris:
       case ActorType.ArcCannonShell: {
-        return new ProjectileActor(n, d2);
+        return new ProjectileActor(actorType, spriteDef);
       }
     }
-    return new ActorBase(n, d2);
+    return new ActorBase(actorType, spriteDef);
   }
 
   /**
@@ -847,14 +847,14 @@ export class GameCanvas extends Canvas {
    *   step0=若有旧场景且关卡号变了则 dispose 卸载；step1=按需 LevelScene.loadLevel 建新场景；
    *   step2=initCamera 对焦并置 loadComplete=true。
    * 由 paint 的 LevelIntroLoading 分支反复调用直到 loadComplete。
-   * @param n 目标关卡号（0~6）
+   * @param targetLevel 目标关卡号（0~6）
    */
   // a(int) → a_I（关卡载入状态机：卸载旧场景→创建新场景→定位镜头）
-  loadLevel(n: number): void {
+  loadLevel(targetLevel: number): void {
     this.loadComplete = false;
     switch (this.subState) {
       case 0: {
-        if (this.scene != null && LevelScene.currentLevel !== n) {
+        if (this.scene != null && LevelScene.currentLevel !== targetLevel) {
           this.scene.dispose();
           this.scene = null as unknown as LevelScene;
         }
@@ -862,8 +862,8 @@ export class GameCanvas extends Canvas {
         return;
       }
       case 1: {
-        if (n !== LevelScene.currentLevel) {
-          this.scene = LevelScene.loadLevel(this, n)!;
+        if (targetLevel !== LevelScene.currentLevel) {
+          this.scene = LevelScene.loadLevel(this, targetLevel)!;
         }
         this.subState = 2;
         return;
@@ -884,18 +884,18 @@ export class GameCanvas extends Canvas {
   // run()：原 while(w!=null){...; Thread.sleep(...)} → async + await（控制流逐帧一致）
   async run(): Promise<void> {
     try {
-      let l = Date.now(); // System.currentTimeMillis()
+      let lastFrameMs = Date.now(); // System.currentTimeMillis()
       while (this.mainThread != null) {
         if (!this.running || this.painting) {
           await Thread.sleep(0); // 让出执行权，等价于 continue 忙等的协作式空转
           continue;
         }
-        const l2 = Date.now() - l; // System.currentTimeMillis()
-        if (l2 < 80) {
-          await Thread.sleep(80 - l2);
+        const elapsedMs = Date.now() - lastFrameMs; // System.currentTimeMillis()
+        if (elapsedMs < 80) {
+          await Thread.sleep(80 - elapsedMs);
         }
         this.repaint();
-        l = Date.now(); // System.currentTimeMillis()
+        lastFrameMs = Date.now(); // System.currentTimeMillis()
       }
       return;
     } catch (exception) {
@@ -904,77 +904,77 @@ export class GameCanvas extends Canvas {
   }
 
   // d(int) → d_I（键码 → 游戏动作位）
-  private keyToAction(n: number): number {
-    let n2 = 0;
+  private keyToAction(keyCode: number): number {
+    let action = 0;
     this.heldAction = 0;
-    switch (n) {
+    switch (keyCode) {
       case -1:
       case 1:
       case 50: {
         if (this.uiState === UiState.InGame) {
-          n2 = 32;
+          action = 32;
           break;
         }
-        n2 = 4;
+        action = 4;
         break;
       }
       case -6:
       case 6:
       case 56: {
-        n2 = 8;
+        action = 8;
         break;
       }
       case -2:
       case 2:
       case 52: {
-        n2 = 1;
+        action = 1;
         break;
       }
       case -5:
       case 5:
       case 54: {
-        n2 = 2;
+        action = 2;
         break;
       }
       case -20:
       case 20:
       case 53: {
-        n2 = 16;
+        action = 16;
         this.heldAction = 16;
         break;
       }
       case 55: {
-        n2 = 2048;
+        action = 2048;
         break;
       }
       case 35:
       case 57: {
-        n2 = 1024;
+        action = 1024;
         break;
       }
       case 42: {
-        n2 = 4096;
+        action = 4096;
         break;
       }
       case 49: {
-        n2 = 64;
+        action = 64;
         break;
       }
       case 51: {
-        n2 = 128;
+        action = 128;
         break;
       }
       case -21:
       case 21: {
-        n2 = 16384;
+        action = 16384;
         break;
       }
       case -22:
       case 22: {
-        n2 = this.uiState === UiState.MainMenu ? 16 : 32768;
+        action = this.uiState === UiState.MainMenu ? 16 : 32768;
       }
     }
-    return n2;
+    return action;
   }
 
   /**
@@ -982,11 +982,11 @@ export class GameCanvas extends Canvas {
    * 先处理软键直切状态：左软键(21/-21) 在游戏中/简报页时回主菜单；右软键(22/-22) 在游戏中且场景常规态时进任务简报。
    * 其余按键经 keyToAction 译成动作位掩码写入 inputAction，供 paint 各分支读取。
    * 各键的实际效果以 keyToAction 为准（另见 memory「按键动作映射」）。
-   * @param n J2ME 键码（含方向键/小键盘/软键负码）
+   * @param keyCode J2ME 键码（含方向键/小键盘/软键负码）
    */
-  keyPressed(n: number): void {
-    let n2: number;
-    if (n === 21 || n === -21) {
+  keyPressed(keyCode: number): void {
+    let action: number;
+    if (keyCode === 21 || keyCode === -21) {
       if (this.uiState === UiState.InGame || this.uiState === UiState.MissionBrief) {
         this.uiState = UiState.MainMenu;
         this.menuStartItem = 0;
@@ -994,18 +994,18 @@ export class GameCanvas extends Canvas {
         this.inputAction = 0;
         return;
       }
-    } else if ((n === 22 || n === -22) && this.uiState === UiState.InGame && this.scene.subState === 0) {
+    } else if ((keyCode === 22 || keyCode === -22) && this.uiState === UiState.InGame && this.scene.subState === 0) {
       this.transitionProgress = 0;
       this.uiState = UiState.MissionBrief;
     }
-    this.inputAction = n2 = this.keyToAction(n);
+    this.inputAction = action = this.keyToAction(keyCode);
   }
 
   /**
    * 按键松开回调（CFR a.java:883-887）—— 清空当前输入动作 inputAction=0，并置 heldAction=-1（解除持续按住标志）。
-   * @param n J2ME 键码（此实现不区分具体键，统一清状态）
+   * @param keyCode J2ME 键码（此实现不区分具体键，统一清状态）
    */
-  keyReleased(n: number): void {
+  keyReleased(keyCode: number): void {
     this.inputAction = 0;
     this.heldAction = -1;
   }
@@ -1013,13 +1013,13 @@ export class GameCanvas extends Canvas {
   /**
    * 触发震屏（CFR a.java:888-894；原 `b(int)` → 契约名 b_I）。
    * 若当前未在震屏，则置 shaking=true、shakeCounter=n，后续由 followCamera 每帧抖动相机直到计数耗尽。
-   * @param n 震屏持续帧数
+   * @param durationFrames 震屏持续帧数
    */
-  // b(int) → b_I（触发震屏，持续 n 帧）
-  startShake(n: number): void {
+  // b(int) → b_I（触发震屏，持续 durationFrames 帧）
+  startShake(durationFrames: number): void {
     if (!this.shaking) {
       this.shaking = true;
-      this.shakeCounter = n;
+      this.shakeCounter = durationFrames;
     }
   }
 
