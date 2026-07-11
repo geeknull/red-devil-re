@@ -98,22 +98,22 @@ export class ActorBase {
    */
   // public boolean a(byte[]) → a_AY
   spawnFromBytes(byArray: Int8Array): boolean {
-    let bl = false;
+    let isRespawnConsole = false;
     if (this.slotIndex < this.canvas.scene.residentActorSlots && this.canvas.scene.triggerHitFlags[this.slotIndex]) {
       if (this.typeId === ActorType.DestructibleConsole) {
-        bl = true;
+        isRespawnConsole = true;
       } else {
         return false;
       }
     }
-    const n = bl ? 4 : byArray[5] & 0x7f;
-    const n2 = (byArray[5] & 0x80) << 24;
-    const n3 = (byArray[5] & 0x40) << 24;
-    this.setAction(n | n2 | n3);
-    const n4 = GameMIDlet.readIntLE(byArray, 1, 2);
-    const n5 = GameMIDlet.readIntLE(byArray, 3, 2);
-    this.posX = n4 << 10;
-    this.posY = n5 << 10;
+    const action = isRespawnConsole ? 4 : byArray[5] & 0x7f;
+    const mirrorBit = (byArray[5] & 0x80) << 24;
+    const flipBit = (byArray[5] & 0x40) << 24;
+    this.setAction(action | mirrorBit | flipBit);
+    const spawnX = GameMIDlet.readIntLE(byArray, 1, 2);
+    const spawnY = GameMIDlet.readIntLE(byArray, 3, 2);
+    this.posX = spawnX << 10;
+    this.posY = spawnY << 10;
     this.palette = byArray[6];
     this.drawAlpha = 0;
     this.velY = 0;
@@ -158,31 +158,31 @@ export class ActorBase {
    * 按朝向位（MIRROR_FLAG）镜像左右碰撞盒 boxLeft/boxRight、按垂直翻转位（FLIP_VERTICAL_BIT）
    * 翻转上下碰撞盒 boxTop/boxBottom，再取该动作组帧数并复位帧序与 animDone，最后自增 uniqueId
    * （用于 isNewContact 的同帧防重判定）。动作码越界时仅记录不更新盒/帧。
-   * @param n 完整动作码（含动作 ID 与朝向/翻转标志位）
+   * @param action 完整动作码（含动作 ID 与朝向/翻转标志位；下面 `action &= SEQUENCE_MASK` 后原地变为帧组索引）
    */
   // public final void a(int) → a_I
-  setAction(n: number): void {
-    this.actionCode = n;
-    this.actionHighByte = n & FACING_MASK;
-    this.frameGroupIndex = n &= SEQUENCE_MASK;
-    if (n < 0 || n > this.spriteDef.getActionCount()) {
+  setAction(action: number): void {
+    this.actionCode = action;
+    this.actionHighByte = action & FACING_MASK;
+    this.frameGroupIndex = action &= SEQUENCE_MASK;
+    if (action < 0 || action > this.spriteDef.getActionCount()) {
       return;
     }
     if ((this.actionCode & MIRROR_FLAG) === 0) { // Integer.MIN_VALUE
-      this.boxLeft = this.spriteDef.actionParamA[n];
-      this.boxRight = this.spriteDef.actionParamB[n];
+      this.boxLeft = this.spriteDef.actionParamA[action];
+      this.boxRight = this.spriteDef.actionParamB[action];
     } else {
-      this.boxLeft = -this.spriteDef.actionParamB[n];
-      this.boxRight = -this.spriteDef.actionParamA[n];
+      this.boxLeft = -this.spriteDef.actionParamB[action];
+      this.boxRight = -this.spriteDef.actionParamA[action];
     }
     if ((this.actionCode & FLIP_VERTICAL_BIT) === 0) {
-      this.boxTop = this.spriteDef.actionParamC[n];
-      this.boxBottom = this.spriteDef.actionParamD[n];
+      this.boxTop = this.spriteDef.actionParamC[action];
+      this.boxBottom = this.spriteDef.actionParamD[action];
     } else {
-      this.boxTop = -this.spriteDef.actionParamD[n];
-      this.boxBottom = -this.spriteDef.actionParamC[n];
+      this.boxTop = -this.spriteDef.actionParamD[action];
+      this.boxBottom = -this.spriteDef.actionParamC[action];
     }
-    this.frameCount = this.spriteDef.getFrameCount(n);
+    this.frameCount = this.spriteDef.getFrameCount(action);
     this.frameIndex = 0;
     this.animDone = false;
     ++this.uniqueId;
@@ -251,77 +251,77 @@ export class ActorBase {
    * 将定点世界坐标转屏幕坐标（减去摄像机偏移 n/n2），据朝向/翻转位计算精灵包围范围并做视锥剔除
    * （屏外不绘），最后委托 spriteDef.drawFrame 用当前帧/调色板/透明度绘制。
    * @param graphics 目标画布
-   * @param n 摄像机 X 偏移（像素）
-   * @param n2 摄像机 Y 偏移（像素）
+   * @param cameraX 摄像机 X 偏移（像素）
+   * @param cameraY 摄像机 Y 偏移（像素）
    */
   // public void a(Graphics, int, int) → a_GII
-  paint(graphics: Graphics, n: number, n2: number): void {
+  paint(graphics: Graphics, cameraX: number, cameraY: number): void {
     if (!this.drawThisFrame) {
       this.drawThisFrame = true;
       return;
     }
     if (this.hitFlashTimer === 0 || (--this.hitFlashTimer > 0 && (this.hitFlashTimer & 1) !== 0)) {
-      let s: number; // short
-      let s2: number; // short
-      let s3: number; // short
-      let s4: number; // short
-      const n3 = (this.posX >> 10) - n;
-      const n4 = (this.posY >> 10) - n2;
-      const n5 = this.actionCode & MIRROR_FLAG; // Integer.MIN_VALUE
-      const n6 = this.actionCode & FLIP_VERTICAL_BIT;
-      if (n5 !== 0) {
-        s4 = ((-this.spriteDef.paramK) << 16) >> 16; // (short)(-k)：Java short 取负带 i2s 截断
-        s3 = ((-this.spriteDef.paramJ) << 16) >> 16;
+      let topBound: number; // short
+      let bottomBound: number; // short
+      let leftBound: number; // short
+      let rightBound: number; // short
+      const screenX = (this.posX >> 10) - cameraX;
+      const screenY = (this.posY >> 10) - cameraY;
+      const mirrorFlag = this.actionCode & MIRROR_FLAG; // Integer.MIN_VALUE
+      const flipFlag = this.actionCode & FLIP_VERTICAL_BIT;
+      if (mirrorFlag !== 0) {
+        rightBound = ((-this.spriteDef.paramK) << 16) >> 16; // (short)(-k)：Java short 取负带 i2s 截断
+        leftBound = ((-this.spriteDef.paramJ) << 16) >> 16;
       } else {
-        s4 = this.spriteDef.paramJ;
-        s3 = this.spriteDef.paramK;
+        rightBound = this.spriteDef.paramJ;
+        leftBound = this.spriteDef.paramK;
       }
-      if (n3 + s3 < 0 || n3 + s4 > 176) {
+      if (screenX + leftBound < 0 || screenX + rightBound > 176) {
         return;
       }
-      if (n6 !== 0) {
-        s2 = ((-this.spriteDef.paramM) << 16) >> 16; // (short)(-m)
-        s = ((-this.spriteDef.paramL) << 16) >> 16;
+      if (flipFlag !== 0) {
+        bottomBound = ((-this.spriteDef.paramM) << 16) >> 16; // (short)(-m)
+        topBound = ((-this.spriteDef.paramL) << 16) >> 16;
       } else {
-        s2 = this.spriteDef.paramL;
-        s = this.spriteDef.paramM;
+        bottomBound = this.spriteDef.paramL;
+        topBound = this.spriteDef.paramM;
       }
-      if (n4 + s < 0 || n4 + s2 > 172) {
+      if (screenY + topBound < 0 || screenY + bottomBound > 172) {
         return;
       }
-      this.spriteDef.drawFrame(graphics, n3, n4, this.actionCode, this.frameIndex, this.palette, this.drawAlpha);
+      this.spriteDef.drawFrame(graphics, screenX, screenY, this.actionCode, this.frameIndex, this.palette, this.drawAlpha);
     }
   }
 
   /**
    * 本 Actor 碰撞盒与给定矩形是否相交（对应 CFR `public final boolean a(int,int,int,int)`）。
    * 用本实体的定点坐标（>>10 转像素）加碰撞盒偏移得到 AABB，与矩形 [n,n2,n3,n4] 做标准重叠测试。
-   * @param n 矩形左 @param n2 矩形上 @param n3 矩形右 @param n4 矩形下（均为像素）
+   * @param rectLeft 矩形左 @param rectTop 矩形上 @param rectRight 矩形右 @param rectBottom 矩形下（均为像素）
    */
   // public final boolean a(int, int, int, int) → a_IIII
-  intersectsRect(n: number, n2: number, n3: number, n4: number): boolean {
-    const n5 = (this.posX >> 10) + this.boxLeft;
-    const n6 = (this.posX >> 10) + this.boxRight;
-    const n7 = (this.posY >> 10) + this.boxTop;
-    const n8 = (this.posY >> 10) + this.boxBottom;
-    return n6 >= n && n5 <= n3 && n8 >= n2 && n7 <= n4;
+  intersectsRect(rectLeft: number, rectTop: number, rectRight: number, rectBottom: number): boolean {
+    const myLeft = (this.posX >> 10) + this.boxLeft;
+    const myRight = (this.posX >> 10) + this.boxRight;
+    const myTop = (this.posY >> 10) + this.boxTop;
+    const myBottom = (this.posY >> 10) + this.boxBottom;
+    return myRight >= rectLeft && myLeft <= rectRight && myBottom >= rectTop && myTop <= rectBottom;
   }
 
   /**
    * 两 Actor 间 AABB 碰撞判定（对应 CFR `public final boolean b(tjge.h)`）。
    * 任一方碰撞盒退化（宽或高为 0）则不碰撞；否则取对方 AABB 后委托 intersectsRect。
-   * @param h2 待判定的另一 Actor
+   * @param other 待判定的另一 Actor
    */
   // public final boolean b(tjge.h) → b_Th
-  collidesWith(h2: ActorBase): boolean {
-    if (this.boxLeft === this.boxRight || this.boxTop === this.boxBottom || h2.boxLeft === h2.boxRight || h2.boxTop === h2.boxBottom) {
+  collidesWith(other: ActorBase): boolean {
+    if (this.boxLeft === this.boxRight || this.boxTop === this.boxBottom || other.boxLeft === other.boxRight || other.boxTop === other.boxBottom) {
       return false;
     }
-    const n = (h2.posX >> 10) + h2.boxLeft;
-    const n2 = (h2.posX >> 10) + h2.boxRight;
-    const n3 = (h2.posY >> 10) + h2.boxTop;
-    const n4 = (h2.posY >> 10) + h2.boxBottom;
-    return this.intersectsRect(n, n3, n2, n4);
+    const otherLeft = (other.posX >> 10) + other.boxLeft;
+    const otherRight = (other.posX >> 10) + other.boxRight;
+    const otherTop = (other.posY >> 10) + other.boxTop;
+    const otherBottom = (other.posY >> 10) + other.boxBottom;
+    return this.intersectsRect(otherLeft, otherTop, otherRight, otherBottom);
   }
 
   /**
@@ -334,24 +334,24 @@ export class ActorBase {
     if (this.velX > 0) {
       return false;
     }
-    const n = ((this.posX + this.velX >> 10) + this.boxLeft) >> 3;
-    const n2 = ((this.posX >> 10) + this.boxLeft) >> 3;
-    const n3 = ((this.posY + this.velY >> 10) + this.boxTop + 1) >> 3;
-    const n4 = ((this.posY + this.velY >> 10) + this.boxBottom - 1) >> 3;
-    let n5 = n3;
-    while (n5 <= n4) {
-      let n6 = n2;
-      while (n6 >= n) {
-        const n7 = this.tileAt(n6, n5);
-        if (n7 === 1) {
+    const endCol = ((this.posX + this.velX >> 10) + this.boxLeft) >> 3;
+    const startCol = ((this.posX >> 10) + this.boxLeft) >> 3;
+    const topRow = ((this.posY + this.velY >> 10) + this.boxTop + 1) >> 3;
+    const bottomRow = ((this.posY + this.velY >> 10) + this.boxBottom - 1) >> 3;
+    let row = topRow;
+    while (row <= bottomRow) {
+      let col = startCol;
+      while (col >= endCol) {
+        const tile = this.tileAt(col, row);
+        if (tile === 1) {
           this.targetVelX = 0;
           this.posX &= 0xfffffc00 | 0;
-          this.velX = (((n6 << 3) + 9 << 10) - (this.posX + (this.boxLeft << 10))) | 0;
+          this.velX = (((col << 3) + 9 << 10) - (this.posX + (this.boxLeft << 10))) | 0;
           return true;
         }
-        --n6;
+        --col;
       }
-      ++n5;
+      ++row;
     }
     return false;
   }
@@ -366,24 +366,24 @@ export class ActorBase {
     if (this.velX < 0) {
       return false;
     }
-    const n = ((this.posX >> 10) + this.boxRight) >> 3;
-    const n2 = ((this.posX + this.velX >> 10) + this.boxRight) >> 3;
-    const n3 = ((this.posY + this.velY >> 10) + this.boxTop + 1) >> 3;
-    const n4 = ((this.posY + this.velY >> 10) + this.boxBottom - 1) >> 3;
-    let n5 = n3;
-    while (n5 <= n4) {
-      let n6 = n;
-      while (n6 <= n2) {
-        const n7 = this.tileAt(n6, n5);
-        if (n7 === 1) {
+    const startCol = ((this.posX >> 10) + this.boxRight) >> 3;
+    const endCol = ((this.posX + this.velX >> 10) + this.boxRight) >> 3;
+    const topRow = ((this.posY + this.velY >> 10) + this.boxTop + 1) >> 3;
+    const bottomRow = ((this.posY + this.velY >> 10) + this.boxBottom - 1) >> 3;
+    let row = topRow;
+    while (row <= bottomRow) {
+      let col = startCol;
+      while (col <= endCol) {
+        const tile = this.tileAt(col, row);
+        if (tile === 1) {
           this.targetVelX = 0;
           this.posX &= 0xfffffc00 | 0;
-          this.velX = (((n6 << 3) - 1 << 10) - (this.posX + (this.boxRight << 10))) | 0;
+          this.velX = (((col << 3) - 1 << 10) - (this.posX + (this.boxRight << 10))) | 0;
           return true;
         }
-        ++n6;
+        ++col;
       }
-      ++n5;
+      ++row;
     }
     return false;
   }
@@ -398,23 +398,23 @@ export class ActorBase {
     if (this.velY > 0) {
       return false;
     }
-    const n = ((this.posY >> 10) + this.boxTop) >> 3;
-    const n2 = ((this.posY + this.velY >> 10) + this.boxTop) >> 3;
-    const n3 = ((this.posX + this.velX >> 10) + this.boxLeft + 1) >> 3;
-    const n4 = ((this.posX + this.velX >> 10) + this.boxRight - 1) >> 3;
-    let n5 = n3;
-    while (n5 <= n4) {
-      let n6 = n;
-      while (n6 >= n2) {
-        const n7 = this.tileAt(n5, n6);
-        if (n7 === 1) {
+    const startRow = ((this.posY >> 10) + this.boxTop) >> 3;
+    const endRow = ((this.posY + this.velY >> 10) + this.boxTop) >> 3;
+    const leftCol = ((this.posX + this.velX >> 10) + this.boxLeft + 1) >> 3;
+    const rightCol = ((this.posX + this.velX >> 10) + this.boxRight - 1) >> 3;
+    let col = leftCol;
+    while (col <= rightCol) {
+      let row = startRow;
+      while (row >= endRow) {
+        const tile = this.tileAt(col, row);
+        if (tile === 1) {
           this.targetVelY = 0;
-          this.velY = (((n6 << 3) + 9 << 10) - (this.posY + (this.boxTop << 10))) | 0;
+          this.velY = (((row << 3) + 9 << 10) - (this.posY + (this.boxTop << 10))) | 0;
           return true;
         }
-        --n6;
+        --row;
       }
-      ++n5;
+      ++col;
     }
     return false;
   }
@@ -422,11 +422,11 @@ export class ActorBase {
   /**
    * 碰撞分组测试（对应 CFR `protected final boolean b(int)`）：按位与本实体的碰撞类型掩码
    * collisionTypeMask（玩家/敌人/子弹等分组），判断是否属于给定分组。
-   * @param n 待测分组位掩码
+   * @param flag 待测分组位掩码
    */
   // protected final boolean b(int) → b_I
-  public hasCollisionFlag(n: number): boolean {
-    return (this.collisionTypeMask & n) !== 0;
+  public hasCollisionFlag(flag: number): boolean {
+    return (this.collisionTypeMask & flag) !== 0;
   }
 
   /**
@@ -440,20 +440,20 @@ export class ActorBase {
   /**
    * 被另一 Actor 命中时的响应虚方法（对应 CFR `protected boolean a(tjge.h)`）。
    * 返回 true 表示本次命中有效（将触发命中方的 onCollide）。基类返回 false，由可受击子类覆写。
-   * @param h2 命中本实体的来源 Actor
+   * @param source 命中本实体的来源 Actor
    */
   // protected boolean a(tjge.h) → a_Th
-  public onHitBy(h2: ActorBase): boolean {
+  public onHitBy(source: ActorBase): boolean {
     return false;
   }
 
   /**
    * 成功命中另一 Actor 后本实体的回调虚方法（对应 CFR `protected void c(tjge.h)`）。
    * 在 checkCollisions 中当对方 onHitBy 返回 true 后调用。基类为空，由子类覆写（如子弹消失、记分等）。
-   * @param h2 被本实体命中的目标 Actor
+   * @param other 被本实体命中的目标 Actor
    */
   // protected void c(tjge.h) → c_Th
-  public onCollide(h2: ActorBase): void {
+  public onCollide(other: ActorBase): void {
   }
 
   /**
@@ -474,13 +474,13 @@ export class ActorBase {
     if (this.collisionTypeMask === 0) {
       return;
     }
-    let n = 0;
-    while (n < jref().drawCount) {
-      const h2 = jref().drawList[n];
-      if (h2 != null && h2 !== this && h2.alive && this.collidesWith(h2) && h2.onHitBy(this)) {
-        this.onCollide(h2);
+    let i = 0;
+    while (i < jref().drawCount) {
+      const other = jref().drawList[i];
+      if (other != null && other !== this && other.alive && this.collidesWith(other) && other.onHitBy(this)) {
+        this.onCollide(other);
       }
-      ++n;
+      ++i;
     }
   }
 
@@ -488,12 +488,12 @@ export class ActorBase {
    * 同帧防重复碰撞判定（对应 CFR `protected final boolean d(tjge.h)`）：比较对方 uniqueId 与
    * 上次记录的 lastContactId，若不同则更新记录并返回 true（视为新接触），相同则返回 false，
    * 避免同一对实体在一次接触中被反复结算。
-   * @param h2 当前接触的 Actor
+   * @param other 当前接触的 Actor
    */
   // protected final boolean d(tjge.h) → d_Th
-  public isNewContact(h2: ActorBase): boolean {
-    if (h2.uniqueId !== this.lastContactId) {
-      this.lastContactId = h2.uniqueId;
+  public isNewContact(other: ActorBase): boolean {
+    if (other.uniqueId !== this.lastContactId) {
+      this.lastContactId = other.uniqueId;
       return true;
     }
     return false;
@@ -502,11 +502,11 @@ export class ActorBase {
   /**
    * 地图瓦片属性查询（对应 CFR `protected final int a(int,int)`）：以 8px 网格坐标 (n,n2) 采样
    * 当前摄像机视野下的碰撞层，返回瓦片属性值（1 表示实心，供地形碰撞方法判定阻挡）。
-   * @param n 网格列（×8 转像素）
-   * @param n2 网格行（×8 转像素）
+   * @param col 网格列（×8 转像素）
+   * @param row 网格行（×8 转像素）
    */
   // protected final int a(int, int) → a_II
-  public tileAt(n: number, n2: number): number {
-    return jref().camera.sampleCollision(n << 3, n2 << 3);
+  public tileAt(col: number, row: number): number {
+    return jref().camera.sampleCollision(col << 3, row << 3);
   }
 }
