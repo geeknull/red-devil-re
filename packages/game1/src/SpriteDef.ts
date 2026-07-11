@@ -82,45 +82,45 @@ export class SpriteDef {
   }
 
   /** d.a(int)：返回第 n 个 sequence 的帧数 s[n]。 */
-  getSequenceFrameCount(n: number): number {
-    return this.sequenceFrameCounts[n];
+  getSequenceFrameCount(sequenceId: number): number {
+    return this.sequenceFrameCounts[sequenceId];
   }
 
   /**
    * d.a(Graphics,int,int,int,int,int,int)：按 sequence/帧拼帧绘制。
-   * n=x, n2=y, n3=sequence索引(高2位为水平/垂直翻转标志), n4=帧索引, n5/n6=透传给图集绘制(缩放/旋转)。
+   * x/y=坐标, sequence=序列索引(高2位为水平/垂直翻转标志), frame=帧索引, drawParamA/rotation=透传给图集绘制(缩放/旋转, rotation===270 时交换)。
    */
-  paintSequenceFrame(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): void {
-    const n7 = n3 & MIRROR_FLAG; // Integer.MIN_VALUE (0x80000000)
-    const n8 = n3 & FLIP_VERTICAL_BIT;
-    const s = this.sequencePoseIndices[(n3 &= SEQUENCE_MASK)][n4];
-    const n9 = this.poseModuleCounts[s];
+  paintSequenceFrame(graphics: Graphics, x: number, y: number, sequence: number, frame: number, drawParamA: number, rotation: number): void {
+    const mirrorFlag = sequence & MIRROR_FLAG; // Integer.MIN_VALUE (0x80000000)
+    const flipFlag = sequence & FLIP_VERTICAL_BIT;
+    const pose = this.sequencePoseIndices[(sequence &= SEQUENCE_MASK)][frame];
+    const moduleCount = this.poseModuleCounts[pose];
     graphics.setClip(0, 0, 176, 208);
-    let n10 = 0;
-    while (n10 < n9) {
-      let n11: number;
-      let n12: number;
-      const s2 = this.poseModuleFrames[s][n10];
-      let by = this.poseModuleOffsetX[s][n10];
-      if (n7 !== 0) {
-        by = ((-by) << 24) >> 24; // (byte)(-by)：Java byte 取负带 i2b 截断，-128 取负仍为 -128
+    let i = 0;
+    while (i < moduleCount) {
+      let drawY: number;
+      let drawX: number;
+      const module = this.poseModuleFrames[pose][i];
+      let offsetX = this.poseModuleOffsetX[pose][i];
+      if (mirrorFlag !== 0) {
+        offsetX = ((-offsetX) << 24) >> 24; // (byte)(-offsetX)：Java byte 取负带 i2b 截断，-128 取负仍为 -128
       }
-      let by2 = this.poseModuleOffsetY[s][n10];
-      if (n8 !== 0) {
-        by2 = ((-by2) << 24) >> 24; // (byte)(-by2)
+      let offsetY = this.poseModuleOffsetY[pose][i];
+      if (flipFlag !== 0) {
+        offsetY = ((-offsetY) << 24) >> 24; // (byte)(-offsetY)
       }
-      const by3 = by;
-      const by4 = by2;
-      const n13 = by4 + this.atlas.heights[s2];
-      if (n6 === 270) {
-        n12 = n - n13;
-        n11 = n2 + by3;
+      const shiftX = offsetX;
+      const shiftY = offsetY;
+      const rotatedHeight = shiftY + this.atlas.heights[module];
+      if (rotation === 270) {
+        drawX = x - rotatedHeight;
+        drawY = y + shiftX;
       } else {
-        n12 = n + by;
-        n11 = n2 + by2;
+        drawX = x + offsetX;
+        drawY = y + offsetY;
       }
-      this.atlas.drawSprite(graphics, n12, n11, s2 | n7 | n8, n5, n6);
-      ++n10;
+      this.atlas.drawSprite(graphics, drawX, drawY, module | mirrorFlag | flipFlag, drawParamA, rotation);
+      ++i;
     }
   }
 
@@ -164,84 +164,84 @@ export class SpriteDef {
    * d.b(int)：从 /res/a.bin 第 n 条目解析精灵帧定义。
    * 解析失败（异常）返回 null（保持原版吞异常返回 null 语义）。
    */
-  static loadFromBin(n: number): SpriteDef | null {
-    const d2 = new SpriteDef();
+  static loadFromBin(entryIndex: number): SpriteDef | null {
+    const spriteDef = new SpriteDef();
     try {
-      let n2: number;
-      const inputStream = GameMIDlet.openArchiveEntryStream("/res/a.bin", n)!;
-      d2.atlasId = GameMIDlet.readU16Le(inputStream);
-      if (SpriteDef.atlasTable[d2.atlasId] == null) {
-        SpriteDef.atlasTable[d2.atlasId] = SpriteAtlas.load(d2.atlasId);
+      let i: number;
+      const inputStream = GameMIDlet.openArchiveEntryStream("/res/a.bin", entryIndex)!;
+      spriteDef.atlasId = GameMIDlet.readU16Le(inputStream);
+      if (SpriteDef.atlasTable[spriteDef.atlasId] == null) {
+        SpriteDef.atlasTable[spriteDef.atlasId] = SpriteAtlas.load(spriteDef.atlasId);
       }
-      SpriteDef.atlasLoadedFlags[d2.atlasId] = true;
-      d2.atlas = SpriteDef.atlasTable[d2.atlasId]!;
-      SpriteDef.resourceToAtlasId[n] = d2.atlasId;
-      d2.poseCount = GameMIDlet.readU16Le(inputStream);
-      d2.poseModuleCounts = new Int16Array(d2.poseCount);
-      d2.poseModuleFrames = new Array<Int16Array>(d2.poseCount);
-      d2.poseModuleOffsetX = new Array<Int8Array>(d2.poseCount);
-      d2.poseModuleOffsetY = new Array<Int8Array>(d2.poseCount);
-      let n3 = 0;
-      while (n3 < d2.poseCount) {
-        d2.poseModuleCounts[n3] = GameMIDlet.readU16Le(inputStream);
-        d2.poseModuleFrames[n3] = new Int16Array(d2.poseModuleCounts[n3]);
-        d2.poseModuleOffsetX[n3] = new Int8Array(d2.poseModuleCounts[n3]);
-        d2.poseModuleOffsetY[n3] = new Int8Array(d2.poseModuleCounts[n3]);
-        n2 = 0;
-        while (n2 < d2.poseModuleCounts[n3]) {
-          d2.poseModuleFrames[n3][n2] = GameMIDlet.readByte(inputStream);
-          if (d2.poseModuleFrames[n3][n2] < 0) {
-            const sArray = d2.poseModuleFrames[n3];
-            const n4 = n2;
-            sArray[n4] = ((sArray[n4] + 256) << 16) >> 16; // (short)
+      SpriteDef.atlasLoadedFlags[spriteDef.atlasId] = true;
+      spriteDef.atlas = SpriteDef.atlasTable[spriteDef.atlasId]!;
+      SpriteDef.resourceToAtlasId[entryIndex] = spriteDef.atlasId;
+      spriteDef.poseCount = GameMIDlet.readU16Le(inputStream);
+      spriteDef.poseModuleCounts = new Int16Array(spriteDef.poseCount);
+      spriteDef.poseModuleFrames = new Array<Int16Array>(spriteDef.poseCount);
+      spriteDef.poseModuleOffsetX = new Array<Int8Array>(spriteDef.poseCount);
+      spriteDef.poseModuleOffsetY = new Array<Int8Array>(spriteDef.poseCount);
+      let poseIndex = 0;
+      while (poseIndex < spriteDef.poseCount) {
+        spriteDef.poseModuleCounts[poseIndex] = GameMIDlet.readU16Le(inputStream);
+        spriteDef.poseModuleFrames[poseIndex] = new Int16Array(spriteDef.poseModuleCounts[poseIndex]);
+        spriteDef.poseModuleOffsetX[poseIndex] = new Int8Array(spriteDef.poseModuleCounts[poseIndex]);
+        spriteDef.poseModuleOffsetY[poseIndex] = new Int8Array(spriteDef.poseModuleCounts[poseIndex]);
+        i = 0;
+        while (i < spriteDef.poseModuleCounts[poseIndex]) {
+          spriteDef.poseModuleFrames[poseIndex][i] = GameMIDlet.readByte(inputStream);
+          if (spriteDef.poseModuleFrames[poseIndex][i] < 0) {
+            const fixupArray = spriteDef.poseModuleFrames[poseIndex];
+            const idx = i;
+            fixupArray[idx] = ((fixupArray[idx] + 256) << 16) >> 16; // (short)
           }
-          d2.poseModuleOffsetX[n3][n2] = GameMIDlet.readByte(inputStream);
-          d2.poseModuleOffsetY[n3][n2] = GameMIDlet.readByte(inputStream);
-          ++n2;
+          spriteDef.poseModuleOffsetX[poseIndex][i] = GameMIDlet.readByte(inputStream);
+          spriteDef.poseModuleOffsetY[poseIndex][i] = GameMIDlet.readByte(inputStream);
+          ++i;
         }
-        ++n3;
+        ++poseIndex;
       }
       inputStream.read1();
       inputStream.read1();
       inputStream.read1();
       inputStream.read1();
-      d2.sequenceCount = GameMIDlet.readU16Le(inputStream);
-      d2.collisionBoxX = new Int8Array(d2.sequenceCount);
-      d2.collisionBoxY = new Int8Array(d2.sequenceCount);
-      d2.collisionBoxWidth = new Int8Array(d2.sequenceCount);
-      d2.collisionBoxHeight = new Int8Array(d2.sequenceCount);
-      d2.sequenceFrameCounts = new Int16Array(d2.sequenceCount);
-      d2.sequencePoseIndices = new Array<Int16Array>(d2.sequenceCount);
-      n2 = 0;
-      while (n2 < d2.sequenceCount) {
-        d2.collisionBoxX[n2] = GameMIDlet.readByte(inputStream);
-        d2.collisionBoxY[n2] = GameMIDlet.readByte(inputStream);
-        d2.collisionBoxWidth[n2] = GameMIDlet.readByte(inputStream);
-        d2.collisionBoxHeight[n2] = GameMIDlet.readByte(inputStream);
-        d2.sequenceFrameCounts[n2] = GameMIDlet.readU16Le(inputStream);
-        d2.sequencePoseIndices[n2] = new Int16Array(d2.sequenceFrameCounts[n2]);
-        let n5 = 0;
-        while (n5 < d2.sequenceFrameCounts[n2]) {
-          d2.sequencePoseIndices[n2][n5] = GameMIDlet.readByte(inputStream);
-          if (d2.sequencePoseIndices[n2][n5] < 0) {
-            const sArray = d2.sequencePoseIndices[n2];
-            const n6 = n5;
-            sArray[n6] = ((sArray[n6] + 256) << 16) >> 16; // (short)
+      spriteDef.sequenceCount = GameMIDlet.readU16Le(inputStream);
+      spriteDef.collisionBoxX = new Int8Array(spriteDef.sequenceCount);
+      spriteDef.collisionBoxY = new Int8Array(spriteDef.sequenceCount);
+      spriteDef.collisionBoxWidth = new Int8Array(spriteDef.sequenceCount);
+      spriteDef.collisionBoxHeight = new Int8Array(spriteDef.sequenceCount);
+      spriteDef.sequenceFrameCounts = new Int16Array(spriteDef.sequenceCount);
+      spriteDef.sequencePoseIndices = new Array<Int16Array>(spriteDef.sequenceCount);
+      i = 0;
+      while (i < spriteDef.sequenceCount) {
+        spriteDef.collisionBoxX[i] = GameMIDlet.readByte(inputStream);
+        spriteDef.collisionBoxY[i] = GameMIDlet.readByte(inputStream);
+        spriteDef.collisionBoxWidth[i] = GameMIDlet.readByte(inputStream);
+        spriteDef.collisionBoxHeight[i] = GameMIDlet.readByte(inputStream);
+        spriteDef.sequenceFrameCounts[i] = GameMIDlet.readU16Le(inputStream);
+        spriteDef.sequencePoseIndices[i] = new Int16Array(spriteDef.sequenceFrameCounts[i]);
+        let frameIndex = 0;
+        while (frameIndex < spriteDef.sequenceFrameCounts[i]) {
+          spriteDef.sequencePoseIndices[i][frameIndex] = GameMIDlet.readByte(inputStream);
+          if (spriteDef.sequencePoseIndices[i][frameIndex] < 0) {
+            const fixupArray = spriteDef.sequencePoseIndices[i];
+            const idx = frameIndex;
+            fixupArray[idx] = ((fixupArray[idx] + 256) << 16) >> 16; // (short)
           }
-          ++n5;
+          ++frameIndex;
         }
-        ++n2;
+        ++i;
       }
-      d2.boundsX = GameMIDlet.readU16Le(inputStream);
-      d2.boundsY = GameMIDlet.readU16Le(inputStream);
-      d2.boundsWidth = GameMIDlet.readU16Le(inputStream);
-      d2.boundsHeight = GameMIDlet.readU16Le(inputStream);
-      d2.atlasId = 0;
+      spriteDef.boundsX = GameMIDlet.readU16Le(inputStream);
+      spriteDef.boundsY = GameMIDlet.readU16Le(inputStream);
+      spriteDef.boundsWidth = GameMIDlet.readU16Le(inputStream);
+      spriteDef.boundsHeight = GameMIDlet.readU16Le(inputStream);
+      spriteDef.atlasId = 0;
       inputStream.close();
     } catch (exception) {
       return null;
     }
-    return d2;
+    return spriteDef;
   }
 
   // 静态初始化块：原版 static { d.b[0] = true; }
