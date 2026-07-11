@@ -511,38 +511,39 @@ export class BossActor extends ActorBase {
 
   /**
    * 被击中判定：仅接受带碰撞分组位 8（玩家子弹）且通过新接触判定 {@link ActorBase.isNewContact} 的来源，
-   * 且来源为 type10/type12 子弹。命中后按 `typeId` 扣血 `health -= h2.getDamage()`：
+   * 且来源为 type10/type12 子弹。命中后按 `typeId` 扣血 `health -= source.getDamage()`：
    * 血量归零则生成多簇 type12 爆炸碎片并抖屏（type11/21），未归零则置 `knockedBack=true` 触发击退归位。
-   * type11 在玩家高度过高或离相机过远时仅消弹不扣血；type21 在通关锁定态（`cP===0`）仅消弹；
+   * type11 在玩家高度过高或离相机过远时仅消弹不扣血（否则**落穿**到 type21 分支扣血/爆炸）；type21 在通关锁定态（`cP===0`）仅消弹；
    * type13 仅在帧组 1-3 且子弹带分组位 2 时扣血；type19 仅在特定区域内允许进入击退死亡。
-   * @param h2 命中来源 Actor（玩家子弹）
+   * @param source 命中来源 Actor（玩家子弹）
    * @returns 是否消耗/响应了此次命中（true 表示子弹应被吸收）
    * 对应 CFR c.java:416-473。
    */
   // a(tjge.h) → a_Th
-  onHitBy(h2: ActorBase): boolean {
-    if (!h2.hasCollisionFlag(8) || !this.isNewContact(h2)) {
+  onHitBy(source: ActorBase): boolean {
+    if (!source.hasCollisionFlag(8) || !this.isNewContact(source)) {
       return false;
     }
-    if (h2.typeId === ActorType.DirectBullet || h2.typeId === ActorType.ExplosionDebris) {
+    if (source.typeId === ActorType.DirectBullet || source.typeId === ActorType.ExplosionDebris) {
       switch (this.typeId) {
         case ActorType.MobileGunEmplacement: {
-          if (h2.posY >= this.posY - px(20) || Math.abs(this.posX - this.canvas.cameraX) > px(150)) {
+          if (source.posY >= this.posY - px(20) || Math.abs(this.posX - this.canvas.cameraX) > px(150)) {
             return true;
           }
         }
+        // falls through：type11 未消弹时落穿到 type21 分支扣血/爆炸（CFR c.java 有意 fall-through）
         case ActorType.FinalBoss: {
           if (this.typeId === ActorType.FinalBoss && this.cP === 0) {
             return true;
           }
-          this.health -= h2.getDamage();
+          this.health -= source.getDamage();
           if (this.health <= 0) {
-            let n = 0;
-            while (n < 6) {
-              let n2 = 30 - GameMIDlet.randomBelow(60);
-              let n3 = 16 + GameMIDlet.randomBelow(32);
-              ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + (n2 <<= 10), this.posY - (n3 <<= 10), 2, null);
-              ++n;
+            let i = 0;
+            while (i < 6) {
+              let offsetX = 30 - GameMIDlet.randomBelow(60);
+              let offsetY = 16 + GameMIDlet.randomBelow(32);
+              ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + (offsetX <<= 10), this.posY - (offsetY <<= 10), 2, null);
+              ++i;
             }
             this.canvas.startShake(4);
           } else {
@@ -551,7 +552,7 @@ export class BossActor extends ActorBase {
           return true;
         }
         case ActorType.PatrolLauncher: {
-          this.health -= h2.getDamage();
+          this.health -= source.getDamage();
           if (this.health <= 0) {
             ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, 0, null);
           } else {
@@ -561,13 +562,13 @@ export class BossActor extends ActorBase {
         }
         case ActorType.DestructibleConsole: {
           if (this.frameGroupIndex <= 0 || this.frameGroupIndex >= 4) break;
-          if (h2.hasCollisionFlag(2)) {
-            this.health -= h2.getDamage();
+          if (source.hasCollisionFlag(2)) {
+            this.health -= source.getDamage();
           }
           return true;
         }
         case ActorType.HelicopterBoss: {
-          this.health -= h2.getDamage();
+          this.health -= source.getDamage();
           if (this.health <= 0 && this.axisOrPhase === 0 && this.posX > this.canvas.cameraX && this.posX < this.canvas.cameraX + this.canvas.viewportWidth - px(20)) {
             this.knockedBack = true;
           }
@@ -596,38 +597,38 @@ export class BossActor extends ActorBase {
    * 计算子弹的水平/垂直初速 `targetVelX/targetVelY`、垂直加速度 `accelY` 与最大下落速度 `maxVelY`，
    * 使弹道落向玩家。近距离（`<40960`）走固定弱抛参数，远距离按距离迭代求解抛物初速（上限 15360）。
    * 由 type11 Boss 发射首发子弹时调用（见 {@link update}）。
-   * @param k2 待赋初速的子弹，为 null 时直接返回
+   * @param projectile 待赋初速的子弹，为 null 时直接返回
    * 对应 CFR c.java:481-510。
    */
   // a(tjge.k) → a_Tk
-  aimProjectile(k2: ProjectileActor | null): void {
-    if (k2 == null) {
+  aimProjectile(projectile: ProjectileActor | null): void {
+    if (projectile == null) {
       return;
     }
-    let n = 0;
-    let n2 = 1;
-    let n3 = Math.abs(this.canvas.player.posX - k2.posX);
-    if (n3 < px(40)) {
-      k2.targetVelX = this.actionHighByte === 0 ? px(-2) : px(2);
-      k2.targetVelY = px(-5);
-      k2.accelY = px(2);
-      k2.maxVelY = px(10);
+    let vy = 0;
+    let accel = 1;
+    let dist = Math.abs(this.canvas.player.posX - projectile.posX);
+    if (dist < px(40)) {
+      projectile.targetVelX = this.actionHighByte === 0 ? px(-2) : px(2);
+      projectile.targetVelY = px(-5);
+      projectile.accelY = px(2);
+      projectile.maxVelY = px(10);
       return;
     }
-    const n4 = (n3 / px(5)) | 0;
-    const n5 = n4 >>> 1;
-    let n6 = 0;
-    while (n6 < n5) {
-      n2 += n6;
-      ++n6;
+    const frames = (dist / px(5)) | 0;
+    const halfFrames = frames >>> 1;
+    let i = 0;
+    while (i < halfFrames) {
+      accel += i;
+      ++i;
     }
-    n3 = (n3 >>> 2) * 3;
-    n2 = ((n3 >>> 1) / n2) | 0;
-    n = (n5 - 1) * n2;
-    n = Math.min(px(15), n);
-    k2.targetVelX = this.actionHighByte === 0 ? px(-5) : px(5);
-    k2.targetVelY = -n + px(2);
-    k2.accelY = n2;
-    k2.maxVelY = n;
+    dist = (dist >>> 2) * 3;
+    accel = ((dist >>> 1) / accel) | 0;
+    vy = (halfFrames - 1) * accel;
+    vy = Math.min(px(15), vy);
+    projectile.targetVelX = this.actionHighByte === 0 ? px(-5) : px(5);
+    projectile.targetVelY = -vy + px(2);
+    projectile.accelY = accel;
+    projectile.maxVelY = vy;
   }
 }
