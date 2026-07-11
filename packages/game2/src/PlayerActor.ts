@@ -329,164 +329,210 @@ export class PlayerActor extends ActorBase {
   private runActionStateMachine(): void {
     const dir: number = this.actionHighByte == 0 ? 1 : -1;
     switch (this.frameGroupIndex) {
-      case 24: {
-        if (this.frameIndex > 3) {
-          this.checkCollisions();
-        }
-      }
+      case 24: this.stepActionRollAttack(); return;
       case 8:
       case 10:
       case 27:
       case 29:
       case 30:
-      case 32: {
-        if (!this.isAnimationDone()) break;
-        this.setAction(0 | this.actionHighByte);
-        return;
-      }
-      case 7: {
-        if (!this.isAnimationDone()) break;
-        this.setAction(0x20 | this.actionHighByte);
-        return;
-      }
+      case 32: this.stepActionFinishToIdle(); return;
+      case 7: this.stepActionFinishToFall(); return;
       case 12:
-      case 13: {
-        let spawnY: number;
-        if (this.isAnimationDone()) {
-          if (this.frameGroupIndex == 13) {
-            this.setAction(2 | this.actionHighByte);
-            return;
-          }
-          this.setAction(0 | this.actionHighByte);
-          return;
-        }
-        if (this.frameIndex != 2) break;
-        const grenadeSlot: number = this.frameGroupIndex == 12 ? 0 : 1;
-        const unusedDead: boolean = false;
-        const fireAction: number = 6 | this.actionHighByte;
-        const spawnX: number = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, grenadeSlot, 0);
-        const grenade: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, fireAction, spawnX, spawnY = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, grenadeSlot, 1), 26, null);
-        if (grenade == null) break;
-        PlayerActor.ammoCurrent[2] = PlayerActor.ammoCurrent[2] - 1;
-        grenade.targetVelX = this.actionHighByte == 0 ? px(8) : px(-8);
-        grenade.targetVelY = -6656;
-        grenade.accelY = 1128;
-        grenade.maxVelY = px(15);
-        return;
-      }
+      case 13: this.stepActionThrowGrenade(); return;
       case 9:
       case 11:
       case 28:
-      case 31: {
-        if (!this.isAnimationDone()) break;
+      case 31: this.stepActionFinishToRun(); return;
+      case 25: this.stepActionDashHalt(dir); return;
+      case 26: this.stepActionEnterVertical(dir); return;
+      case 22: this.stepActionVaultCeiling(); return;
+      case 14:
+      case 15:
+      case 16: this.stepActionAirborne(dir); return;
+      case 17: this.stepActionVaultLaunch(); return;
+      case 35: this.stepActionDashJump(dir); return;
+      case 23: this.stepActionRollRecover(); return;
+      case 5:
+      case 6: this.stepActionHurtRecover(); return;
+      case 3: this.stepActionDeath(); return;
+      case 4: this.stepActionVictory(); return;
+    }
+  }
+
+  /** frameGroupIndex 24（翻滚撞击：前段判碰撞），随后落穿至 {@link stepActionFinishToIdle}（原 case24→case8 fall-through）。 */
+  private stepActionRollAttack(): void {
+    if (this.frameIndex > 3) {
+      this.checkCollisions();
+    }
+    this.stepActionFinishToIdle();
+  }
+
+  /** frameGroupIndex 8/10/27/29/30/32：动画播完→回站立(0)。原退出外层 switch 的 break 已改 return。 */
+  private stepActionFinishToIdle(): void {
+    if (!this.isAnimationDone()) return;
+    this.setAction(0 | this.actionHighByte);
+    return;
+  }
+
+  /** frameGroupIndex 7：动画播完→动作 0x20。原退出外层 switch 的 break 已改 return。 */
+  private stepActionFinishToFall(): void {
+    if (!this.isAnimationDone()) return;
+    this.setAction(0x20 | this.actionHighByte);
+    return;
+  }
+
+  /** frameGroupIndex 12/13：投雷（关键帧 2 生成手雷投掷物）。原退出外层 switch 的 break 已改 return。 */
+  private stepActionThrowGrenade(): void {
+    let spawnY: number;
+    if (this.isAnimationDone()) {
+      if (this.frameGroupIndex == 13) {
         this.setAction(2 | this.actionHighByte);
         return;
       }
-      case 25: {
-        if ((this.reserved & 1) != 0) {
-          this.actionSubTimer = 0;
-          this.targetVelX = px(8) * dir;
-          this.setAction(0x17 | this.actionHighByte);
-          return;
-        }
-        if ((this.reserved & 4) != 0) break;
-        this.targetVelX = px(8) * dir;
-        return;
-      }
-      case 26: {
-        if ((this.reserved & 4) == 0) {
-          this.targetVelX = px(8) * dir;
-        }
-        if (!this.isAnimationDone()) break;
-        this.setAction(0x19 | this.actionHighByte);
-        return;
-      }
-      case 22: {
-        if (!this.isAnimationDone()) break;
-        if (this.ceilingBlocked) {
-          this.posY -= px(8);
-          this.reserved &= 0xFFFFFFFD;
-          this.setAction(0 | this.actionHighByte);
-          this.canvas.inputAction = 0;
-          return;
-        }
-        this.posY += px(24);
-        this.setAction(0x12 | this.actionHighByte);
-        return;
-      }
-      case 14:
-      case 15:
-      case 16: {
-        if (this.vaultLocked) {
-          this.vaultLocked = false;
-          this.canJump = false;
-          this.setAction(0x11 | this.actionHighByte);
-          return;
-        }
-        if (this.airborneJumping) {
-          this.targetVelX = (this.canJump ? PlayerActor.jumpVelocityX[this.vaultType] : px(5)) * dir;
-        } else if (--this.knockbackTimer < 0) {
-          this.targetVelX = 0;
-        }
-        if ((this.reserved & 1) != 0) {
-          this.targetVelX = 0;
-          this.setAction(0 | this.actionHighByte);
-          return;
-        }
-        if (this.frameGroupIndex == 15 && this.targetVelY > 3120) {
-          this.setAction(0x10 | this.actionHighByte);
-          return;
-        }
-        if (this.frameGroupIndex != 14 || this.targetVelY < 0) break;
-        this.setAction(0xF | this.actionHighByte);
-        return;
-      }
-      case 17: {
-        if (this.vaultType < 2 || this.vaultType > 3) {
-          this.posY += px(-12);
-          this.targetVelY = px(-15);
-          this.actionSubTimer = 0;
-        }
-        this.setAction(0x23 | this.actionHighByte);
-        return;
-      }
-      case 35: {
-        if (this.actionSubTimer++ > 2) {
-          this.setAction(0x10 | this.actionHighByte);
-        }
-        this.targetVelX = (this.canJump ? px(8) : px(5)) * dir;
-        return;
-      }
-      case 23: {
-        if (this.actionSubTimer++ <= 4) break;
-        if (this.isFootOnGround()) {
-          this.setAction(0 | this.actionHighByte);
-        } else {
-          this.setAction(2 | this.actionHighByte);
-        }
-        this.targetVelX = 0;
-        return;
-      }
-      case 5:
-      case 6: {
-        if ((this.reserved & 1) == 0 || !this.isAnimationDone()) break;
-        if (this.health <= 0) {
-          this.setAction(3 | this.actionHighByte);
-          return;
-        }
-        this.setAction(0 | this.actionHighByte);
-        return;
-      }
-      case 3: {
-        if (!this.isAnimationDone()) break;
-        this.setAction(4 | this.actionHighByte);
-        return;
-      }
-      case 4: {
-        if (!this.isAnimationDone()) break;
-        this.canvas.showResult(false);
-      }
+      this.setAction(0 | this.actionHighByte);
+      return;
     }
+    if (this.frameIndex != 2) return;
+    const grenadeSlot: number = this.frameGroupIndex == 12 ? 0 : 1;
+    const unusedDead: boolean = false;
+    const fireAction: number = 6 | this.actionHighByte;
+    const spawnX: number = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, grenadeSlot, 0);
+    const grenade: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, fireAction, spawnX, spawnY = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, grenadeSlot, 1), 26, null);
+    if (grenade == null) return;
+    PlayerActor.ammoCurrent[2] = PlayerActor.ammoCurrent[2] - 1;
+    grenade.targetVelX = this.actionHighByte == 0 ? px(8) : px(-8);
+    grenade.targetVelY = -6656;
+    grenade.accelY = 1128;
+    grenade.maxVelY = px(15);
+    return;
+  }
+
+  /** frameGroupIndex 9/11/28/31：动画播完→动作 2。原退出外层 switch 的 break 已改 return。 */
+  private stepActionFinishToRun(): void {
+    if (!this.isAnimationDone()) return;
+    this.setAction(2 | this.actionHighByte);
+    return;
+  }
+
+  /** frameGroupIndex 25：冲刺急停/回中。原退出外层 switch 的 break 已改 return。 */
+  private stepActionDashHalt(dir: number): void {
+    if ((this.reserved & 1) != 0) {
+      this.actionSubTimer = 0;
+      this.targetVelX = px(8) * dir;
+      this.setAction(0x17 | this.actionHighByte);
+      return;
+    }
+    if ((this.reserved & 4) != 0) return;
+    this.targetVelX = px(8) * dir;
+    return;
+  }
+
+  /** frameGroupIndex 26：进入竖版态。原退出外层 switch 的 break 已改 return。 */
+  private stepActionEnterVertical(dir: number): void {
+    if ((this.reserved & 4) == 0) {
+      this.targetVelX = px(8) * dir;
+    }
+    if (!this.isAnimationDone()) return;
+    this.setAction(0x19 | this.actionHighByte);
+    return;
+  }
+
+  /** frameGroupIndex 22：翻越天花板顶住后的落位。原退出外层 switch 的 break 已改 return。 */
+  private stepActionVaultCeiling(): void {
+    if (!this.isAnimationDone()) return;
+    if (this.ceilingBlocked) {
+      this.posY -= px(8);
+      this.reserved &= 0xFFFFFFFD;
+      this.setAction(0 | this.actionHighByte);
+      this.canvas.inputAction = 0;
+      return;
+    }
+    this.posY += px(24);
+    this.setAction(0x12 | this.actionHighByte);
+    return;
+  }
+
+  /** frameGroupIndex 14/15/16：跳跃/空中各阶段。原退出外层 switch 的 break 已改 return。 */
+  private stepActionAirborne(dir: number): void {
+    if (this.vaultLocked) {
+      this.vaultLocked = false;
+      this.canJump = false;
+      this.setAction(0x11 | this.actionHighByte);
+      return;
+    }
+    if (this.airborneJumping) {
+      this.targetVelX = (this.canJump ? PlayerActor.jumpVelocityX[this.vaultType] : px(5)) * dir;
+    } else if (--this.knockbackTimer < 0) {
+      this.targetVelX = 0;
+    }
+    if ((this.reserved & 1) != 0) {
+      this.targetVelX = 0;
+      this.setAction(0 | this.actionHighByte);
+      return;
+    }
+    if (this.frameGroupIndex == 15 && this.targetVelY > 3120) {
+      this.setAction(0x10 | this.actionHighByte);
+      return;
+    }
+    if (this.frameGroupIndex != 14 || this.targetVelY < 0) return;
+    this.setAction(0xF | this.actionHighByte);
+    return;
+  }
+
+  /** frameGroupIndex 17：翻越起跳。原 case 以 return 收尾。 */
+  private stepActionVaultLaunch(): void {
+    if (this.vaultType < 2 || this.vaultType > 3) {
+      this.posY += px(-12);
+      this.targetVelY = px(-15);
+      this.actionSubTimer = 0;
+    }
+    this.setAction(0x23 | this.actionHighByte);
+    return;
+  }
+
+  /** frameGroupIndex 35：冲刺跳。原 case 以 return 收尾。 */
+  private stepActionDashJump(dir: number): void {
+    if (this.actionSubTimer++ > 2) {
+      this.setAction(0x10 | this.actionHighByte);
+    }
+    this.targetVelX = (this.canJump ? px(8) : px(5)) * dir;
+    return;
+  }
+
+  /** frameGroupIndex 23：翻滚恢复。原退出外层 switch 的 break 已改 return。 */
+  private stepActionRollRecover(): void {
+    if (this.actionSubTimer++ <= 4) return;
+    if (this.isFootOnGround()) {
+      this.setAction(0 | this.actionHighByte);
+    } else {
+      this.setAction(2 | this.actionHighByte);
+    }
+    this.targetVelX = 0;
+    return;
+  }
+
+  /** frameGroupIndex 5/6：受击恢复。原退出外层 switch 的 break 已改 return。 */
+  private stepActionHurtRecover(): void {
+    if ((this.reserved & 1) == 0 || !this.isAnimationDone()) return;
+    if (this.health <= 0) {
+      this.setAction(3 | this.actionHighByte);
+      return;
+    }
+    this.setAction(0 | this.actionHighByte);
+    return;
+  }
+
+  /** frameGroupIndex 3：死亡动画播完→结算动作 4。原退出外层 switch 的 break 已改 return。 */
+  private stepActionDeath(): void {
+    if (!this.isAnimationDone()) return;
+    this.setAction(4 | this.actionHighByte);
+    return;
+  }
+
+  /** frameGroupIndex 4：通关结算动画播完→showResult(false)。原退出外层 switch 的 break 已改 return；末尾自然落出。 */
+  private stepActionVictory(): void {
+    if (!this.isAnimationDone()) return;
+    this.canvas.showResult(false);
   }
 
   /**
@@ -532,308 +578,339 @@ export class PlayerActor extends ActorBase {
     ++this.inputCounter;
     const dir: number = this.actionHighByte == 0 ? 1 : -1;
     switch (action) {
-      case 1: {
-        if ((this.reserved & 1) != 0) {
-          if (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) {
-            if (this.actionHighByte != 0) {
-              if (this.frameGroupIndex == 2 && !this.isFootOnGround()) break;
-              this.targetVelX = px(-8);
-              this.setAction(-2147483647);
-              return;
-            }
-            this.setAction(this.frameGroupIndex | MIRROR_FLAG);
-            return;
-          }
-          if (this.frameGroupIndex != 1) break;
-          if (this.actionHighByte == 0) {
-            this.targetVelX = 0;
-            this.setAction(MIRROR_FLAG);
-            return;
-          }
-          if (this.targetVelX != 0) break;
-          this.targetVelX = px(-8);
-          return;
-        }
-        if ((this.reserved & 4) != 0) {
-          this.targetVelX = px(-10);
-          this.targetVelY = 0;
-          return;
-        }
-        if ((this.reserved & 2) == 0) break;
-        if (this.actionHighByte == 0) {
-          this.setAction(this.frameGroupIndex | MIRROR_FLAG);
-          this.canvas.inputAction = 0;
-          return;
-        }
-        if (this.collideLeft()) break;
-        this.airborneJumping = false;
-        this.reserved &= 0xFFFFFFFD;
-        this.posX -= px(8);
-        this.posY += px(8);
-        this.targetVelX = px(-8);
-        this.targetVelY = px(12);
-        this.accelY = px(4);
-        this.setAction(-2147483632);
-        return;
-      }
-      case 2: {
-        if ((this.reserved & 1) != 0) {
-          if (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) {
-            if (this.actionHighByte == 0) {
-              if (this.frameGroupIndex == 2 && !this.isFootOnGround()) break;
-              this.targetVelX = px(8);
-              this.setAction(1);
-              return;
-            }
-            this.setAction(this.frameGroupIndex);
-            return;
-          }
-          if (this.frameGroupIndex != 1) break;
-          if (this.actionHighByte != 0) {
-            this.targetVelX = 0;
-            this.setAction(0);
-            return;
-          }
-          if (this.targetVelX != 0) break;
-          this.targetVelX = px(8);
-          return;
-        }
-        if ((this.reserved & 4) != 0) {
-          this.targetVelX = px(10);
-          this.targetVelY = 0;
-          return;
-        }
-        if ((this.reserved & 2) == 0) break;
-        if (this.actionHighByte != 0) {
-          this.setAction(this.frameGroupIndex);
-          this.canvas.inputAction = 0;
-          return;
-        }
-        if (this.collideRight()) break;
-        this.airborneJumping = false;
-        this.reserved &= 0xFFFFFFFD;
-        this.posX += px(8);
-        this.posY += px(8);
-        this.targetVelX = px(8);
-        this.targetVelY = px(12);
-        this.accelY = px(4);
-        this.setAction(16);
-        return;
-      }
+      case 1: this.handleInputLeft(); return;
+      case 2: this.handleInputRight(); return;
       case 64:
-      case 128: {
-        if ((this.reserved & 1) != 0) {
-          if (this.frameGroupIndex == 2) {
-            if (!this.isFootOnGround()) break;
-            this.setAction(0 | this.actionHighByte);
-            return;
-          }
-          if (this.actionHighByte == 0 && this.canvas.inputAction == 64) {
-            this.setAction(this.frameGroupIndex | MIRROR_FLAG);
-            return;
-          }
-          if (this.actionHighByte != 0 && this.canvas.inputAction == 128) {
-            this.setAction(this.frameGroupIndex);
-            return;
-          }
-          this.vaultType = this.probeVault();
-          if (this.vaultType == 2 || this.vaultType == 3) {
-            this.canJump = false;
-            this.posX = this.vaultTargetX;
-            this.setAction(0x11 | this.actionHighByte);
-          } else {
-            if (this.vaultType == 5) {
-              this.canJump = false;
-            }
-            this.posY -= px(5);
-            this.setAction(0xE | this.actionHighByte);
-          }
-          this.targetVelX = PlayerActor.jumpVelocityX[this.vaultType] * dir;
-          this.targetVelY = PlayerActor.jumpVelocityY[this.vaultType];
-          this.airborneJumping = true;
-          this.accelY = px(4);
-          this.canvas.inputAction = 0;
-          this.reserved &= 0xFFFFFFFE;
+      case 128: this.handleInputJump(dir); return;
+      case 8: this.handleInputDown(dir); return;
+      case 32: this.handleInputUp(dir); return;
+      case 16: this.handleInputFire(dir); return;
+      case 1024: this.handleInputGrenade(); return;
+      case 2048: this.handleInputReload(); return;
+      case 4096: this.handleInputSwitchWeapon(); return;
+      default: this.handleInputRelease(); return;
+    }
+  }
+
+  /** 输入位 1（左）。原退出外层 switch 的 break 已改 return。 */
+  private handleInputLeft(): void {
+    if ((this.reserved & 1) != 0) {
+      if (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) {
+        if (this.actionHighByte != 0) {
+          if (this.frameGroupIndex == 2 && !this.isFootOnGround()) return;
+          this.targetVelX = px(-8);
+          this.setAction(-2147483647);
           return;
         }
-        if ((this.reserved & 4) != 0) {
-          this.targetVelY = px(-6);
+        this.setAction(this.frameGroupIndex | MIRROR_FLAG);
+        return;
+      }
+      if (this.frameGroupIndex != 1) return;
+      if (this.actionHighByte == 0) {
+        this.targetVelX = 0;
+        this.setAction(MIRROR_FLAG);
+        return;
+      }
+      if (this.targetVelX != 0) return;
+      this.targetVelX = px(-8);
+      return;
+    }
+    if ((this.reserved & 4) != 0) {
+      this.targetVelX = px(-10);
+      this.targetVelY = 0;
+      return;
+    }
+    if ((this.reserved & 2) == 0) return;
+    if (this.actionHighByte == 0) {
+      this.setAction(this.frameGroupIndex | MIRROR_FLAG);
+      this.canvas.inputAction = 0;
+      return;
+    }
+    if (this.collideLeft()) return;
+    this.airborneJumping = false;
+    this.reserved &= 0xFFFFFFFD;
+    this.posX -= px(8);
+    this.posY += px(8);
+    this.targetVelX = px(-8);
+    this.targetVelY = px(12);
+    this.accelY = px(4);
+    this.setAction(-2147483632);
+    return;
+  }
+
+  /** 输入位 2（右）。原退出外层 switch 的 break 已改 return。 */
+  private handleInputRight(): void {
+    if ((this.reserved & 1) != 0) {
+      if (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) {
+        if (this.actionHighByte == 0) {
+          if (this.frameGroupIndex == 2 && !this.isFootOnGround()) return;
+          this.targetVelX = px(8);
+          this.setAction(1);
           return;
         }
-        if (this.frameGroupIndex != 14 && this.frameGroupIndex != 15 || !this.canJump || this.vaultTargetX >= 0 || this.vaultTargetY >= 0) break;
-        this.posY -= px(20);
-        this.targetVelY = px(-5);
+        this.setAction(this.frameGroupIndex);
+        return;
+      }
+      if (this.frameGroupIndex != 1) return;
+      if (this.actionHighByte != 0) {
+        this.targetVelX = 0;
+        this.setAction(0);
+        return;
+      }
+      if (this.targetVelX != 0) return;
+      this.targetVelX = px(8);
+      return;
+    }
+    if ((this.reserved & 4) != 0) {
+      this.targetVelX = px(10);
+      this.targetVelY = 0;
+      return;
+    }
+    if ((this.reserved & 2) == 0) return;
+    if (this.actionHighByte != 0) {
+      this.setAction(this.frameGroupIndex);
+      this.canvas.inputAction = 0;
+      return;
+    }
+    if (this.collideRight()) return;
+    this.airborneJumping = false;
+    this.reserved &= 0xFFFFFFFD;
+    this.posX += px(8);
+    this.posY += px(8);
+    this.targetVelX = px(8);
+    this.targetVelY = px(12);
+    this.accelY = px(4);
+    this.setAction(16);
+    return;
+  }
+
+  /** 输入位 64/128（跳跃/翻越，方向由 canvas.inputAction 区分）。原退出外层 switch 的 break 已改 return。 */
+  private handleInputJump(dir: number): void {
+    if ((this.reserved & 1) != 0) {
+      if (this.frameGroupIndex == 2) {
+        if (!this.isFootOnGround()) return;
+        this.setAction(0 | this.actionHighByte);
+        return;
+      }
+      if (this.actionHighByte == 0 && this.canvas.inputAction == 64) {
+        this.setAction(this.frameGroupIndex | MIRROR_FLAG);
+        return;
+      }
+      if (this.actionHighByte != 0 && this.canvas.inputAction == 128) {
+        this.setAction(this.frameGroupIndex);
+        return;
+      }
+      this.vaultType = this.probeVault();
+      if (this.vaultType == 2 || this.vaultType == 3) {
         this.canJump = false;
-        this.setAction(0x19 | this.actionHighByte);
+        this.posX = this.vaultTargetX;
+        this.setAction(0x11 | this.actionHighByte);
+      } else {
+        if (this.vaultType == 5) {
+          this.canJump = false;
+        }
+        this.posY -= px(5);
+        this.setAction(0xE | this.actionHighByte);
+      }
+      this.targetVelX = PlayerActor.jumpVelocityX[this.vaultType] * dir;
+      this.targetVelY = PlayerActor.jumpVelocityY[this.vaultType];
+      this.airborneJumping = true;
+      this.accelY = px(4);
+      this.canvas.inputAction = 0;
+      this.reserved &= 0xFFFFFFFE;
+      return;
+    }
+    if ((this.reserved & 4) != 0) {
+      this.targetVelY = px(-6);
+      return;
+    }
+    if (this.frameGroupIndex != 14 && this.frameGroupIndex != 15 || !this.canJump || this.vaultTargetX >= 0 || this.vaultTargetY >= 0) return;
+    this.posY -= px(20);
+    this.targetVelY = px(-5);
+    this.canJump = false;
+    this.setAction(0x19 | this.actionHighByte);
+    return;
+  }
+
+  /** 输入位 8（下/攀爬下）。原退出外层 switch 的 break 已改 return。 */
+  private handleInputDown(dir: number): void {
+    if ((this.reserved & 1) != 0) {
+      if (this.frameGroupIndex == 2) {
+        this.actionSubTimer = 0;
+        this.targetVelX = px(8) * dir;
+        this.setAction(0x17 | this.actionHighByte);
         return;
       }
-      case 8: {
-        if ((this.reserved & 1) != 0) {
-          if (this.frameGroupIndex == 2) {
-            this.actionSubTimer = 0;
-            this.targetVelX = px(8) * dir;
-            this.setAction(0x17 | this.actionHighByte);
-            return;
-          }
-          if (this.snapToLedge(1)) {
-            this.reserved = 2;
-            this.accelY = 0;
-            this.posY += px(24);
-            this.ceilingBlocked = false;
-            this.setAction(0x16 | this.actionHighByte);
-            return;
-          }
-          this.targetVelX = 0;
-          this.setAction(2 | this.actionHighByte);
-          this.canvas.inputAction = 0;
-          return;
-        }
-        if ((this.reserved & 2) != 0) {
-          this.targetVelY = px(4);
-          this.setAction(21 - (21 - this.frameGroupIndex + 1) % 4 | this.actionHighByte);
-          return;
-        }
-        if ((this.reserved & 4) == 0) break;
-        this.targetVelY = px(6);
+      if (this.snapToLedge(1)) {
+        this.reserved = 2;
+        this.accelY = 0;
+        this.posY += px(24);
+        this.ceilingBlocked = false;
+        this.setAction(0x16 | this.actionHighByte);
         return;
       }
-      case 32: {
-        if ((this.reserved & 4) != 0) {
-          this.targetVelY = px(-6);
-          return;
-        }
-        if ((this.reserved & 2) != 0) {
-          this.targetVelY = px(-4);
-          this.setAction(18 + (this.frameGroupIndex - 18 + 1) % 4 | this.actionHighByte);
-          return;
-        }
-        if (this.frameGroupIndex == 2) {
-          if (this.isFootOnGround()) {
-            this.setAction(0 | this.actionHighByte);
-          }
-          return;
-        }
-        if (this.triggerSwitch(false)) {
-          return;
-        }
-        if (this.snapToLedge(0)) {
-          this.reserved = 2;
-          this.targetVelY = px(-8);
-          this.accelY = 0;
-          this.setAction(0x12 | this.actionHighByte);
-          return;
-        }
+      this.targetVelX = 0;
+      this.setAction(2 | this.actionHighByte);
+      this.canvas.inputAction = 0;
+      return;
+    }
+    if ((this.reserved & 2) != 0) {
+      this.targetVelY = px(4);
+      this.setAction(21 - (21 - this.frameGroupIndex + 1) % 4 | this.actionHighByte);
+      return;
+    }
+    if ((this.reserved & 4) == 0) return;
+    this.targetVelY = px(6);
+    return;
+  }
+
+  /** 输入位 32（上/攀爬上/开关），末尾落穿至 {@link handleInputFire}（原 case32→case16 fall-through；fire 内按 canvas.inputAction==32 走 fireSlot 0）。原退出外层 switch 的 break 已改 return。 */
+  private handleInputUp(dir: number): void {
+    if ((this.reserved & 4) != 0) {
+      this.targetVelY = px(-6);
+      return;
+    }
+    if ((this.reserved & 2) != 0) {
+      this.targetVelY = px(-4);
+      this.setAction(18 + (this.frameGroupIndex - 18 + 1) % 4 | this.actionHighByte);
+      return;
+    }
+    if (this.frameGroupIndex == 2) {
+      if (this.isFootOnGround()) {
+        this.setAction(0 | this.actionHighByte);
       }
-      case 16: {
-        let fireAction: number;
-        let fireSlot: number;
-        if (this.actionLocked) {
-          return;
-        }
-        if (this.canvas.inputAction == 32 && (this.reserved & 1) != 0) {
-          this.targetVelX = 0;
-          fireSlot = 0;
-        } else if (this.frameGroupIndex == 0) {
-          this.targetVelX = 0;
-          fireSlot = 1;
-        } else if (this.frameGroupIndex == 2) {
-          this.targetVelX = 0;
-          fireSlot = 2;
-        } else if (this.frameGroupIndex == 25) {
-          fireSlot = 3;
-        } else {
-          return;
-        }
-        if (this.canvas.scene.isVerticalScrollLevel) {
-          if (this.inputCounter < 5) {
-            return;
-          }
-          this.currentWeaponIndex = 0;
-          fireAction = -2147483637;
-          this.inputCounter = 0;
-        } else {
-          if (PlayerActor.ammoCurrent[this.currentWeaponIndex] <= 0) {
-            this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][2] | this.actionHighByte);
-            return;
-          }
-          fireAction = PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][0] | this.actionHighByte;
-        }
-        const unusedDead: boolean = false;
-        const spawnX: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, fireSlot, 0);
-        const spawnY: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, fireSlot, 1);
-        const bullet: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, fireAction, spawnX, spawnY, 26, null);
-        if (bullet == null) break;
-        if (!bullet.hitWall) {
-          switch (fireSlot) {
-            case 0: {
-              bullet.targetVelY = px(-12);
-              break;
-            }
-            case 1:
-            case 2: {
-              bullet.targetVelX = px(12) * dir;
-              break;
-            }
-            case 3: {
-              bullet.targetVelX = px(12) * dir;
-              bullet.targetVelY = px(12);
-            }
-          }
-        }
-        this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][1] | this.actionHighByte);
-        if (this.canvas.scene.isVerticalScrollLevel) {
-          bullet.targetVelX = px(4);
-          bullet.targetVelY = px(6);
-          bullet.accelY = px(2);
-          bullet.isSpecialGrenade = true;
-        } else {
-          const weapon: number = this.currentWeaponIndex;
-          PlayerActor.ammoCurrent[weapon] = PlayerActor.ammoCurrent[weapon] - 1;
-        }
-        this.canvas.inputAction = 0;
+      return;
+    }
+    if (this.triggerSwitch(false)) {
+      return;
+    }
+    if (this.snapToLedge(0)) {
+      this.reserved = 2;
+      this.targetVelY = px(-8);
+      this.accelY = 0;
+      this.setAction(0x12 | this.actionHighByte);
+      return;
+    }
+    this.handleInputFire(dir);
+  }
+
+  /** 输入位 16（开火；内层 switch(fireSlot) 的 break 保留）。原退出外层 switch 的 break 已改 return。 */
+  private handleInputFire(dir: number): void {
+    let fireAction: number;
+    let fireSlot: number;
+    if (this.actionLocked) {
+      return;
+    }
+    if (this.canvas.inputAction == 32 && (this.reserved & 1) != 0) {
+      this.targetVelX = 0;
+      fireSlot = 0;
+    } else if (this.frameGroupIndex == 0) {
+      this.targetVelX = 0;
+      fireSlot = 1;
+    } else if (this.frameGroupIndex == 2) {
+      this.targetVelX = 0;
+      fireSlot = 2;
+    } else if (this.frameGroupIndex == 25) {
+      fireSlot = 3;
+    } else {
+      return;
+    }
+    if (this.canvas.scene.isVerticalScrollLevel) {
+      if (this.inputCounter < 5) {
         return;
       }
-      case 1024: {
-        if ((this.reserved & 1) == 0 || PlayerActor.ammoCurrent[2] <= 0) break;
-        if (this.frameGroupIndex == 0) {
-          this.setAction(0xC | this.actionHighByte);
-          return;
-        }
-        if (this.frameGroupIndex != 2) break;
-        this.setAction(0xD | this.actionHighByte);
+      this.currentWeaponIndex = 0;
+      fireAction = -2147483637;
+      this.inputCounter = 0;
+    } else {
+      if (PlayerActor.ammoCurrent[this.currentWeaponIndex] <= 0) {
+        this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][2] | this.actionHighByte);
         return;
       }
-      case 2048: {
-        if ((this.reserved & 1) == 0 || this.frameGroupIndex != 0 && this.frameGroupIndex != 2 || !this.reloadCurrentWeapon()) break;
-        if (this.frameGroupIndex == 0) {
-          this.setAction(0x1E | this.actionHighByte);
-        } else {
-          this.setAction(0x1F | this.actionHighByte);
+      fireAction = PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][0] | this.actionHighByte;
+    }
+    const unusedDead: boolean = false;
+    const spawnX: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, fireSlot, 0);
+    const spawnY: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, fireSlot, 1);
+    const bullet: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, fireAction, spawnX, spawnY, 26, null);
+    if (bullet == null) return;
+    if (!bullet.hitWall) {
+      switch (fireSlot) {
+        case 0: {
+          bullet.targetVelY = px(-12);
+          break;
         }
-        this.targetVelX = 0;
-        return;
-      }
-      case 4096: {
-        let newWeapon: number;
-        if ((this.reserved & 1) != 0 && (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) && PlayerActor.ammoCurrent[newWeapon = (this.currentWeaponIndex + 1) % 2] + PlayerActor.ammoReserve[newWeapon] > 0) {
-          this.currentWeaponIndex = newWeapon;
-          this.reloadCurrentWeapon();
-          this.setAction((this.frameGroupIndex == 0 ? 30 : 31) | this.actionHighByte);
+        case 1:
+        case 2: {
+          bullet.targetVelX = px(12) * dir;
+          break;
         }
-        this.canvas.inputAction = 0;
-        return;
-      }
-      default: {
-        if (this.frameGroupIndex == 1) {
-          this.targetVelX = 0;
-          this.setAction(0 | this.actionHighByte);
-          return;
+        case 3: {
+          bullet.targetVelX = px(12) * dir;
+          bullet.targetVelY = px(12);
         }
-        if ((this.reserved & 4) == 0) break;
-        this.targetVelX = 0;
-        this.targetVelY = 0;
       }
     }
+    this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][1] | this.actionHighByte);
+    if (this.canvas.scene.isVerticalScrollLevel) {
+      bullet.targetVelX = px(4);
+      bullet.targetVelY = px(6);
+      bullet.accelY = px(2);
+      bullet.isSpecialGrenade = true;
+    } else {
+      const weapon: number = this.currentWeaponIndex;
+      PlayerActor.ammoCurrent[weapon] = PlayerActor.ammoCurrent[weapon] - 1;
+    }
+    this.canvas.inputAction = 0;
+    return;
+  }
+
+  /** 输入位 1024（手雷）。原退出外层 switch 的 break 已改 return。 */
+  private handleInputGrenade(): void {
+    if ((this.reserved & 1) == 0 || PlayerActor.ammoCurrent[2] <= 0) return;
+    if (this.frameGroupIndex == 0) {
+      this.setAction(0xC | this.actionHighByte);
+      return;
+    }
+    if (this.frameGroupIndex != 2) return;
+    this.setAction(0xD | this.actionHighByte);
+    return;
+  }
+
+  /** 输入位 2048（换弹）。原退出外层 switch 的 break 已改 return。 */
+  private handleInputReload(): void {
+    if ((this.reserved & 1) == 0 || this.frameGroupIndex != 0 && this.frameGroupIndex != 2 || !this.reloadCurrentWeapon()) return;
+    if (this.frameGroupIndex == 0) {
+      this.setAction(0x1E | this.actionHighByte);
+    } else {
+      this.setAction(0x1F | this.actionHighByte);
+    }
+    this.targetVelX = 0;
+    return;
+  }
+
+  /** 输入位 4096（切武器）。原 case 以 return 收尾。 */
+  private handleInputSwitchWeapon(): void {
+    let newWeapon: number;
+    if ((this.reserved & 1) != 0 && (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) && PlayerActor.ammoCurrent[newWeapon = (this.currentWeaponIndex + 1) % 2] + PlayerActor.ammoReserve[newWeapon] > 0) {
+      this.currentWeaponIndex = newWeapon;
+      this.reloadCurrentWeapon();
+      this.setAction((this.frameGroupIndex == 0 ? 30 : 31) | this.actionHighByte);
+    }
+    this.canvas.inputAction = 0;
+    return;
+  }
+
+  /** 其它输入位（松开/无匹配键）。原退出外层 switch 的 break 已改 return；末尾自然落出。 */
+  private handleInputRelease(): void {
+    if (this.frameGroupIndex == 1) {
+      this.targetVelX = 0;
+      this.setAction(0 | this.actionHighByte);
+      return;
+    }
+    if ((this.reserved & 4) == 0) return;
+    this.targetVelX = 0;
+    this.targetVelY = 0;
   }
 
   // s() → s_
