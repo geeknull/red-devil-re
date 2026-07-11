@@ -402,10 +402,10 @@ export class TileMap {
    */
   // d() → d_
   public dispose(): void {
-    let n = 0;
-    while (n < this.collisionRows.length) {
-      this.collisionRows[n] = null;
-      ++n;
+    let i = 0;
+    while (i < this.collisionRows.length) {
+      this.collisionRows[i] = null;
+      ++i;
     }
     this.collisionRows = null as unknown as (Int8Array | null)[];
     this.gridIndices = null as unknown as Int8Array;
@@ -425,18 +425,18 @@ export class TileMap {
    * 偏差：shim 的 InputStream.read 仅单参，故 RLE 条带用临时缓冲读后再 .set 到偏移处
    * （字节一致，见行内注释）；Image.createImage→createMutable。
    * 对应 CFR b.java a(int,int,int)。
-   * @param n  m.bin 条目索引（网格）
-   * @param n2 b.bin 条目索引（背景层，仅 layerMode===2 用）
-   * @param n3 图层模式 layerMode（2=含背景层）
+   * @param gridEntry  m.bin 条目索引（网格）
+   * @param bgEntry b.bin 条目索引（背景层，仅 layerMode===2 用）
+   * @param layerMode 图层模式（2=含背景层）
    */
   // a(int,int,int) → a_III
-  public load(n: number, n2: number, n3: number): void {
+  public load(gridEntry: number, bgEntry: number, layerMode: number): void {
     try {
-      let inputStream: InputStream = GameMIDlet.openEntryStream("/res/m.bin", n)!;
+      let inputStream: InputStream = GameMIDlet.openEntryStream("/res/m.bin", gridEntry)!;
       if (GameMIDlet.readByte(inputStream) !== 1) {
         return;
       }
-      let by = GameMIDlet.readByte(inputStream);
+      let paletteEntry = GameMIDlet.readByte(inputStream);
       this.cellTilesX = GameMIDlet.readByte(inputStream);
       this.cellTilesY = GameMIDlet.readByte(inputStream);
       this.gridCols = GameMIDlet.readShortLE(inputStream);
@@ -444,11 +444,11 @@ export class TileMap {
       this.gridIndices = new Int8Array(this.gridCols * this.gridRows);
       inputStream.read(this.gridIndices);
       inputStream.close();
-      inputStream = GameMIDlet.openEntryStream("/res/p.bin", by)!;
+      inputStream = GameMIDlet.openEntryStream("/res/p.bin", paletteEntry)!;
       if (GameMIDlet.readByte(inputStream) !== 0) {
         return;
       }
-      by = GameMIDlet.readByte(inputStream);
+      paletteEntry = GameMIDlet.readByte(inputStream);
       this.foregroundPaletteWidth = GameMIDlet.readShortLE(inputStream);
       this.foregroundPaletteHeight = GameMIDlet.readShortLE(inputStream);
       this.tileWidth = GameMIDlet.readByte(inputStream);
@@ -457,48 +457,48 @@ export class TileMap {
       inputStream.read(this.foregroundTileIndices);
       this.collisionStepX = GameMIDlet.readByte(inputStream);
       this.collisionStepY = GameMIDlet.readByte(inputStream);
-      const n4 = (this.tileWidth * this.foregroundPaletteWidth / this.collisionStepX) | 0;
-      const n5 = (this.tileHeight * this.foregroundPaletteHeight / this.collisionStepY) | 0;
-      this.collisionRows = new Array<Int8Array | null>(n5);
-      let n6 = 0;
-      while (n6 < n5) {
-        const by2 = GameMIDlet.readByte(inputStream);
-        if (by2 === 0) {
-          this.collisionRows[n6] = new Int8Array(1);
-          this.collisionRows[n6]![0] = 0;
-        } else if (by2 === 1) {
-          this.collisionRows[n6] = new Int8Array(1 + n4);
-          // 原 inputStream.read(this.m[n6], 1, n4)：读 n4 字节填入下标 1 起。
+      const collisionCols = (this.tileWidth * this.foregroundPaletteWidth / this.collisionStepX) | 0;
+      const collisionRowCount = (this.tileHeight * this.foregroundPaletteHeight / this.collisionStepY) | 0;
+      this.collisionRows = new Array<Int8Array | null>(collisionRowCount);
+      let rowIndex = 0;
+      while (rowIndex < collisionRowCount) {
+        const rowMode = GameMIDlet.readByte(inputStream);
+        if (rowMode === 0) {
+          this.collisionRows[rowIndex] = new Int8Array(1);
+          this.collisionRows[rowIndex]![0] = 0;
+        } else if (rowMode === 1) {
+          this.collisionRows[rowIndex] = new Int8Array(1 + collisionCols);
+          // 原 inputStream.read(this.m[rowIndex], 1, collisionCols)：读 collisionCols 字节填入下标 1 起。
           // 偏差：shim InputStream.read 仅支持单参（从 0 起填满 buf），
           //   故按 Java read(byte[],off,len) 语义用临时缓冲读取再拷入偏移处（字节一致）。
           {
-            const __tmp = new Int8Array(n4);
+            const __tmp = new Int8Array(collisionCols);
             inputStream.read(__tmp);
-            this.collisionRows[n6]!.set(__tmp, 1);
+            this.collisionRows[rowIndex]!.set(__tmp, 1);
           }
-          this.collisionRows[n6]![0] = 1;
+          this.collisionRows[rowIndex]![0] = 1;
         } else {
-          let n7 = GameMIDlet.readByte(inputStream);
-          if (n7 < 0) {
-            n7 += 256;
+          let segCount = GameMIDlet.readByte(inputStream);
+          if (segCount < 0) {
+            segCount += 256;
           }
-          this.collisionRows[n6] = new Int8Array(2 + 2 * n7);
-          // 原 inputStream.read(this.m[n6], 2, 2*n7)：读 2*n7 字节填入下标 2 起（同上偏差）。
+          this.collisionRows[rowIndex] = new Int8Array(2 + 2 * segCount);
+          // 原 inputStream.read(this.m[rowIndex], 2, 2*segCount)：读 2*segCount 字节填入下标 2 起（同上偏差）。
           {
-            const __tmp = new Int8Array(2 * n7);
+            const __tmp = new Int8Array(2 * segCount);
             inputStream.read(__tmp);
-            this.collisionRows[n6]!.set(__tmp, 2);
+            this.collisionRows[rowIndex]!.set(__tmp, 2);
           }
-          this.collisionRows[n6]![0] = 2;
+          this.collisionRows[rowIndex]![0] = 2;
         }
-        ++n6;
+        ++rowIndex;
       }
       inputStream.close();
-      this.foregroundImage = GameMIDlet.loadImage("/res/fpng.bin", by | 0);
+      this.foregroundImage = GameMIDlet.loadImage("/res/fpng.bin", paletteEntry | 0);
       this.foregroundTilesPerRow = (this.foregroundImage.getWidth() / this.tileWidth) | 0;
-      this.layerMode = n3;
+      this.layerMode = layerMode;
       if (this.layerMode === 2) {
-        inputStream = GameMIDlet.openEntryStream("/res/b.bin", n2)!;
+        inputStream = GameMIDlet.openEntryStream("/res/b.bin", bgEntry)!;
         GameMIDlet.readByte(inputStream);
         GameMIDlet.readByte(inputStream);
         this.backgroundPaletteCols = GameMIDlet.readShortLE(inputStream);
