@@ -163,29 +163,29 @@ export class GameMIDlet extends MIDlet {
   static loadSounds(): void {
     const ctx = getAudioContext();
     if (!ctx) return;
-    let n = 0;
-    while (n < GameMIDlet.soundTrackCount) {
+    let trackIndex = 0;
+    while (trackIndex < GameMIDlet.soundTrackCount) {
       try {
-        const bytes = GameMIDlet.readEntryBytes("/res/sound.bin", n);
+        const bytes = GameMIDlet.readEntryBytes("/res/sound.bin", trackIndex);
         if (bytes != null) {
-          GameMIDlet.soundPlayers[n] = new MidiSynth(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength), ctx);
+          GameMIDlet.soundPlayers[trackIndex] = new MidiSynth(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength), ctx);
         }
       } catch (exception) {
         /* ignore */
       }
-      ++n;
+      ++trackIndex;
     }
   }
-  /** 原 a(int,int)：播放音轨 n（k[2]=声音开关；setLoopCount(1)=单次）。 */
-  static playSound(n: number, _n2: number): void {
+  /** 原 a(int,int)：播放音轨 trackIndex（k[2]=声音开关；setLoopCount(1)=单次）。_n2 为保留匹配原签名的死参。 */
+  static playSound(trackIndex: number, _n2: number): void {
     if (GameMIDlet.saveRecord[2] === 0) return; // 声音关
     try {
       GameMIDlet.stopSound();
-      const p = GameMIDlet.soundPlayers[n];
+      const p = GameMIDlet.soundPlayers[trackIndex];
       if (p) {
         p.play(false); // 原 setLoopCount(1)：单次播放
         GameMIDlet.soundTimeout = 2;
-        GameMIDlet.currentSoundIndex = n;
+        GameMIDlet.currentSoundIndex = trackIndex;
       }
     } catch (exception) {
       /* ignore */
@@ -235,69 +235,69 @@ export class GameMIDlet extends MIDlet {
     }
   }
 
-  /** GameMIDlet.a(int,String)：从 string.bin 第 n 条读 UTF-16 文本，存入 l 或 n。 */
-  static loadTextEntry(n: number, string: string): void {
-    const byArray = GameMIDlet.readEntryBytes(string, n);
-    if (byArray != null) {
-      const cArray = new Array<number>(byArray.length / 2);
-      let n2 = 0;
-      while (n2 < ((byArray.length / 2) | 0)) {
-        cArray[n2] = GameMIDlet.readIntLE(byArray, n2 * 2, 2);
-        ++n2;
+  /** GameMIDlet.a(int,String)：从 archivePath 第 entryIndex 条读 UTF-16 文本，存入 tempText1(entryIndex<7) 或 tempText3。 */
+  static loadTextEntry(entryIndex: number, archivePath: string): void {
+    const bytes = GameMIDlet.readEntryBytes(archivePath, entryIndex);
+    if (bytes != null) {
+      const chars = new Array<number>(bytes.length / 2);
+      let i = 0;
+      while (i < ((bytes.length / 2) | 0)) {
+        chars[i] = GameMIDlet.readIntLE(bytes, i * 2, 2);
+        ++i;
       }
-      const s = String.fromCharCode(...cArray);
-      if (n < 7) GameMIDlet.tempText1 = s;
-      else GameMIDlet.tempText3 = s;
+      const text = String.fromCharCode(...chars);
+      if (entryIndex < 7) GameMIDlet.tempText1 = text;
+      else GameMIDlet.tempText3 = text;
       // System.gc();
     }
   }
 
-  /** GameMIDlet.a(String,int)：从归档第 n 条 PNG 取图（预解码缓存）。 */
-  static loadImage(string: string, n: number): Image {
-    // 原版：c(string,n) 取 PNG 字节 → Image.createImage；这里取预解码缓存（见 docs/05 §5）
-    return getCachedImage<Image>(string, n);
+  /** GameMIDlet.a(String,int)：从 archivePath 第 entryIndex 条 PNG 取图（预解码缓存）。 */
+  static loadImage(archivePath: string, entryIndex: number): Image {
+    // 原版：c(archivePath,entryIndex) 取 PNG 字节 → Image.createImage；这里取预解码缓存（见 docs/05 §5）
+    return getCachedImage<Image>(archivePath, entryIndex);
   }
 
-  /** GameMIDlet.b(String,int)：返回定位到归档第 n 条起始的输入流。 */
-  static openEntryStream(string: string, n: number): InputStream | null {
-    let n2 = 0;
+  /** GameMIDlet.b(String,int)：返回定位到 archivePath 第 entryIndex 条起始的输入流。 */
+  static openEntryStream(archivePath: string, entryIndex: number): InputStream | null {
+    let offset = 0;
     try {
-      const inputStream = getResourceAsStream(string)!;
+      const inputStream = getResourceAsStream(archivePath)!;
       inputStream.read(GameMIDlet.byteBuf4);
-      const n3 = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
-      let n4 = 0;
-      while (n4 < n3) {
+      const entryCount = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
+      let i = 0;
+      while (i < entryCount) {
         inputStream.read(GameMIDlet.byteBuf4);
-        if (n4 === n) n2 = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
-        ++n4;
+        if (i === entryIndex) offset = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
+        ++i;
       }
-      inputStream.skip(n2);
+      inputStream.skip(offset);
       return inputStream;
     } catch (exception) {
       return null;
     }
   }
 
-  /** GameMIDlet.c(String,int)：取归档第 n 条目的字节切片。 */
-  static readEntryBytes(string: string, n: number): Int8Array | null {
-    let n2 = 0;
-    let n3 = 0;
+  /** GameMIDlet.c(String,int)：取 archivePath 第 entryIndex 条目的字节切片（读第 entryIndex 与 entryIndex+1 条 offset 之差为长度）。 */
+  static readEntryBytes(archivePath: string, entryIndex: number): Int8Array | null {
+    let startOffset = 0;
+    let byteCount = 0;
     try {
-      const inputStream = getResourceAsStream(string)!;
+      const inputStream = getResourceAsStream(archivePath)!;
       inputStream.read(GameMIDlet.byteBuf4);
-      const n4 = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
-      let n5 = 0;
-      while (n5 < n4) {
+      const entryCount = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
+      let i = 0;
+      while (i < entryCount) {
         inputStream.read(GameMIDlet.byteBuf4);
-        if (n5 === n) n2 = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
-        else if (n5 === n + 1) n3 = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4) - n2;
-        ++n5;
+        if (i === entryIndex) startOffset = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
+        else if (i === entryIndex + 1) byteCount = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4) - startOffset;
+        ++i;
       }
-      inputStream.skip(n2);
-      const byArray = new Int8Array(n3);
-      inputStream.read(byArray);
+      inputStream.skip(startOffset);
+      const result = new Int8Array(byteCount);
+      inputStream.read(result);
       inputStream.close();
-      return byArray;
+      return result;
     } catch (exception) {
       return null;
     }
