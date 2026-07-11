@@ -75,9 +75,9 @@ export class TileMap {
    * @param n  视口左上角 X（像素）
    * @param n2 视口左上角 Y（像素）
    */
-  public setViewportOrigin(n: number, n2: number): void {
-    this.viewportOriginX = (n / this.scaleDivisor) | 0;
-    this.viewportOriginY = (n2 / this.scaleDivisor) | 0;
+  public setViewportOrigin(cameraX: number, cameraY: number): void {
+    this.viewportOriginX = (cameraX / this.scaleDivisor) | 0;
+    this.viewportOriginY = (cameraY / this.scaleDivisor) | 0;
   }
 
   /** 地图总像素宽 = 瓦片像素宽 g × 地图列数 e。CFR b.java:62 `a()`。 */
@@ -104,54 +104,54 @@ export class TileMap {
    *
    * 通过 RLE 段 `[type,count]...` 逐段累加 count，定位到包含 n+1 的段后取其 type。
    * 行类型为 0（全空）直接返回 0；解析异常时返回 1（按实心处理，防穿）。
-   * @param n  列内单元格索引（横向；越界且 bl=true 时返回 1，否则 0）
-   * @param n2 列索引（纵向；<0 返回 0，超出数据行数返回 3）
-   * @param bl 越界是否按实心处理（玩家碰撞传 true，使地图外为实心墙）
+   * @param cellIndex  列内单元格索引（横向；越界且 solidOob=true 时返回 1，否则 0）
+   * @param columnIndex 列索引（纵向；<0 返回 0，超出数据行数返回 3）
+   * @param solidOob 越界是否按实心处理（玩家碰撞传 true，使地图外为实心墙）
    */
-  public queryColumnTileAt(n: number, n2: number, bl: boolean): number {
-    if (n2 < 0) {
+  public queryColumnTileAt(cellIndex: number, columnIndex: number, solidOob: boolean): number {
+    if (columnIndex < 0) {
       return 0;
     }
-    if (n2 >= this.columnRleData.length) {
+    if (columnIndex >= this.columnRleData.length) {
       return 3;
     }
-    if (n < 0 || n >= ((this.tileWidthPx * this.mapColumns / 16) | 0)) {
-      if (bl) {
+    if (cellIndex < 0 || cellIndex >= ((this.tileWidthPx * this.mapColumns / 16) | 0)) {
+      if (solidOob) {
         return 1;
       }
       return 0;
     }
-    if (this.columnRleData[n2]![0] === 0) {
+    if (this.columnRleData[columnIndex]![0] === 0) {
       return 0;
     }
     try {
-      let n3 = 0;
-      let n4 = 2;
+      let runLength = 0;
+      let segCursor = 2;
       do {
-        n3 += this.columnRleData[n2]![n4 + 1];
-        if (this.columnRleData[n2]![n4 + 1] < 0) {
-          n3 += 256;
+        runLength += this.columnRleData[columnIndex]![segCursor + 1];
+        if (this.columnRleData[columnIndex]![segCursor + 1] < 0) {
+          runLength += 256;
         }
-        n4 += 2;
-      } while (n3 < n + 1);
-      return this.columnRleData[n2]![(n4 -= 2)];
+        segCursor += 2;
+      } while (runLength < cellIndex + 1);
+      return this.columnRleData[columnIndex]![(segCursor -= 2)];
     } catch (exception) {
       return 1;
     }
   }
 
-  protected resolveTileIndex(n: number, n2: number): number {
+  protected resolveTileIndex(pixelX: number, pixelY: number): number {
     // Java: throws Exception —— 异常通过 TS throw 传播。
-    let n3 = 0;
-    const n4 = (((n2 %= this.tileHeight * this.mapTileHeight) / this.tileHeight) | 0) * this.mapTileWidth + (((n %= this.tileWidth * this.mapTileWidth) / this.tileWidth) | 0);
-    n3 = this.blockIndexTable[n4];
-    if (this.blockIndexTable[n4] < 0) {
-      n3 += 256;
+    let cellIndex = 0;
+    const blockIndex = (((pixelY %= this.tileHeight * this.mapTileHeight) / this.tileHeight) | 0) * this.mapTileWidth + (((pixelX %= this.tileWidth * this.mapTileWidth) / this.tileWidth) | 0);
+    cellIndex = this.blockIndexTable[blockIndex];
+    if (this.blockIndexTable[blockIndex] < 0) {
+      cellIndex += 256;
     }
-    if (n3 < 0) {
+    if (cellIndex < 0) {
       throw new Error("error index");
     }
-    return n3;
+    return cellIndex;
   }
 
   /**
@@ -163,13 +163,13 @@ export class TileMap {
     this.bufferDrawnTop = -1;
   }
 
-  private setupOffscreenBuffer(bl: boolean, n: number, n2: number): void {
-    if (bl) {
+  private setupOffscreenBuffer(create: boolean, width: number, height: number): void {
+    if (create) {
       if (TileMap.offscreenBuffer == null) {
-        const n3 = n % this.tileWidth === 0 ? n + this.tileWidth : n - (n % this.tileWidth) + 2 * this.tileWidth;
-        const n4 = n2 % this.tileHeight === 0 ? this.viewportHeight + this.tileHeight : n2 - (n2 % this.tileHeight) + 2 * this.tileHeight;
+        const bufWidth = width % this.tileWidth === 0 ? width + this.tileWidth : width - (width % this.tileWidth) + 2 * this.tileWidth;
+        const bufHeight = height % this.tileHeight === 0 ? this.viewportHeight + this.tileHeight : height - (height % this.tileHeight) + 2 * this.tileHeight;
         // Image.createImage(int,int)（可变离屏图）→ Image.createMutable(w,h)。
-        TileMap.offscreenBuffer = Image.createMutable(n3, n4);
+        TileMap.offscreenBuffer = Image.createMutable(bufWidth, bufHeight);
         TileMap.offscreenWidth = TileMap.offscreenBuffer.getWidth();
         TileMap.offscreenHeight = TileMap.offscreenBuffer.getHeight();
         TileMap.offscreenGraphics = TileMap.offscreenBuffer.getGraphics();
@@ -182,52 +182,52 @@ export class TileMap {
 
   protected renderTileRegion(
     graphics: Graphics,
-    n: number,
-    n2: number,
-    n3: number,
-    n4: number,
-    n5: number,
-    n6: number,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    wrapW: number,
+    wrapH: number,
   ): void {
-    let n7 = n2 % n6;
-    let n8 = n2;
-    while (n8 <= n4) {
-      let n9 = n % n5;
-      let n10 = n;
-      while (n10 <= n3) {
+    let bufY = y0 % wrapH;
+    let tileY = y0;
+    while (tileY <= y1) {
+      let bufX = x0 % wrapW;
+      let tileX = x0;
+      while (tileX <= x1) {
         block6: {
-          let n11: number;
+          let cell: number;
           try {
-            n11 = this.resolveTileIndex(n10, n8);
+            cell = this.resolveTileIndex(tileX, tileY);
           } catch (exception) {
             break block6;
           }
-          graphics.setClip(n9, n7, this.tileWidth, this.tileHeight);
-          graphics.drawImage(TileMap.atlasImage!, n9 - (n11 % this.atlasTilesPerRow) * this.tileWidth, n7 - ((n11 / this.atlasTilesPerRow) | 0) * this.tileHeight, 20);
-          if ((n9 += this.tileWidth) >= n5) {
-            n9 = 0;
+          graphics.setClip(bufX, bufY, this.tileWidth, this.tileHeight);
+          graphics.drawImage(TileMap.atlasImage!, bufX - (cell % this.atlasTilesPerRow) * this.tileWidth, bufY - ((cell / this.atlasTilesPerRow) | 0) * this.tileHeight, 20);
+          if ((bufX += this.tileWidth) >= wrapW) {
+            bufX = 0;
           }
         }
-        n10 += this.tileWidth;
+        tileX += this.tileWidth;
       }
-      if ((n7 += this.tileHeight) >= n6) {
-        n7 = 0;
+      if ((bufY += this.tileHeight) >= wrapH) {
+        bufY = 0;
       }
-      n8 += this.tileHeight;
+      tileY += this.tileHeight;
     }
   }
 
   protected blitBufferRegion(
     graphics: Graphics,
-    n: number,
-    n2: number,
-    n3: number,
-    n4: number,
-    n5: number,
-    n6: number,
+    srcX: number,
+    srcY: number,
+    blockW: number,
+    blockH: number,
+    dstX: number,
+    dstY: number,
   ): void {
-    graphics.setClip(n5, n6, n3, n4);
-    graphics.drawImage(TileMap.offscreenBuffer!, n5 - n, n6 - n2, 20);
+    graphics.setClip(dstX, dstY, blockW, blockH);
+    graphics.drawImage(TileMap.offscreenBuffer!, dstX - srcX, dstY - srcY, 20);
   }
 
   /**
@@ -236,68 +236,68 @@ export class TileMap {
    * 瓦片边界时，仅用 {@link renderTileRegion} 重绘进入缓冲的新行/列（y/z/A/B 跟踪
    * 已绘窗口），再用 {@link blitBufferRegion} 把缓冲按取模坐标分块拷到屏幕。
    * 缓冲首次或失效（y<0）时全量重绘。二开若改地图滚动/相机务必理解此处。
-   * @param n  视口左上角 X（像素）  @param n2 视口左上角 Y（像素）
-   * @param n3 视口宽（像素）        @param n4 视口高（像素）
+   * @param cameraX  视口左上角 X（像素）  @param cameraY 视口左上角 Y（像素）
+   * @param viewW 视口宽（像素）        @param viewH 视口高（像素）
    */
-  protected drawViewport(graphics: Graphics, n: number, n2: number, n3: number, n4: number): void {
-    let n5: number;
-    let n6: number;
-    const n7 = n - (n % this.tileWidth);
-    const n8 = n2 - (n2 % this.tileHeight);
-    const n9 = n + TileMap.offscreenWidth - this.tileWidth - ((n + TileMap.offscreenWidth - this.tileWidth) % this.tileWidth);
-    const n10 = n2 + TileMap.offscreenHeight - this.tileHeight - ((n2 + TileMap.offscreenHeight - this.tileHeight) % this.tileHeight);
+  protected drawViewport(graphics: Graphics, cameraX: number, cameraY: number, viewW: number, viewH: number): void {
+    let stripEnd: number;
+    let stripStart: number;
+    const alignedLeft = cameraX - (cameraX % this.tileWidth);
+    const alignedTop = cameraY - (cameraY % this.tileHeight);
+    const alignedRight = cameraX + TileMap.offscreenWidth - this.tileWidth - ((cameraX + TileMap.offscreenWidth - this.tileWidth) % this.tileWidth);
+    const alignedBottom = cameraY + TileMap.offscreenHeight - this.tileHeight - ((cameraY + TileMap.offscreenHeight - this.tileHeight) % this.tileHeight);
     if (this.bufferDrawnLeft < 0) {
-      this.renderTileRegion(TileMap.offscreenGraphics, n7, n8, n9, n10, TileMap.offscreenWidth, TileMap.offscreenHeight);
-      this.bufferDrawnLeft = n7;
-      this.bufferDrawnTop = n8;
-      this.bufferDrawnRight = n9;
-      this.bufferDrawnBottom = n10;
+      this.renderTileRegion(TileMap.offscreenGraphics, alignedLeft, alignedTop, alignedRight, alignedBottom, TileMap.offscreenWidth, TileMap.offscreenHeight);
+      this.bufferDrawnLeft = alignedLeft;
+      this.bufferDrawnTop = alignedTop;
+      this.bufferDrawnRight = alignedRight;
+      this.bufferDrawnBottom = alignedBottom;
     }
-    if (this.bufferDrawnLeft !== n7) {
-      if (this.bufferDrawnLeft < n7) {
-        n6 = this.bufferDrawnRight + this.tileWidth;
-        n5 = n9;
+    if (this.bufferDrawnLeft !== alignedLeft) {
+      if (this.bufferDrawnLeft < alignedLeft) {
+        stripStart = this.bufferDrawnRight + this.tileWidth;
+        stripEnd = alignedRight;
       } else {
-        n6 = n7;
-        n5 = this.bufferDrawnLeft - this.tileWidth;
+        stripStart = alignedLeft;
+        stripEnd = this.bufferDrawnLeft - this.tileWidth;
       }
-      this.renderTileRegion(TileMap.offscreenGraphics, n6, n8, n5, n10, TileMap.offscreenWidth, TileMap.offscreenHeight);
-      this.bufferDrawnLeft = n7;
-      this.bufferDrawnRight = n9;
+      this.renderTileRegion(TileMap.offscreenGraphics, stripStart, alignedTop, stripEnd, alignedBottom, TileMap.offscreenWidth, TileMap.offscreenHeight);
+      this.bufferDrawnLeft = alignedLeft;
+      this.bufferDrawnRight = alignedRight;
     }
-    if (this.bufferDrawnTop !== n8) {
-      if (this.bufferDrawnTop < n8) {
-        n6 = this.bufferDrawnBottom + this.tileHeight;
-        n5 = n10;
+    if (this.bufferDrawnTop !== alignedTop) {
+      if (this.bufferDrawnTop < alignedTop) {
+        stripStart = this.bufferDrawnBottom + this.tileHeight;
+        stripEnd = alignedBottom;
       } else {
-        n6 = n8;
-        n5 = this.bufferDrawnTop - this.tileHeight;
+        stripStart = alignedTop;
+        stripEnd = this.bufferDrawnTop - this.tileHeight;
       }
-      this.renderTileRegion(TileMap.offscreenGraphics, n7, n6, n9, n5, TileMap.offscreenWidth, TileMap.offscreenHeight);
-      this.bufferDrawnTop = n8;
-      this.bufferDrawnBottom = n10;
+      this.renderTileRegion(TileMap.offscreenGraphics, alignedLeft, stripStart, alignedRight, stripEnd, TileMap.offscreenWidth, TileMap.offscreenHeight);
+      this.bufferDrawnTop = alignedTop;
+      this.bufferDrawnBottom = alignedBottom;
     }
-    const n11 = n % TileMap.offscreenWidth;
-    const n12 = n2 % TileMap.offscreenHeight;
-    const n13 = (n + n3) % TileMap.offscreenWidth;
-    const n14 = (n2 + n4) % TileMap.offscreenHeight;
-    if (n13 > n11) {
-      if (n14 > n12) {
-        this.blitBufferRegion(graphics, n11, n12, n3, n4, 0, 0);
+    const sampleX = cameraX % TileMap.offscreenWidth;
+    const sampleY = cameraY % TileMap.offscreenHeight;
+    const sampleEndX = (cameraX + viewW) % TileMap.offscreenWidth;
+    const sampleEndY = (cameraY + viewH) % TileMap.offscreenHeight;
+    if (sampleEndX > sampleX) {
+      if (sampleEndY > sampleY) {
+        this.blitBufferRegion(graphics, sampleX, sampleY, viewW, viewH, 0, 0);
       } else {
-        this.blitBufferRegion(graphics, n11, n12, n3, n4 - n14, 0, 0);
-        this.blitBufferRegion(graphics, n11, 0, n3, n14, 0, n4 - n14);
+        this.blitBufferRegion(graphics, sampleX, sampleY, viewW, viewH - sampleEndY, 0, 0);
+        this.blitBufferRegion(graphics, sampleX, 0, viewW, sampleEndY, 0, viewH - sampleEndY);
       }
-    } else if (n14 > n12) {
-      this.blitBufferRegion(graphics, n11, n12, n3 - n13, n4, 0, 0);
-      this.blitBufferRegion(graphics, 0, n12, n13, n4, n3 - n13, 0);
+    } else if (sampleEndY > sampleY) {
+      this.blitBufferRegion(graphics, sampleX, sampleY, viewW - sampleEndX, viewH, 0, 0);
+      this.blitBufferRegion(graphics, 0, sampleY, sampleEndX, viewH, viewW - sampleEndX, 0);
     } else {
-      this.blitBufferRegion(graphics, n11, n12, n3 - n13, n4 - n14, 0, 0);
-      this.blitBufferRegion(graphics, n11, 0, n3 - n13, n14, 0, n4 - n14);
-      this.blitBufferRegion(graphics, 0, n12, n13, n4 - n14, n3 - n13, 0);
-      this.blitBufferRegion(graphics, 0, 0, n13, n14, n3 - n13, n4 - n14);
+      this.blitBufferRegion(graphics, sampleX, sampleY, viewW - sampleEndX, viewH - sampleEndY, 0, 0);
+      this.blitBufferRegion(graphics, sampleX, 0, viewW - sampleEndX, sampleEndY, 0, viewH - sampleEndY);
+      this.blitBufferRegion(graphics, 0, sampleY, sampleEndX, viewH - sampleEndY, viewW - sampleEndX, 0);
+      this.blitBufferRegion(graphics, 0, 0, sampleEndX, sampleEndY, viewW - sampleEndX, viewH - sampleEndY);
     }
-    graphics.setClip(0, 0, n3, n4);
+    graphics.setClip(0, 0, viewW, viewH);
   }
 
   /**
@@ -305,10 +305,10 @@ export class TileMap {
    * 不释放静态共享资源（图集 t、离屏缓冲 u）。CFR b.java:247 `d()`。
    */
   public dispose(): void {
-    let n = 0;
-    while (n < this.columnRleData.length) {
-      this.columnRleData[n] = null;
-      ++n;
+    let i = 0;
+    while (i < this.columnRleData.length) {
+      this.columnRleData[i] = null;
+      ++i;
     }
     (this.columnRleData as unknown) = null;
     (this.blockIndexTable as unknown) = null;
@@ -320,68 +320,68 @@ export class TileMap {
    * 块列/行数 p/q）→ 读块索引表 s → 按 id 懒加载共享瓦片图集 t（image.bin[id+4]）→
    * 逐行读列 RLE 数据 d（0=空 / 1=连续 n4 字节 / 2=RLE 段）→ 分配离屏缓冲 u。
    * 任一步抛异常则整体返回 null。视口尺寸取 GameScreen.screenWidth × playHeight。
-   * @param n  f.bin 条目索引（关卡/地图编号）
-   * @param n2 与原版一致的占位参数（在本方法体内未使用）
-   * @param n3 与原版一致的占位参数（在本方法体内未使用）
+   * @param entryIndex  f.bin 条目索引（关卡/地图编号）
+   * @param reservedB 与原版一致的占位参数（在本方法体内未使用）
+   * @param reservedC 与原版一致的占位参数（在本方法体内未使用）
    * @returns 加载好的 TileMap，失败时 null
    */
-  public static loadFromBin(n: number, n2: number, n3: number): TileMap | null {
-    let b2: TileMap;
+  public static loadFromBin(entryIndex: number, reservedB: number, reservedC: number): TileMap | null {
+    let map: TileMap;
     try {
-      b2 = new TileMap(GameScreen.screenWidth, GameScreen.playHeight);
-      const inputStream: InputStream = GameMIDlet.openArchiveEntryStream("/res/f.bin", n)!;
-      const by = GameMIDlet.readByte(inputStream);
-      b2.mapTileWidth = GameMIDlet.readU16Le(inputStream);
-      b2.mapTileHeight = GameMIDlet.readU16Le(inputStream);
-      b2.tileWidth = GameMIDlet.readByte(inputStream);
-      b2.tileHeight = GameMIDlet.readByte(inputStream);
-      b2.blockColumns = GameMIDlet.readByte(inputStream);
-      b2.blockRows = GameMIDlet.readByte(inputStream);
-      b2.blockIndexTable = new Int8Array(b2.mapTileWidth * b2.mapTileHeight);
-      inputStream.read(b2.blockIndexTable);
-      if (TileMap.loadedAtlasId !== by) {
+      map = new TileMap(GameScreen.screenWidth, GameScreen.playHeight);
+      const inputStream: InputStream = GameMIDlet.openArchiveEntryStream("/res/f.bin", entryIndex)!;
+      const atlasEntry = GameMIDlet.readByte(inputStream);
+      map.mapTileWidth = GameMIDlet.readU16Le(inputStream);
+      map.mapTileHeight = GameMIDlet.readU16Le(inputStream);
+      map.tileWidth = GameMIDlet.readByte(inputStream);
+      map.tileHeight = GameMIDlet.readByte(inputStream);
+      map.blockColumns = GameMIDlet.readByte(inputStream);
+      map.blockRows = GameMIDlet.readByte(inputStream);
+      map.blockIndexTable = new Int8Array(map.mapTileWidth * map.mapTileHeight);
+      inputStream.read(map.blockIndexTable);
+      if (TileMap.loadedAtlasId !== atlasEntry) {
         TileMap.atlasImage = null;
         // tjge.a.f(int)（image.bin 加载）→ a.f_I 内部返回 getCachedImage（已预解码）。
-        TileMap.atlasImage = GameScreen.loadImageFromBin(by + 4);
+        TileMap.atlasImage = GameScreen.loadImageFromBin(atlasEntry + 4);
       }
-      TileMap.loadedAtlasId = by;
-      b2.atlasTilesPerRow = (TileMap.atlasImage!.getWidth() / b2.tileWidth) | 0;
-      // n4/n5 为局部量，与原版一致（n4 未在后续使用，仅 n5 用于分配 d）。
-      const n4 = (b2.tileWidth * b2.mapTileWidth / b2.blockColumns) | 0;
-      const n5 = (b2.tileHeight * b2.mapTileHeight / b2.blockRows) | 0;
-      b2.mapColumns = b2.mapTileWidth;
-      b2.mapRows = b2.mapTileHeight;
-      b2.tileWidthPx = b2.tileWidth;
-      b2.tileHeightPx = b2.tileHeight;
-      b2.columnRleData = new Array<Int8Array | null>(n5).fill(null);
-      let n6 = 0;
-      while (n6 < n5) {
-        const by2 = GameMIDlet.readByte(inputStream);
-        if (by2 === 0) {
-          b2.columnRleData[n6] = new Int8Array(1);
-          b2.columnRleData[n6]![0] = 0;
-        } else if (by2 === 1) {
-          b2.columnRleData[n6] = new Int8Array(1 + n4);
-          // read(byte[],off,len)：从 off=1 读 n4 字节。
-          TileMap.readInto(inputStream, b2.columnRleData[n6]!, 1, n4);
-          b2.columnRleData[n6]![0] = 1;
+      TileMap.loadedAtlasId = atlasEntry;
+      map.atlasTilesPerRow = (TileMap.atlasImage!.getWidth() / map.tileWidth) | 0;
+      // rleFilledLen/columnCount 为局部量，与原版一致（rleFilledLen 未在后续使用，仅 columnCount 用于分配 d）。
+      const rleFilledLen = (map.tileWidth * map.mapTileWidth / map.blockColumns) | 0;
+      const columnCount = (map.tileHeight * map.mapTileHeight / map.blockRows) | 0;
+      map.mapColumns = map.mapTileWidth;
+      map.mapRows = map.mapTileHeight;
+      map.tileWidthPx = map.tileWidth;
+      map.tileHeightPx = map.tileHeight;
+      map.columnRleData = new Array<Int8Array | null>(columnCount).fill(null);
+      let columnIndex = 0;
+      while (columnIndex < columnCount) {
+        const rowMode = GameMIDlet.readByte(inputStream);
+        if (rowMode === 0) {
+          map.columnRleData[columnIndex] = new Int8Array(1);
+          map.columnRleData[columnIndex]![0] = 0;
+        } else if (rowMode === 1) {
+          map.columnRleData[columnIndex] = new Int8Array(1 + rleFilledLen);
+          // read(byte[],off,len)：从 off=1 读 rleFilledLen 字节。
+          TileMap.readInto(inputStream, map.columnRleData[columnIndex]!, 1, rleFilledLen);
+          map.columnRleData[columnIndex]![0] = 1;
         } else {
-          let n7 = GameMIDlet.readByte(inputStream);
-          if (n7 < 0) {
-            n7 += 256;
+          let segCount = GameMIDlet.readByte(inputStream);
+          if (segCount < 0) {
+            segCount += 256;
           }
-          b2.columnRleData[n6] = new Int8Array(2 + 2 * n7);
-          TileMap.readInto(inputStream, b2.columnRleData[n6]!, 2, 2 * n7);
-          b2.columnRleData[n6]![0] = 2;
+          map.columnRleData[columnIndex] = new Int8Array(2 + 2 * segCount);
+          TileMap.readInto(inputStream, map.columnRleData[columnIndex]!, 2, 2 * segCount);
+          map.columnRleData[columnIndex]![0] = 2;
         }
-        ++n6;
+        ++columnIndex;
       }
       inputStream.close();
-      b2.setupOffscreenBuffer(true, GameScreen.screenWidth, GameScreen.playHeight);
+      map.setupOffscreenBuffer(true, GameScreen.screenWidth, GameScreen.playHeight);
     } catch (exception) {
       return null;
     }
-    return b2;
+    return map;
   }
 
   /**
@@ -389,32 +389,32 @@ export class TileMap {
    * （GameScreen.a(int) 的 case1/2，对应 ag 标志）。CFR b.java:316 `a(int)`。
    * 跳过 f.bin 第 n 条目的头部与块索引表（skip 9 + l*m 字节），就地覆写各列 d。
    * 异常时静默返回，保持原 d 不变。
-   * @param n f.bin 条目索引
+   * @param entryIndex f.bin 条目索引
    */
-  public reloadColumnData(n: number): void {
+  public reloadColumnData(entryIndex: number): void {
     try {
-      const inputStream: InputStream = GameMIDlet.openArchiveEntryStream("/res/f.bin", n)!;
-      const n2 = (this.tileHeight * this.mapTileHeight / this.blockRows) | 0;
-      const n3 = (this.tileWidth * this.mapTileWidth / this.blockColumns) | 0;
+      const inputStream: InputStream = GameMIDlet.openArchiveEntryStream("/res/f.bin", entryIndex)!;
+      const columnCount = (this.tileHeight * this.mapTileHeight / this.blockRows) | 0;
+      const rleFilledLen = (this.tileWidth * this.mapTileWidth / this.blockColumns) | 0;
       inputStream.skip(9 + this.mapTileWidth * this.mapTileHeight);
-      let n4 = 0;
-      while (n4 < n2) {
-        const by = GameMIDlet.readByte(inputStream);
-        if (by === 0) {
-          this.columnRleData[n4]![0] = 0;
-        } else if (by === 1) {
-          // read(byte[],off,len)：从 off=1 读 n3 字节。
-          TileMap.readInto(inputStream, this.columnRleData[n4]!, 1, n3);
-          this.columnRleData[n4]![0] = 1;
+      let columnIndex = 0;
+      while (columnIndex < columnCount) {
+        const rowMode = GameMIDlet.readByte(inputStream);
+        if (rowMode === 0) {
+          this.columnRleData[columnIndex]![0] = 0;
+        } else if (rowMode === 1) {
+          // read(byte[],off,len)：从 off=1 读 rleFilledLen 字节。
+          TileMap.readInto(inputStream, this.columnRleData[columnIndex]!, 1, rleFilledLen);
+          this.columnRleData[columnIndex]![0] = 1;
         } else {
-          let n5 = GameMIDlet.readByte(inputStream);
-          if (n5 < 0) {
-            n5 += 256;
+          let segCount = GameMIDlet.readByte(inputStream);
+          if (segCount < 0) {
+            segCount += 256;
           }
-          TileMap.readInto(inputStream, this.columnRleData[n4]!, 2, 2 * n5);
-          this.columnRleData[n4]![0] = 2;
+          TileMap.readInto(inputStream, this.columnRleData[columnIndex]!, 2, 2 * segCount);
+          this.columnRleData[columnIndex]![0] = 2;
         }
-        ++n4;
+        ++columnIndex;
       }
       inputStream.close();
       return;
@@ -427,34 +427,34 @@ export class TileMap {
    * 破坏/清除指定坐标的瓦片：定位 {@link queryColumnTileAt} 所用的同一 RLE 段后
    * 把其 type 置 0（变为空，可穿过）。用于可破坏地形等玩法。CFR b.java:349 `c(int,int)`。
    * 越界、该列全空或解析异常均返回 false（未改动）；成功置 0 返回 true。
-   * @param n  列内单元格索引（横向）
-   * @param n2 列索引（纵向）
+   * @param cellIndex  列内单元格索引（横向）
+   * @param columnIndex 列索引（纵向）
    * @returns 是否成功清除
    */
-  public clearTileAt(n: number, n2: number): boolean {
-    if (n2 < 0) {
+  public clearTileAt(cellIndex: number, columnIndex: number): boolean {
+    if (columnIndex < 0) {
       return false;
     }
-    if (n2 >= this.columnRleData.length) {
+    if (columnIndex >= this.columnRleData.length) {
       return false;
     }
-    if (n < 0 || n >= ((this.tileWidthPx * this.mapColumns / 16) | 0)) {
+    if (cellIndex < 0 || cellIndex >= ((this.tileWidthPx * this.mapColumns / 16) | 0)) {
       return false;
     }
-    if (this.columnRleData[n2]![0] === 0) {
+    if (this.columnRleData[columnIndex]![0] === 0) {
       return false;
     }
     try {
-      let n3 = 0;
-      let n4 = 2;
+      let runLength = 0;
+      let segCursor = 2;
       do {
-        n3 += this.columnRleData[n2]![n4 + 1];
-        if (this.columnRleData[n2]![n4 + 1] < 0) {
-          n3 += 256;
+        runLength += this.columnRleData[columnIndex]![segCursor + 1];
+        if (this.columnRleData[columnIndex]![segCursor + 1] < 0) {
+          runLength += 256;
         }
-        n4 += 2;
-      } while (n3 < n + 1);
-      this.columnRleData[n2]![(n4 -= 2)] = 0;
+        segCursor += 2;
+      } while (runLength < cellIndex + 1);
+      this.columnRleData[columnIndex]![(segCursor -= 2)] = 0;
       return true;
     } catch (exception) {
       return false;
