@@ -186,426 +186,476 @@ export class GameCanvas extends Canvas {
     this.painting = true;
     graphics.setFont(Font.getFont(0, 0, 8)); // SYSTEM/PLAIN/SMALL
     GameMIDlet.tickSoundTimeout();
+    // 纯分派器：按 uiState 转对应 paint<State> helper（每 case 一 helper，逐行对应 CFR a.java:132-546）。
+    // 宿主保留 try/catch 静默吞异常 + painting 重入标志；各 helper 顶层 break→return（switch 后仅 painting=false）。
     try {
       switch (this.uiState) {
-        case UiState.Splash: {
-          ++this.subState;
-          graphics.setClip(0, 0, 176, 204);
-          if (this.subState === 1) {
-            this.logoTempImage1 = GameMIDlet.loadImage("/res/logo.bin", 1);
-            this.logoTempImage2 = GameMIDlet.loadImage("/res/logo.bin", 2);
-            this.logoTempImage3 = GameMIDlet.loadImage("/res/logo.bin", 3);
-            this.logoTempImage4 = GameMIDlet.loadImage("/res/logo.bin", 4);
-            this.logoImageMain = GameMIDlet.loadImage("/res/logo.bin", 0);
-            this.logoImageSub = GameMIDlet.loadImage("/res/logo.bin", 5);
-            break;
-          }
-          if (this.subState === 2) {
-            GameMIDlet.loadSounds();
-            GameMIDlet.accessSaveRecord(0);
-            graphics.drawImage(this.logoTempImage1!, 38, 60, 20);
-            this.logoTempImage1 = null;
-            graphics.setColor(238, 25, 33);
-            graphics.drawString("移动互连 无限可能", 96, 122, 17);
-            break;
-          }
-          if (this.subState === 29) {
-            graphics.setColor(0xffffff);
-            graphics.fillRect(0, 0, 176, 204);
-            graphics.drawImage(this.logoTempImage2!, 15, 15, 20);
-            this.logoTempImage2 = null;
-            graphics.drawImage(this.logoTempImage3!, 36, 103, 20);
-            this.logoTempImage3 = null;
-            graphics.setColor(155, 166, 173);
-            graphics.drawString("新浪无线代理发行", 40, 139, 20);
-            break;
-          }
-          if (this.subState === 47) {
-            graphics.setColor(255, 255, 255);
-            graphics.fillRect(0, 0, 176, 208);
-            graphics.drawImage(this.logoTempImage4!, 88, 45, 17);
-            this.logoTempImage4 = null;
-            break;
-          }
-          if (this.subState !== 65) break;
-          graphics.setColor(0);
-          graphics.fillRect(0, 0, 176, 204);
-          graphics.drawImage(this.logoImageMain!, 0, 0, 20);
-          graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 2, 20);
-          this.uiState = UiState.LoadingProgress;
-          this.subState = 0;
-          GameMIDlet.playSound(0, 160);
+        case UiState.Splash:
+          this.paintSplash(graphics);
           break;
-        }
-        case UiState.LoadingProgress: {
-          ++this.subState;
-          graphics.setClip(0, 0, 176, 204);
-          graphics.setColor(0);
-          graphics.fillRect(0, 0, 176, 204);
-          graphics.drawImage(this.logoImageMain!, 0, 0, 20);
-          graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 2, 20);
-          graphics.setColor(0xffffff);
-          graphics.drawRect(2, 194, 171, 6);
-          graphics.setColor(0);
-          graphics.fillRect(3, 195, 170, 5);
-          graphics.setColor(65280);
-          graphics.drawLine(4, 196, (((this.subState * 168) / 23) | 0) + 3, 196);
-          graphics.setColor(47872);
-          graphics.drawLine(4, 197, (((this.subState * 168) / 23) | 0) + 3, 197);
-          graphics.setColor(30464);
-          graphics.drawLine(4, 198, (((this.subState * 168) / 23) | 0) + 3, 198);
-          if (!LevelScene.loadResourcesUpTo(this, this.subState)) break;
-          this.uiState = UiState.MainMenu;
-          this.levelIndex = 0;
-          this.subState = 0;
-          this.menuStartItem = 1;
-          this.menuSelection = 1;
-          this.startUnderline(120);
+        case UiState.LoadingProgress:
+          this.paintLoadingProgress(graphics);
           break;
-        }
-        case UiState.MainMenu: {
-          graphics.setClip(0, 0, 176, 204);
-          graphics.setColor(0);
-          graphics.fillRect(0, 0, 176, 204);
-          graphics.drawImage(this.logoImageMain!, 0, 0, 20);
-          graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 2, 20);
-          let menuItem = this.menuStartItem;
-          while (menuItem < 7) {
-            graphics.setColor(this.menuSelection === menuItem && this.underlineDir === 1 ? 0xffffff : 65280);
-            if (menuItem === 3) {
-              graphics.drawString(GameMIDlet.menuTexts[GameMIDlet.saveRecord[2] === 0 ? 7 : 3], 88, 60 + menuItem * 20, 17);
-            } else {
-              graphics.drawString(GameMIDlet.menuTexts[menuItem], 88, 60 + menuItem * 20, 17);
-            }
-            ++menuItem;
-          }
-          graphics.setColor(65280);
-          this.drawUnderline(graphics, 88, 80 + this.menuSelection * 20);
-          if (this.inputAction === 4) {
-            this.startUnderline(120);
-            if (--this.menuSelection < this.menuStartItem) {
-              this.menuSelection = 6;
-            }
-          } else if (this.inputAction === 8) {
-            this.startUnderline(120);
-            if (++this.menuSelection > 6) {
-              this.menuSelection = this.menuStartItem;
-            }
-          } else if (this.inputAction === 16) {
-            switch (this.menuSelection) {
-              case 0: {
-                this.uiState = UiState.InGame;
-                break;
-              }
-              case 1: {
-                this.levelIndex = 0;
-                GameMIDlet.accessSaveRecord(2);
-                this.transitionProgress = 0;
-                this.subState = 0;
-                this.uiState = UiState.CutsceneIntro;
-                PlayerActor.ammoReserve[1] = 6;
-                break;
-              }
-              case 2: {
-                if (GameMIDlet.saveRecord[3] === 0) {
-                  this.subState = 0;
-                  this.uiState = UiState.NoSave;
-                  break;
-                }
-                this.transitionProgress = 0;
-                this.subState = 0;
-                this.levelIndex = GameMIDlet.saveRecord[3];
-                const continueCount = GameMIDlet.saveRecord[1];
-                GameMIDlet.saveRecord[1] = (continueCount + 1) << 24 >> 24; // (byte) 截断
-                if (continueCount > 99) {
-                  GameMIDlet.saveRecord[1] = 99;
-                }
-                PlayerActor.ammoReserve[1] = GameMIDlet.saveRecord[4];
-                this.uiState = this.levelIndex === 0 ? UiState.CutsceneIntro : UiState.LevelIntroLoading;
-                break;
-              }
-              case 3: {
-                GameMIDlet.saveRecord[2] = (GameMIDlet.saveRecord[2] ^ 1) << 24 >> 24; // (byte) 截断
-                if (GameMIDlet.saveRecord[2] !== 0) break;
-                GameMIDlet.stopSound();
-                break;
-              }
-              case 4: {
-                this.subState = 0;
-                GameMIDlet.loadTextEntry(7, "/res/string.bin");
-                this.inputAction = 0;
-                this.uiState = UiState.Help;
-                break;
-              }
-              case 5: {
-                GameMIDlet.loadTextEntry(8, "/res/string.bin");
-                this.inputAction = 0;
-                this.uiState = UiState.About;
-                break;
-              }
-              case 6: {
-                this.midlet.destroyApp(true);
-              }
-            }
-          }
-          this.inputAction = 0;
+        case UiState.MainMenu:
+          this.paintMainMenu(graphics);
           break;
-        }
-        case UiState.NoSave: {
-          if (this.subState === 0) {
-            graphics.setClip(0, 0, 176, 204);
-            graphics.setColor(0);
-            graphics.fillRect(0, 0, 176, 204);
-            graphics.drawImage(this.logoImageMain!, 0, 0, 20);
-            graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 6, 20);
-            LevelScene.fillBlackBand(graphics, 8, this.logoImageMain!.getHeight() + 6, 176);
-            graphics.setClip(0, 0, 176, 208);
-            graphics.setColor(65280);
-            graphics.drawString("没有存档记录!!", 88, 104, 17);
-          }
-          ++this.subState;
-          if (this.subState <= 15) break;
-          this.subState = 0;
-          this.uiState = UiState.MainMenu;
+        case UiState.NoSave:
+          this.paintNoSave(graphics);
           break;
-        }
-        case UiState.LevelIntroLoading: {
-          this.loadLevel(this.levelIndex);
-          graphics.setColor(0);
-          graphics.setClip(0, 0, 176, 204);
-          graphics.fillRect(0, 0, 176, 204);
-          graphics.setColor(65280);
-          graphics.drawString(GameMIDlet.interludeTexts[11], 88, 184, 17);
-          if (!this.loadComplete) break;
-          this.subState = 0;
-          this.uiState = UiState.InGame;
-          this.levelStartTime = Date.now(); // System.currentTimeMillis()
+        case UiState.LevelIntroLoading:
+          this.paintLevelIntroLoading(graphics);
           break;
-        }
-        case UiState.CutsceneIntro: {
-          this.paintLevelIntro(graphics);
+        case UiState.CutsceneIntro:
+          this.paintLevelIntro(graphics); // case 20：直接复用既有的过场/简报开场动画 helper
           break;
-        }
-        case UiState.MissionBrief: {
-          this.scene.render(graphics);
-          graphics.setClip(0, 0, 176, 204);
-          GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 171, 10, this.transitionProgress, 47872, 0, true);
-          this.scene.renderHud(graphics);
-          graphics.setClip(0, 0, 176, 204);
-          if (this.transitionProgress < 10) {
-            if (this.subState === 0) {
-              ++this.transitionProgress;
-            } else {
-              --this.transitionProgress;
-              if (this.transitionProgress < 0) {
-                this.subState = 0;
-                this.uiState = UiState.InGame;
-              }
-            }
-            this.inputAction = 0;
-            break;
-          }
-          GameCanvas.drawExpandingFrame(graphics, 166, 40, 10, 70, 20, 20, 47872, 17408, true);
-          GameCanvas.drawExpandingFrame(graphics, 166, 90, 10, 145, 20, 20, 47872, 17408, true);
-          graphics.setColor(65280);
-          graphics.drawString(GameMIDlet.interludeTexts[2] + GameMIDlet.numeralTexts[this.levelIndex], 88, 15, 17);
-          graphics.drawString(GameMIDlet.missionTexts[this.levelIndex], 88, 47, 17);
-          LevelScene.hudFont.drawCell(graphics, 158, 157, 39, 0, 0);
-          LevelScene.hudFont.drawCell(graphics, 23, 95, 29, 0, 0);
-          const stageMarkX = Int32Array.from([5, 19, 44, 58, 81, 99, 124]);
-          const stageMarkY = Int32Array.from([90, 100, 89, 101, 101, 93, 91]);
-          let stageIndex = 0;
-          while (stageIndex < 7) {
-            if (stageIndex <= this.levelIndex && (stageIndex !== this.levelIndex || this.globalFrame % 4 <= 1)) {
-              LevelScene.hudFont.drawCell(graphics, 24 + stageMarkX[stageIndex], 24 + stageMarkY[stageIndex], 28, 0, 0);
-            }
-            ++stageIndex;
-          }
-          if (this.subState === 0 && this.inputAction === 32768) {
-            this.subState = 1;
-            --this.transitionProgress;
-          }
+        case UiState.MissionBrief:
+          this.paintMissionBrief(graphics);
           break;
-        }
-        case UiState.InGame: {
-          this.scene.tick();
-          this.scene.render(graphics);
+        case UiState.InGame:
+          this.paintInGame(graphics);
           break;
-        }
-        case UiState.LevelFailed: {
-          GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, this.transitionProgress, 47872, 0, true);
-          if (this.transitionProgress < 10) {
-            ++this.transitionProgress;
-            this.menuSelection = 0;
-            break;
-          }
-          graphics.setColor(65280);
-          graphics.drawString(GameMIDlet.interludeTexts[2] + GameMIDlet.numeralTexts[this.levelIndex] + GameMIDlet.interludeTexts[8], 88, 30, 17);
-          graphics.drawString(GameMIDlet.interludeTexts[5], 36, 64, 20);
-          graphics.drawString(String(GameCanvas.instance.scene.reservedD), 140, 64, 24);
-          graphics.drawString(GameMIDlet.interludeTexts[7], 36, 90, 20);
-          graphics.drawString(String(GameMIDlet.saveRecord[1] & 0xff), 140, 90, 24);
-          graphics.drawString(GameMIDlet.interludeTexts[6], 36, 116, 20);
-          const minutes = ((this.elapsedSeconds / 60) | 0);
-          const seconds = (this.elapsedSeconds % 60);
-          let minStr = String(minutes);
-          let secStr = String(seconds);
-          if (minutes < 10) {
-            minStr = "0" + minStr;
-          }
-          if (seconds < 10) {
-            secStr = "0" + secStr;
-          }
-          const timeStr = minStr + ":" + secStr;
-          graphics.drawString(timeStr, 140, 116, 24);
-          LevelScene.actorDefs[0]!.drawFrame(graphics, 48, 170, 4, 0, 0, 0);
-          graphics.setClip(0, 0, 176, 204);
-          if (this.inputAction === 4) {
-            this.startUnderline(64);
-            if (--this.menuSelection < 0) {
-              this.menuSelection = 1;
-            }
-            this.inputAction = 0;
-          } else if (this.inputAction === 8) {
-            this.startUnderline(64);
-            if (++this.menuSelection > 1) {
-              this.menuSelection = 0;
-            }
-            this.inputAction = 0;
-          } else if (this.inputAction === 16) {
-            if (this.menuSelection === 0) {
-              const continueCount = GameMIDlet.saveRecord[1];
-              GameMIDlet.saveRecord[1] = (continueCount + 1) << 24 >> 24; // (byte) 截断
-              if (continueCount > 99) {
-                GameMIDlet.saveRecord[1] = 99;
-              }
-              this.uiState = UiState.LevelIntroLoading;
-            } else {
-              this.menuStartItem = 1;
-              this.menuSelection = 1;
-              this.uiState = UiState.MainMenu;
-            }
-            this.inputAction = 0;
-          }
-          let optionIndex = 0;
-          while (optionIndex < 2) {
-            graphics.setColor(optionIndex === this.menuSelection && this.underlineDir === 1 ? 0xffffff : 65280);
-            if (optionIndex === 0) {
-              graphics.drawString(GameMIDlet.interludeTexts[0], 120, 150, 17);
-            } else {
-              graphics.drawString(GameMIDlet.interludeTexts[9], 120, 170, 17);
-            }
-            ++optionIndex;
-          }
-          graphics.setColor(65280);
-          this.drawUnderline(graphics, 120, 169 + this.menuSelection * 20);
+        case UiState.LevelFailed:
+          this.paintLevelFailed(graphics);
           break;
-        }
-        case UiState.LevelClear: {
-          GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, this.transitionProgress, 47872, 0, true);
-          if (this.transitionProgress < 10) {
-            ++this.transitionProgress;
-            if (this.transitionProgress !== 10) break;
-            GameMIDlet.playSound(1, 140);
-            break;
-          }
-          graphics.setColor(65280);
-          graphics.drawString(GameMIDlet.interludeTexts[2] + GameMIDlet.numeralTexts[this.levelIndex] + GameMIDlet.interludeTexts[4], 88, 30, 17);
-          graphics.drawString(GameMIDlet.interludeTexts[5], 36, 64, 20);
-          graphics.drawString(String(GameCanvas.instance.scene.reservedD), 140, 64, 24);
-          graphics.drawString(GameMIDlet.interludeTexts[7], 36, 86, 20);
-          graphics.drawString(String(GameMIDlet.saveRecord[1] & 0xff), 140, 86, 24);
-          graphics.drawString(GameMIDlet.interludeTexts[6], 36, 108, 20);
-          const minutes = ((this.elapsedSeconds / 60) | 0);
-          const seconds = (this.elapsedSeconds % 60);
-          let minStr = String(minutes);
-          let secStr = String(seconds);
-          if (minutes < 10) {
-            minStr = "0" + minStr;
-          }
-          if (seconds < 10) {
-            secStr = "0" + secStr;
-          }
-          const timeStr = minStr + ":" + secStr;
-          graphics.drawString(timeStr, 140, 108, 24);
-          LevelScene.hudFont.drawCell(graphics, 158, 189, 40, 0, 0);
-          LevelScene.actorDefs[0]!.drawFrame(graphics, 88, 170, this.resultAnimFrame, this.resultAnimCounter, 0, 0);
-          if (this.resultAnimFrame === 34) {
-            if (this.resultAnimCounter++ !== 4) break;
-            if (this.levelIndex === 6) {
-              this.uiState = UiState.GameComplete;
-            } else {
-              ++this.levelIndex;
-              this.uiState = UiState.LevelIntroLoading;
-            }
-            GameMIDlet.saveRecord[0] = this.levelIndex << 24 >> 24; // (byte) 截断
-            GameMIDlet.saveRecord[3] = this.levelIndex << 24 >> 24; // (byte) 截断
-            GameMIDlet.saveRecord[4] = PlayerActor.ammoReserve[1] << 24 >> 24; // (byte) 截断
-            GameMIDlet.accessSaveRecord(1);
-            break;
-          }
-          if (this.inputAction === 32768) {
-            this.resultAnimCounter = 0;
-            this.resultAnimFrame = 34;
-            break;
-          }
-          ++this.resultAnimCounter;
-          this.resultAnimCounter %= LevelScene.actorDefs[0]!.getFrameCount(this.resultAnimFrame);
+        case UiState.LevelClear:
+          this.paintLevelClear(graphics);
           break;
-        }
-        case UiState.GameComplete: {
-          ++this.subState;
-          if (this.subState < 16) {
-            LevelScene.fillBlackBand(graphics, this.subState, 0, 204);
-            break;
-          }
-          graphics.setColor(65280);
-          graphics.drawString(GameMIDlet.interludeTexts[10], 88, 102, 33);
-          if (this.subState <= 30) break;
-          this.menuStartItem = 1;
-          this.menuSelection = 1;
-          this.uiState = UiState.MainMenu;
-          this.subState = 0;
-          // System.gc();
+        case UiState.GameComplete:
+          this.paintGameComplete(graphics);
           break;
-        }
-        case UiState.Help: {
-          GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, 10, 47872, 0, true);
-          graphics.setColor(65280);
-          this.drawWrappedLines(graphics, GameMIDlet.tempText3, 5, 6, 19, this.subState, 9);
-          LevelScene.hudFont.drawCell(graphics, 158, 189, 40, 0, 0);
-          LevelScene.hudFont.drawCell(graphics, 5, 189, 39, 0, 0);
-          if (this.inputAction === 32768) {
-            this.subState += 9;
-            if (this.subState > 26) {
-              this.subState = 0;
-            }
-            this.inputAction = 0;
-            break;
-          }
-          if (this.inputAction !== 16384) break;
-          this.uiState = UiState.MainMenu;
-          this.inputAction = 0;
-          GameMIDlet.tempText3 = null as unknown as string;
-          // System.gc();
+        case UiState.Help:
+          this.paintHelp(graphics);
           break;
-        }
-        case UiState.About: {
-          GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, 10, 47872, 0, true);
-          graphics.setColor(65280);
-          this.drawWrappedLines(graphics, GameMIDlet.tempText3, 5, 5, 18, 0, 10);
-          LevelScene.hudFont.drawCell(graphics, 5, 186, 39, 0, 0);
-          if (this.inputAction !== 16384) break;
-          this.uiState = UiState.MainMenu;
-          this.inputAction = 0;
-          GameMIDlet.tempText3 = null as unknown as string;
-          // System.gc();
-        }
+        case UiState.About:
+          this.paintAbout(graphics);
+          break;
       }
     } catch (exception) {
       /* 吞异常（保持原空 catch） */
     }
     this.painting = false;
+  }
+
+  // paint case 3 (UiState.Splash)：开机 logo 分帧序列（subState 1/2/29/47/65 各阶段）→ 进 LoadingProgress。
+  private paintSplash(graphics: Graphics): void {
+    ++this.subState;
+    graphics.setClip(0, 0, 176, 204);
+    if (this.subState === 1) {
+      this.logoTempImage1 = GameMIDlet.loadImage("/res/logo.bin", 1);
+      this.logoTempImage2 = GameMIDlet.loadImage("/res/logo.bin", 2);
+      this.logoTempImage3 = GameMIDlet.loadImage("/res/logo.bin", 3);
+      this.logoTempImage4 = GameMIDlet.loadImage("/res/logo.bin", 4);
+      this.logoImageMain = GameMIDlet.loadImage("/res/logo.bin", 0);
+      this.logoImageSub = GameMIDlet.loadImage("/res/logo.bin", 5);
+      return;
+    }
+    if (this.subState === 2) {
+      GameMIDlet.loadSounds();
+      GameMIDlet.accessSaveRecord(0);
+      graphics.drawImage(this.logoTempImage1!, 38, 60, 20);
+      this.logoTempImage1 = null;
+      graphics.setColor(238, 25, 33);
+      graphics.drawString("移动互连 无限可能", 96, 122, 17);
+      return;
+    }
+    if (this.subState === 29) {
+      graphics.setColor(0xffffff);
+      graphics.fillRect(0, 0, 176, 204);
+      graphics.drawImage(this.logoTempImage2!, 15, 15, 20);
+      this.logoTempImage2 = null;
+      graphics.drawImage(this.logoTempImage3!, 36, 103, 20);
+      this.logoTempImage3 = null;
+      graphics.setColor(155, 166, 173);
+      graphics.drawString("新浪无线代理发行", 40, 139, 20);
+      return;
+    }
+    if (this.subState === 47) {
+      graphics.setColor(255, 255, 255);
+      graphics.fillRect(0, 0, 176, 208);
+      graphics.drawImage(this.logoTempImage4!, 88, 45, 17);
+      this.logoTempImage4 = null;
+      return;
+    }
+    if (this.subState !== 65) return;
+    graphics.setColor(0);
+    graphics.fillRect(0, 0, 176, 204);
+    graphics.drawImage(this.logoImageMain!, 0, 0, 20);
+    graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 2, 20);
+    this.uiState = UiState.LoadingProgress;
+    this.subState = 0;
+    GameMIDlet.playSound(0, 160);
+  }
+
+  // paint case 1 (UiState.LoadingProgress)：绘 logo + 进度条，按 subState 递进加载资源，满则进 MainMenu。
+  private paintLoadingProgress(graphics: Graphics): void {
+    ++this.subState;
+    graphics.setClip(0, 0, 176, 204);
+    graphics.setColor(0);
+    graphics.fillRect(0, 0, 176, 204);
+    graphics.drawImage(this.logoImageMain!, 0, 0, 20);
+    graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 2, 20);
+    graphics.setColor(0xffffff);
+    graphics.drawRect(2, 194, 171, 6);
+    graphics.setColor(0);
+    graphics.fillRect(3, 195, 170, 5);
+    graphics.setColor(65280);
+    graphics.drawLine(4, 196, (((this.subState * 168) / 23) | 0) + 3, 196);
+    graphics.setColor(47872);
+    graphics.drawLine(4, 197, (((this.subState * 168) / 23) | 0) + 3, 197);
+    graphics.setColor(30464);
+    graphics.drawLine(4, 198, (((this.subState * 168) / 23) | 0) + 3, 198);
+    if (!LevelScene.loadResourcesUpTo(this, this.subState)) return;
+    this.uiState = UiState.MainMenu;
+    this.levelIndex = 0;
+    this.subState = 0;
+    this.menuStartItem = 1;
+    this.menuSelection = 1;
+    this.startUnderline(120);
+  }
+
+  // paint case 4 (UiState.MainMenu)：绘菜单项 + 下划线，上/下移光标，确定(16)进内层 switch(menuSelection) 分派。
+  private paintMainMenu(graphics: Graphics): void {
+    graphics.setClip(0, 0, 176, 204);
+    graphics.setColor(0);
+    graphics.fillRect(0, 0, 176, 204);
+    graphics.drawImage(this.logoImageMain!, 0, 0, 20);
+    graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 2, 20);
+    let menuItem = this.menuStartItem;
+    while (menuItem < 7) {
+      graphics.setColor(this.menuSelection === menuItem && this.underlineDir === 1 ? 0xffffff : 65280);
+      if (menuItem === 3) {
+        graphics.drawString(GameMIDlet.menuTexts[GameMIDlet.saveRecord[2] === 0 ? 7 : 3], 88, 60 + menuItem * 20, 17);
+      } else {
+        graphics.drawString(GameMIDlet.menuTexts[menuItem], 88, 60 + menuItem * 20, 17);
+      }
+      ++menuItem;
+    }
+    graphics.setColor(65280);
+    this.drawUnderline(graphics, 88, 80 + this.menuSelection * 20);
+    if (this.inputAction === 4) {
+      this.startUnderline(120);
+      if (--this.menuSelection < this.menuStartItem) {
+        this.menuSelection = 6;
+      }
+    } else if (this.inputAction === 8) {
+      this.startUnderline(120);
+      if (++this.menuSelection > 6) {
+        this.menuSelection = this.menuStartItem;
+      }
+    } else if (this.inputAction === 16) {
+      switch (this.menuSelection) {
+        case 0: {
+          this.uiState = UiState.InGame;
+          break;
+        }
+        case 1: {
+          this.levelIndex = 0;
+          GameMIDlet.accessSaveRecord(2);
+          this.transitionProgress = 0;
+          this.subState = 0;
+          this.uiState = UiState.CutsceneIntro;
+          PlayerActor.ammoReserve[1] = 6;
+          break;
+        }
+        case 2: {
+          if (GameMIDlet.saveRecord[3] === 0) {
+            this.subState = 0;
+            this.uiState = UiState.NoSave;
+            break;
+          }
+          this.transitionProgress = 0;
+          this.subState = 0;
+          this.levelIndex = GameMIDlet.saveRecord[3];
+          const continueCount = GameMIDlet.saveRecord[1];
+          GameMIDlet.saveRecord[1] = (continueCount + 1) << 24 >> 24; // (byte) 截断
+          if (continueCount > 99) {
+            GameMIDlet.saveRecord[1] = 99;
+          }
+          PlayerActor.ammoReserve[1] = GameMIDlet.saveRecord[4];
+          this.uiState = this.levelIndex === 0 ? UiState.CutsceneIntro : UiState.LevelIntroLoading;
+          break;
+        }
+        case 3: {
+          GameMIDlet.saveRecord[2] = (GameMIDlet.saveRecord[2] ^ 1) << 24 >> 24; // (byte) 截断
+          if (GameMIDlet.saveRecord[2] !== 0) break;
+          GameMIDlet.stopSound();
+          break;
+        }
+        case 4: {
+          this.subState = 0;
+          GameMIDlet.loadTextEntry(7, "/res/string.bin");
+          this.inputAction = 0;
+          this.uiState = UiState.Help;
+          break;
+        }
+        case 5: {
+          GameMIDlet.loadTextEntry(8, "/res/string.bin");
+          this.inputAction = 0;
+          this.uiState = UiState.About;
+          break;
+        }
+        case 6: {
+          this.midlet.destroyApp(true);
+        }
+      }
+    }
+    this.inputAction = 0;
+  }
+
+  // paint case 100 (UiState.NoSave)：无存档提示页，显示 ~15 帧后自动回 MainMenu。
+  private paintNoSave(graphics: Graphics): void {
+    if (this.subState === 0) {
+      graphics.setClip(0, 0, 176, 204);
+      graphics.setColor(0);
+      graphics.fillRect(0, 0, 176, 204);
+      graphics.drawImage(this.logoImageMain!, 0, 0, 20);
+      graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 6, 20);
+      LevelScene.fillBlackBand(graphics, 8, this.logoImageMain!.getHeight() + 6, 176);
+      graphics.setClip(0, 0, 176, 208);
+      graphics.setColor(65280);
+      graphics.drawString("没有存档记录!!", 88, 104, 17);
+    }
+    ++this.subState;
+    if (this.subState <= 15) return;
+    this.subState = 0;
+    this.uiState = UiState.MainMenu;
+  }
+
+  // paint case 2 (UiState.LevelIntroLoading)：分帧 loadLevel + 载入提示，loadComplete 后进 InGame 并记开始时刻。
+  private paintLevelIntroLoading(graphics: Graphics): void {
+    this.loadLevel(this.levelIndex);
+    graphics.setColor(0);
+    graphics.setClip(0, 0, 176, 204);
+    graphics.fillRect(0, 0, 176, 204);
+    graphics.setColor(65280);
+    graphics.drawString(GameMIDlet.interludeTexts[11], 88, 184, 17);
+    if (!this.loadComplete) return;
+    this.subState = 0;
+    this.uiState = UiState.InGame;
+    this.levelStartTime = Date.now(); // System.currentTimeMillis()
+  }
+
+  // paint case 22 (UiState.MissionBrief)：渲染场景 + 展开边框动画；进度满则绘任务简报文本与关卡星标。
+  private paintMissionBrief(graphics: Graphics): void {
+    this.scene.render(graphics);
+    graphics.setClip(0, 0, 176, 204);
+    GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 171, 10, this.transitionProgress, 47872, 0, true);
+    this.scene.renderHud(graphics);
+    graphics.setClip(0, 0, 176, 204);
+    if (this.transitionProgress < 10) {
+      if (this.subState === 0) {
+        ++this.transitionProgress;
+      } else {
+        --this.transitionProgress;
+        if (this.transitionProgress < 0) {
+          this.subState = 0;
+          this.uiState = UiState.InGame;
+        }
+      }
+      this.inputAction = 0;
+      return;
+    }
+    GameCanvas.drawExpandingFrame(graphics, 166, 40, 10, 70, 20, 20, 47872, 17408, true);
+    GameCanvas.drawExpandingFrame(graphics, 166, 90, 10, 145, 20, 20, 47872, 17408, true);
+    graphics.setColor(65280);
+    graphics.drawString(GameMIDlet.interludeTexts[2] + GameMIDlet.numeralTexts[this.levelIndex], 88, 15, 17);
+    graphics.drawString(GameMIDlet.missionTexts[this.levelIndex], 88, 47, 17);
+    LevelScene.hudFont.drawCell(graphics, 158, 157, 39, 0, 0);
+    LevelScene.hudFont.drawCell(graphics, 23, 95, 29, 0, 0);
+    const stageMarkX = Int32Array.from([5, 19, 44, 58, 81, 99, 124]);
+    const stageMarkY = Int32Array.from([90, 100, 89, 101, 101, 93, 91]);
+    let stageIndex = 0;
+    while (stageIndex < 7) {
+      if (stageIndex <= this.levelIndex && (stageIndex !== this.levelIndex || this.globalFrame % 4 <= 1)) {
+        LevelScene.hudFont.drawCell(graphics, 24 + stageMarkX[stageIndex], 24 + stageMarkY[stageIndex], 28, 0, 0);
+      }
+      ++stageIndex;
+    }
+    if (this.subState === 0 && this.inputAction === 32768) {
+      this.subState = 1;
+      --this.transitionProgress;
+    }
+  }
+
+  // paint case 10 (UiState.InGame)：游戏中——推进场景逻辑并渲染。
+  private paintInGame(graphics: Graphics): void {
+    this.scene.tick();
+    this.scene.render(graphics);
+  }
+
+  // paint case 18 (UiState.LevelFailed)：任务失败结算页，展开边框后绘统计（分/秒/储备）+ 重试/菜单双选项。
+  private paintLevelFailed(graphics: Graphics): void {
+    GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, this.transitionProgress, 47872, 0, true);
+    if (this.transitionProgress < 10) {
+      ++this.transitionProgress;
+      this.menuSelection = 0;
+      return;
+    }
+    graphics.setColor(65280);
+    graphics.drawString(GameMIDlet.interludeTexts[2] + GameMIDlet.numeralTexts[this.levelIndex] + GameMIDlet.interludeTexts[8], 88, 30, 17);
+    graphics.drawString(GameMIDlet.interludeTexts[5], 36, 64, 20);
+    graphics.drawString(String(GameCanvas.instance.scene.reservedD), 140, 64, 24);
+    graphics.drawString(GameMIDlet.interludeTexts[7], 36, 90, 20);
+    graphics.drawString(String(GameMIDlet.saveRecord[1] & 0xff), 140, 90, 24);
+    graphics.drawString(GameMIDlet.interludeTexts[6], 36, 116, 20);
+    const minutes = ((this.elapsedSeconds / 60) | 0);
+    const seconds = (this.elapsedSeconds % 60);
+    let minStr = String(minutes);
+    let secStr = String(seconds);
+    if (minutes < 10) {
+      minStr = "0" + minStr;
+    }
+    if (seconds < 10) {
+      secStr = "0" + secStr;
+    }
+    const timeStr = minStr + ":" + secStr;
+    graphics.drawString(timeStr, 140, 116, 24);
+    LevelScene.actorDefs[0]!.drawFrame(graphics, 48, 170, 4, 0, 0, 0);
+    graphics.setClip(0, 0, 176, 204);
+    if (this.inputAction === 4) {
+      this.startUnderline(64);
+      if (--this.menuSelection < 0) {
+        this.menuSelection = 1;
+      }
+      this.inputAction = 0;
+    } else if (this.inputAction === 8) {
+      this.startUnderline(64);
+      if (++this.menuSelection > 1) {
+        this.menuSelection = 0;
+      }
+      this.inputAction = 0;
+    } else if (this.inputAction === 16) {
+      if (this.menuSelection === 0) {
+        const continueCount = GameMIDlet.saveRecord[1];
+        GameMIDlet.saveRecord[1] = (continueCount + 1) << 24 >> 24; // (byte) 截断
+        if (continueCount > 99) {
+          GameMIDlet.saveRecord[1] = 99;
+        }
+        this.uiState = UiState.LevelIntroLoading;
+      } else {
+        this.menuStartItem = 1;
+        this.menuSelection = 1;
+        this.uiState = UiState.MainMenu;
+      }
+      this.inputAction = 0;
+    }
+    let optionIndex = 0;
+    while (optionIndex < 2) {
+      graphics.setColor(optionIndex === this.menuSelection && this.underlineDir === 1 ? 0xffffff : 65280);
+      if (optionIndex === 0) {
+        graphics.drawString(GameMIDlet.interludeTexts[0], 120, 150, 17);
+      } else {
+        graphics.drawString(GameMIDlet.interludeTexts[9], 120, 170, 17);
+      }
+      ++optionIndex;
+    }
+    graphics.setColor(65280);
+    this.drawUnderline(graphics, 120, 169 + this.menuSelection * 20);
+  }
+
+  // paint case 16 (UiState.LevelClear)：任务完成结算页，展开边框→绘统计→播结算动画；到 frame34 存档并进下一关/GameComplete。
+  private paintLevelClear(graphics: Graphics): void {
+    GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, this.transitionProgress, 47872, 0, true);
+    if (this.transitionProgress < 10) {
+      ++this.transitionProgress;
+      if (this.transitionProgress !== 10) return;
+      GameMIDlet.playSound(1, 140);
+      return;
+    }
+    graphics.setColor(65280);
+    graphics.drawString(GameMIDlet.interludeTexts[2] + GameMIDlet.numeralTexts[this.levelIndex] + GameMIDlet.interludeTexts[4], 88, 30, 17);
+    graphics.drawString(GameMIDlet.interludeTexts[5], 36, 64, 20);
+    graphics.drawString(String(GameCanvas.instance.scene.reservedD), 140, 64, 24);
+    graphics.drawString(GameMIDlet.interludeTexts[7], 36, 86, 20);
+    graphics.drawString(String(GameMIDlet.saveRecord[1] & 0xff), 140, 86, 24);
+    graphics.drawString(GameMIDlet.interludeTexts[6], 36, 108, 20);
+    const minutes = ((this.elapsedSeconds / 60) | 0);
+    const seconds = (this.elapsedSeconds % 60);
+    let minStr = String(minutes);
+    let secStr = String(seconds);
+    if (minutes < 10) {
+      minStr = "0" + minStr;
+    }
+    if (seconds < 10) {
+      secStr = "0" + secStr;
+    }
+    const timeStr = minStr + ":" + secStr;
+    graphics.drawString(timeStr, 140, 108, 24);
+    LevelScene.hudFont.drawCell(graphics, 158, 189, 40, 0, 0);
+    LevelScene.actorDefs[0]!.drawFrame(graphics, 88, 170, this.resultAnimFrame, this.resultAnimCounter, 0, 0);
+    if (this.resultAnimFrame === 34) {
+      if (this.resultAnimCounter++ !== 4) return;
+      if (this.levelIndex === 6) {
+        this.uiState = UiState.GameComplete;
+      } else {
+        ++this.levelIndex;
+        this.uiState = UiState.LevelIntroLoading;
+      }
+      GameMIDlet.saveRecord[0] = this.levelIndex << 24 >> 24; // (byte) 截断
+      GameMIDlet.saveRecord[3] = this.levelIndex << 24 >> 24; // (byte) 截断
+      GameMIDlet.saveRecord[4] = PlayerActor.ammoReserve[1] << 24 >> 24; // (byte) 截断
+      GameMIDlet.accessSaveRecord(1);
+      return;
+    }
+    if (this.inputAction === 32768) {
+      this.resultAnimCounter = 0;
+      this.resultAnimFrame = 34;
+      return;
+    }
+    ++this.resultAnimCounter;
+    this.resultAnimCounter %= LevelScene.actorDefs[0]!.getFrameCount(this.resultAnimFrame);
+  }
+
+  // paint case 21 (UiState.GameComplete)：全通画面——黑幕渐展(subState<16) + 通关文字，30 帧后回 MainMenu。
+  private paintGameComplete(graphics: Graphics): void {
+    ++this.subState;
+    if (this.subState < 16) {
+      LevelScene.fillBlackBand(graphics, this.subState, 0, 204);
+      return;
+    }
+    graphics.setColor(65280);
+    graphics.drawString(GameMIDlet.interludeTexts[10], 88, 102, 33);
+    if (this.subState <= 30) return;
+    this.menuStartItem = 1;
+    this.menuSelection = 1;
+    this.uiState = UiState.MainMenu;
+    this.subState = 0;
+    // System.gc();
+  }
+
+  // paint case 6 (UiState.Help)：帮助页——分页绘制换行文本；右软键(32768)翻页，左软键(16384)回 MainMenu。
+  private paintHelp(graphics: Graphics): void {
+    GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, 10, 47872, 0, true);
+    graphics.setColor(65280);
+    this.drawWrappedLines(graphics, GameMIDlet.tempText3, 5, 6, 19, this.subState, 9);
+    LevelScene.hudFont.drawCell(graphics, 158, 189, 40, 0, 0);
+    LevelScene.hudFont.drawCell(graphics, 5, 189, 39, 0, 0);
+    if (this.inputAction === 32768) {
+      this.subState += 9;
+      if (this.subState > 26) {
+        this.subState = 0;
+      }
+      this.inputAction = 0;
+      return;
+    }
+    if (this.inputAction !== 16384) return;
+    this.uiState = UiState.MainMenu;
+    this.inputAction = 0;
+    GameMIDlet.tempText3 = null as unknown as string;
+    // System.gc();
+  }
+
+  // paint case 19 (UiState.About)：关于页——绘换行文本；左软键(16384)回 MainMenu。CFR 末 case 无末尾 break，落到函数尾自然返回。
+  private paintAbout(graphics: Graphics): void {
+    GameCanvas.drawExpandingFrame(graphics, 175, 0, 0, 203, 10, 10, 47872, 0, true);
+    graphics.setColor(65280);
+    this.drawWrappedLines(graphics, GameMIDlet.tempText3, 5, 5, 18, 0, 10);
+    LevelScene.hudFont.drawCell(graphics, 5, 186, 39, 0, 0);
+    if (this.inputAction !== 16384) return;
+    this.uiState = UiState.MainMenu;
+    this.inputAction = 0;
+    GameMIDlet.tempText3 = null as unknown as string;
+    // System.gc();
   }
 
   /**
