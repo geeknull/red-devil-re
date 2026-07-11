@@ -62,182 +62,202 @@ export class ProjectileActor extends ActorBase {
    */
   // public final void b() → b_
   update(): void {
+    // 按投射物 typeId 分派 update<Type> helper（switch 是方法末块，故顶层 break==return→helper return）。
     switch (this.typeId) {
-      case ActorType.DirectBullet: {
-        switch (this.frameGroupIndex) {
-          case 9: {
-            if (Math.abs(this.targetVelY) <= px(2)) {
-              this.setAction(0xa | this.actionHighByte);
-            }
-          }
-          // fall through
-          case 10: {
-            if (this.targetVelY > px(3)) {
-              this.setAction(0xb | this.actionHighByte);
-            }
-          }
-          // fall through
-          case 0:
-          case 1:
-          case 2:
-          case 3:
-          case 4:
-          case 5:
-          case 11:
-          case 12: {
-            ++this.frameTicks;
-          }
-          // fall through
-          case 6: {
-            if ((this.typeId as number) === ActorType.NavalOfficerNpc && !this.hasCollisionFlag(1)) {
-              if (this.timer-- <= 0) {
-                this.targetVelX = 0;
-              }
-            } else if (this.frameTicks > 30) {
-              this.expired = true;
-            }
-            this.checkCollisions();
-            const bl: boolean = false;
-            if (this.targetVelX > 0) {
-              if (this.collideRight()) {
-                this.hitWall = true;
-              } else if (this.posX > this.canvas.cameraX + this.canvas.viewportWidth + px(8)) {
-                this.expired = true;
-              }
-            } else if (this.targetVelX < 0) {
-              if (this.collideLeft()) {
-                this.hitWall = true;
-              } else if (this.posX < this.canvas.cameraX - px(8)) {
-                this.expired = true;
-              }
-            }
-            if (this.targetVelY < 0) {
-              if (this.collideDown()) {
-                this.hitWall = true;
-              } else if (this.posY < this.canvas.cameraY - px(8)) {
-                this.expired = true;
-              }
-            } else if (this.targetVelY > 0) {
-              if (this.checkFloorCollision()) {
-                this.hitWall = true;
-              } else if (this.posY > this.canvas.cameraY + this.canvas.viewportHeight + px(8)) {
-                this.expired = true;
-              }
-            }
-            if ((this.exploded || this.hitWall) && (this.frameGroupIndex === 6 || this.frameGroupIndex === 9 || this.frameGroupIndex === 10 || this.frameGroupIndex === 11 || this.frameGroupIndex === 12)) {
-              ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, this.collisionTypeMask, null);
-              this.kill();
-              break;
-            }
-            if (this.frameGroupIndex === 11 && this.isSpecialGrenade && this.posY > px(146)) {
-              const e2: ItemActor = this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor;
-              (this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor).posX = this.posX;
-              e2.posY = this.posY + px(10);
-              e2.targetVelX = 0;
-              e2.targetVelY = 0;
-              e2.accelY = 0;
-              e2.setAction(0);
-              e2.drawThisFrame = false;
-              this.accelY = 0;
-              this.targetVelY = 0;
-              this.targetVelX = 0;
-              this.kill();
-              break;
-            }
-            if (this.exploded) {
-              this.targetVelX = 0;
-              this.targetVelY = 0;
-              this.accelY = 0;
-              this.animLoop = false;
-              this.setAction(7 | this.actionHighByte);
-              break;
-            }
-            if (this.hitWall) {
-              if (this.targetVelX > 0) {
-                this.posX += px(2);
-              } else if (this.targetVelX < 0) {
-                this.posX -= px(2);
-              } else if (this.targetVelY < 0) {
-                this.posY -= px(2);
-              } else if (this.targetVelY > 0) {
-                this.posY += px(2);
-              }
-              this.targetVelX = 0;
-              this.targetVelY = 0;
-              this.accelY = 0;
-              this.animLoop = false;
-              this.setAction(8 | this.actionHighByte);
-              break;
-            }
-            if (!this.expired) break;
-            this.kill();
-            break;
-          }
-          case 7:
-          case 8: {
-            if (!this.isAnimationDone()) break;
-            this.kill();
-          }
+      case ActorType.DirectBullet:
+        this.updateDirectBullet();
+        break;
+      case ActorType.ArcCannonShell:
+        this.updateArcCannonShell();
+        break;
+      case ActorType.ExplosionDebris:
+        this.updateExplosionDebris();
+        break;
+      case ActorType.GuidedGrenade:
+        this.updateGuidedGrenade();
+        break;
+    }
+  }
+
+  // update case type10（DirectBullet，直射/抛射弹）：内层 switch(frameGroupIndex) 状态机——
+  // 飞行帧(9→10→[0-5,11,12]→6 有意落穿)推进碰撞/出屏/命中判定并生成爆炸，命中/爆炸帧(7/8)播完销毁。
+  // 内层 switch 的 break 均为帧组分支 break（原样保留，非顶层）。
+  private updateDirectBullet(): void {
+    switch (this.frameGroupIndex) {
+      case 9: {
+        if (Math.abs(this.targetVelY) <= px(2)) {
+          this.setAction(0xa | this.actionHighByte);
         }
-        return;
       }
-      case ActorType.ArcCannonShell: {
-        if (this.exploded) {
-          this.kill();
-          return;
+      // fall through
+      case 10: {
+        if (this.targetVelY > px(3)) {
+          this.setAction(0xb | this.actionHighByte);
         }
-        if (!((this.targetVelX < 0 && this.collideLeft()) || (this.targetVelX > 0 && this.collideRight()) || !this.checkFloorCollision()) && !this.collidesWith(this.canvas.player)) break;
-        ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, 255, null);
-        this.exploded = true;
-        return;
       }
-      case ActorType.ExplosionDebris: {
-        if (this.isAnimationDone()) {
-          this.kill();
-          return;
+      // fall through
+      case 0:
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      case 11:
+      case 12: {
+        ++this.frameTicks;
+      }
+      // fall through
+      case 6: {
+        if ((this.typeId as number) === ActorType.NavalOfficerNpc && !this.hasCollisionFlag(1)) {
+          if (this.timer-- <= 0) {
+            this.targetVelX = 0;
+          }
+        } else if (this.frameTicks > 30) {
+          this.expired = true;
         }
         this.checkCollisions();
-        return;
-      }
-      case ActorType.GuidedGrenade: {
-        ++this.timer;
-        if (this.timer === 8) {
-          const n: number = this.canvas.player.posX - this.posX;
-          const n2: number = Math.abs(this.posY - this.canvas.player.posY);
-          const n3: number = Math.abs(n);
-          if (n3 > ((((n2 * 4) | 0) / 3) | 0)) {
-            this.targetVelX = this.posX > this.canvas.player.posX ? px(-8) : px(8);
-            this.targetVelY = -((n2 / ((n3 / px(8)) | 0)) | 0);
-          } else {
-            this.targetVelY = px(-10);
-            this.targetVelX = (n / ((n2 / px(10)) | 0)) | 0;
+        const bl: boolean = false;
+        if (this.targetVelX > 0) {
+          if (this.collideRight()) {
+            this.hitWall = true;
+          } else if (this.posX > this.canvas.cameraX + this.canvas.viewportWidth + px(8)) {
+            this.expired = true;
           }
-          this.accelY = 0;
-          if (this.targetVelX < px(-4)) {
-            this.setAction(1);
-          } else if (this.targetVelX > px(4)) {
-            this.setAction(-2147483647);
+        } else if (this.targetVelX < 0) {
+          if (this.collideLeft()) {
+            this.hitWall = true;
+          } else if (this.posX < this.canvas.cameraX - px(8)) {
+            this.expired = true;
           }
         }
-        if (this.isSpecialGrenade) {
-          if (this.collidesWith(this.canvas.player)) {
-            this.canvas.player.publicFlagA = true;
-            this.canvas.player.health = 0;
-            this.exploded = true;
+        if (this.targetVelY < 0) {
+          if (this.collideDown()) {
+            this.hitWall = true;
+          } else if (this.posY < this.canvas.cameraY - px(8)) {
+            this.expired = true;
           }
-        } else {
-          this.checkCollisions();
+        } else if (this.targetVelY > 0) {
+          if (this.checkFloorCollision()) {
+            this.hitWall = true;
+          } else if (this.posY > this.canvas.cameraY + this.canvas.viewportHeight + px(8)) {
+            this.expired = true;
+          }
+        }
+        if ((this.exploded || this.hitWall) && (this.frameGroupIndex === 6 || this.frameGroupIndex === 9 || this.frameGroupIndex === 10 || this.frameGroupIndex === 11 || this.frameGroupIndex === 12)) {
+          ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, this.collisionTypeMask, null);
+          this.kill();
+          break;
+        }
+        if (this.frameGroupIndex === 11 && this.isSpecialGrenade && this.posY > px(146)) {
+          const splashEffect: ItemActor = this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor;
+          (this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor).posX = this.posX;
+          splashEffect.posY = this.posY + px(10);
+          splashEffect.targetVelX = 0;
+          splashEffect.targetVelY = 0;
+          splashEffect.accelY = 0;
+          splashEffect.setAction(0);
+          splashEffect.drawThisFrame = false;
+          this.accelY = 0;
+          this.targetVelY = 0;
+          this.targetVelX = 0;
+          this.kill();
+          break;
         }
         if (this.exploded) {
-          ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, 0, null);
-          ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + px(2), this.posY - px(4), 0, null);
-          this.kill();
-          return;
+          this.targetVelX = 0;
+          this.targetVelY = 0;
+          this.accelY = 0;
+          this.animLoop = false;
+          this.setAction(7 | this.actionHighByte);
+          break;
         }
-        if (this.posX >= this.canvas.cameraX - px(10) && this.posY >= this.canvas.cameraY - px(10) && this.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(10)) break;
+        if (this.hitWall) {
+          if (this.targetVelX > 0) {
+            this.posX += px(2);
+          } else if (this.targetVelX < 0) {
+            this.posX -= px(2);
+          } else if (this.targetVelY < 0) {
+            this.posY -= px(2);
+          } else if (this.targetVelY > 0) {
+            this.posY += px(2);
+          }
+          this.targetVelX = 0;
+          this.targetVelY = 0;
+          this.accelY = 0;
+          this.animLoop = false;
+          this.setAction(8 | this.actionHighByte);
+          break;
+        }
+        if (!this.expired) break;
+        this.kill();
+        break;
+      }
+      case 7:
+      case 8: {
+        if (!this.isAnimationDone()) break;
         this.kill();
       }
     }
+  }
+
+  // update case type16（ArcCannonShell，炮台弧形弹）：爆炸态直接销毁；撞墙/落地/命中玩家则生成爆炸并置 exploded。
+  private updateArcCannonShell(): void {
+    if (this.exploded) {
+      this.kill();
+      return;
+    }
+    if (!((this.targetVelX < 0 && this.collideLeft()) || (this.targetVelX > 0 && this.collideRight()) || !this.checkFloorCollision()) && !this.collidesWith(this.canvas.player)) return;
+    ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, 255, null);
+    this.exploded = true;
+  }
+
+  // update case type12（ExplosionDebris，爆炸碎片）：动画播完销毁，否则跑碰撞。
+  private updateExplosionDebris(): void {
+    if (this.isAnimationDone()) {
+      this.kill();
+      return;
+    }
+    this.checkCollisions();
+  }
+
+  // update case type9（GuidedGrenade，制导榴弹）：第 8 帧按到玩家的相对位置解算抛物初速；命中/出屏销毁。
+  private updateGuidedGrenade(): void {
+    ++this.timer;
+    if (this.timer === 8) {
+      const dx: number = this.canvas.player.posX - this.posX;
+      const absDy: number = Math.abs(this.posY - this.canvas.player.posY);
+      const absDx: number = Math.abs(dx);
+      if (absDx > ((((absDy * 4) | 0) / 3) | 0)) {
+        this.targetVelX = this.posX > this.canvas.player.posX ? px(-8) : px(8);
+        this.targetVelY = -((absDy / ((absDx / px(8)) | 0)) | 0);
+      } else {
+        this.targetVelY = px(-10);
+        this.targetVelX = (dx / ((absDy / px(10)) | 0)) | 0;
+      }
+      this.accelY = 0;
+      if (this.targetVelX < px(-4)) {
+        this.setAction(1);
+      } else if (this.targetVelX > px(4)) {
+        this.setAction(-2147483647);
+      }
+    }
+    if (this.isSpecialGrenade) {
+      if (this.collidesWith(this.canvas.player)) {
+        this.canvas.player.publicFlagA = true;
+        this.canvas.player.health = 0;
+        this.exploded = true;
+      }
+    } else {
+      this.checkCollisions();
+    }
+    if (this.exploded) {
+      ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX, this.posY, 0, null);
+      ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, this.posX + px(2), this.posY - px(4), 0, null);
+      this.kill();
+      return;
+    }
+    if (this.posX >= this.canvas.cameraX - px(10) && this.posY >= this.canvas.cameraY - px(10) && this.posX <= this.canvas.cameraX + this.canvas.viewportWidth + px(10)) return;
+    this.kill();
   }
 
   /**
@@ -247,13 +267,13 @@ export class ProjectileActor extends ActorBase {
    *  - typeId 10：命中机关/Boss 类（11/13/17/19/21）按「撞硬物」置 hitWall=true（触发地形特效）；
    *    命中其他（玩家/敌兵）置 exploded=true（实体击中特效）。
    *  - typeId 9：任意命中置 exploded=true。
-   * @param h2 被命中的目标 Actor
+   * @param source 被命中的目标 Actor
    */
   // protected final void c(tjge.h) → c_Th
-  onCollide(h2: ActorBase): void {
+  onCollide(source: ActorBase): void {
     switch (this.typeId) {
       case ActorType.DirectBullet: {
-        if (h2.typeId === ActorType.MobileGunEmplacement || h2.typeId === ActorType.PatrolLauncher || h2.typeId === ActorType.FinalBoss || h2.typeId === ActorType.DestructibleConsole || h2.typeId === ActorType.HelicopterBoss) {
+        if (source.typeId === ActorType.MobileGunEmplacement || source.typeId === ActorType.PatrolLauncher || source.typeId === ActorType.FinalBoss || source.typeId === ActorType.DestructibleConsole || source.typeId === ActorType.HelicopterBoss) {
           this.hitWall = true;
           return;
         }
@@ -274,67 +294,67 @@ export class ProjectileActor extends ActorBase {
    *  - typeId 10：动作非 9/6 时 collisionMask=1（仅撞纯实体墙）；生成即横向扫描地形带，贴墙则立即置 hitWall 并跑一帧 update()（贴墙生成→立即命中）。
    *  - typeId 12：animLoop=false（爆炸特效播完即止）。
    *  - typeId 9：初速 targetVelY=-2048（微上抛）、timer=0、动作 0。
-   * @param n 投射物类型 ID（9/10/12/16）
-   * @param n2 初始动作 ID（传给 setAction）
-   * @param n3 生成 X 坐标（定点 <<10）
-   * @param n4 生成 Y 坐标（定点 <<10）
-   * @param n5 碰撞类型掩码（写入 collisionTypeMask，决定可命中的阵营）
+   * @param typeId 投射物类型 ID（9/10/12/16）
+   * @param action 初始动作 ID（传给 setAction）
+   * @param spawnX 生成 X 坐标（定点 <<10）
+   * @param spawnY 生成 Y 坐标（定点 <<10）
+   * @param collisionMask 碰撞类型掩码（写入 collisionTypeMask，决定可命中的阵营）
    * @param nArray 备用参数（沿用原版签名，本类未使用）
    * @returns 取得的投射物实例（池满时可能为 null）
    */
   // public static final tjge.k a(int,int,int,int,int,int[]) → a_IIIIIAI
-  static spawnProjectile(n: number, n2: number, n3: number, n4: number, n5: number, nArray: Int32Array | null): ProjectileActor {
-    const k2: ProjectileActor = GameCanvas.instance.scene.spawnActor(n, -1) as ProjectileActor;
-    if (k2 != null) {
-      k2.posX = n3;
-      k2.posY = n4;
-      k2.targetVelX = 0;
-      k2.targetVelY = 0;
-      k2.accelX = 0;
-      k2.accelY = 0;
-      k2.maxVelY = px(15);
-      k2.drawAlpha = 0;
-      k2.frameTicks = 0;
-      k2.exploded = false;
-      k2.hitWall = false;
-      k2.expired = false;
-      k2.animLoop = true;
-      k2.isSpecialGrenade = false;
-      k2.setAction(n2);
-      k2.collisionMask = 3;
-      k2.collisionTypeMask = n5;
-      switch (n) {
+  static spawnProjectile(typeId: number, action: number, spawnX: number, spawnY: number, collisionMask: number, nArray: Int32Array | null): ProjectileActor {
+    const projectile: ProjectileActor = GameCanvas.instance.scene.spawnActor(typeId, -1) as ProjectileActor;
+    if (projectile != null) {
+      projectile.posX = spawnX;
+      projectile.posY = spawnY;
+      projectile.targetVelX = 0;
+      projectile.targetVelY = 0;
+      projectile.accelX = 0;
+      projectile.accelY = 0;
+      projectile.maxVelY = px(15);
+      projectile.drawAlpha = 0;
+      projectile.frameTicks = 0;
+      projectile.exploded = false;
+      projectile.hitWall = false;
+      projectile.expired = false;
+      projectile.animLoop = true;
+      projectile.isSpecialGrenade = false;
+      projectile.setAction(action);
+      projectile.collisionMask = 3;
+      projectile.collisionTypeMask = collisionMask;
+      switch (typeId) {
         case ActorType.DirectBullet: {
-          if (k2.frameGroupIndex === 9) break;
-          if (k2.frameGroupIndex !== 6) {
-            k2.collisionMask = 1;
+          if (projectile.frameGroupIndex === 9) break;
+          if (projectile.frameGroupIndex !== 6) {
+            projectile.collisionMask = 1;
           }
-          let n6: number = (k2.posX >> 10) + k2.boxLeft >> 3;
-          const n7: number = (k2.posX >> 10) + k2.boxRight >> 3;
-          const n8: number = k2.posY >> 10 >> 3;
-          while (n6 < n7) {
-            if (k2.tileAt(n6, n8) === 1) {
-              k2.hitWall = true;
+          let startCol: number = (projectile.posX >> 10) + projectile.boxLeft >> 3;
+          const endCol: number = (projectile.posX >> 10) + projectile.boxRight >> 3;
+          const row: number = projectile.posY >> 10 >> 3;
+          while (startCol < endCol) {
+            if (projectile.tileAt(startCol, row) === 1) {
+              projectile.hitWall = true;
               break;
             }
-            ++n6;
+            ++startCol;
           }
-          k2.update();
+          projectile.update();
           break;
         }
         case ActorType.ExplosionDebris: {
-          k2.animLoop = false;
+          projectile.animLoop = false;
           break;
         }
         case ActorType.GuidedGrenade: {
-          k2.targetVelX = 0;
-          k2.targetVelY = px(-2);
-          k2.timer = 0;
-          k2.setAction(0);
+          projectile.targetVelX = 0;
+          projectile.targetVelY = px(-2);
+          projectile.timer = 0;
+          projectile.setAction(0);
         }
       }
     }
-    return k2;
+    return projectile;
   }
 
   /**
@@ -372,23 +392,23 @@ export class ProjectileActor extends ActorBase {
     if (this.velY < 0) {
       return false;
     }
-    const n: number = (this.posY >> 10) + this.boxBottom >> 3;
-    const n2: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
-    const n3: number = (this.posX + this.velX >> 10) + this.boxLeft + 1 >> 3;
-    const n4: number = (this.posX + this.velX >> 10) + this.boxRight - 1 >> 3;
-    let n5: number = n3;
-    while (n5 <= n4) {
-      let n6: number = n;
-      while (n6 <= n2) {
-        const n7: number = this.tileAt(n5, n6);
-        if ((n7 & this.collisionMask) !== 0) {
+    const bottomRow: number = (this.posY >> 10) + this.boxBottom >> 3;
+    const nextBottomRow: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
+    const leftCol: number = (this.posX + this.velX >> 10) + this.boxLeft + 1 >> 3;
+    const rightCol: number = (this.posX + this.velX >> 10) + this.boxRight - 1 >> 3;
+    let col: number = leftCol;
+    while (col <= rightCol) {
+      let row: number = bottomRow;
+      while (row <= nextBottomRow) {
+        const tile: number = this.tileAt(col, row);
+        if ((tile & this.collisionMask) !== 0) {
           this.targetVelY = 0;
-          this.velY = (n6 << 13) - (this.posY + (this.boxBottom << 10));
+          this.velY = (row << 13) - (this.posY + (this.boxBottom << 10));
           return true;
         }
-        ++n6;
+        ++row;
       }
-      ++n5;
+      ++col;
     }
     return false;
   }
