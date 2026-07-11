@@ -43,7 +43,7 @@ import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { UiState, LevelSubState, ActorType, px } from "./constants.ts";
+import { UiState, LevelSubState, ActorType, InputAction, px } from "./constants.ts";
 
 // 原版：a extends FullCanvas implements Runnable（TS 无 Runnable 接口，run() 直接由 Thread 驱动）。
 export class GameCanvas extends Canvas {
@@ -332,17 +332,17 @@ export class GameCanvas extends Canvas {
     }
     graphics.setColor(65280);
     this.drawUnderline(graphics, 88, 80 + this.menuSelection * 20);
-    if (this.inputAction === 4) {
+    if (this.inputAction === InputAction.Up) {
       this.startUnderline(120);
       if (--this.menuSelection < this.menuStartItem) {
         this.menuSelection = 6;
       }
-    } else if (this.inputAction === 8) {
+    } else if (this.inputAction === InputAction.Down) {
       this.startUnderline(120);
       if (++this.menuSelection > 6) {
         this.menuSelection = this.menuStartItem;
       }
-    } else if (this.inputAction === 16) {
+    } else if (this.inputAction === InputAction.Fire) {
       switch (this.menuSelection) {
         case 0: {
           this.uiState = UiState.InGame;
@@ -384,13 +384,13 @@ export class GameCanvas extends Canvas {
         case 4: {
           this.subState = 0;
           GameMIDlet.loadTextEntry(7, "/res/string.bin");
-          this.inputAction = 0;
+          this.inputAction = InputAction.None;
           this.uiState = UiState.Help;
           break;
         }
         case 5: {
           GameMIDlet.loadTextEntry(8, "/res/string.bin");
-          this.inputAction = 0;
+          this.inputAction = InputAction.None;
           this.uiState = UiState.About;
           break;
         }
@@ -399,7 +399,7 @@ export class GameCanvas extends Canvas {
         }
       }
     }
-    this.inputAction = 0;
+    this.inputAction = InputAction.None;
   }
 
   // paint case 100 (UiState.NoSave)：无存档提示页，显示 ~15 帧后自动回 MainMenu。
@@ -452,7 +452,7 @@ export class GameCanvas extends Canvas {
           this.uiState = UiState.InGame;
         }
       }
-      this.inputAction = 0;
+      this.inputAction = InputAction.None;
       return;
     }
     GameCanvas.drawExpandingFrame(graphics, 166, 40, 10, 70, 20, 20, 47872, 17408, true);
@@ -471,7 +471,7 @@ export class GameCanvas extends Canvas {
       }
       ++stageIndex;
     }
-    if (this.subState === 0 && this.inputAction === 32768) {
+    if (this.subState === 0 && this.inputAction === InputAction.SoftRight) {
       this.subState = 1;
       --this.transitionProgress;
     }
@@ -512,19 +512,19 @@ export class GameCanvas extends Canvas {
     graphics.drawString(timeStr, 140, 116, 24);
     LevelScene.actorDefs[0]!.drawFrame(graphics, 48, 170, 4, 0, 0, 0);
     graphics.setClip(0, 0, 176, 204);
-    if (this.inputAction === 4) {
+    if (this.inputAction === InputAction.Up) {
       this.startUnderline(64);
       if (--this.menuSelection < 0) {
         this.menuSelection = 1;
       }
-      this.inputAction = 0;
-    } else if (this.inputAction === 8) {
+      this.inputAction = InputAction.None;
+    } else if (this.inputAction === InputAction.Down) {
       this.startUnderline(64);
       if (++this.menuSelection > 1) {
         this.menuSelection = 0;
       }
-      this.inputAction = 0;
-    } else if (this.inputAction === 16) {
+      this.inputAction = InputAction.None;
+    } else if (this.inputAction === InputAction.Fire) {
       if (this.menuSelection === 0) {
         const continueCount = GameMIDlet.saveRecord[1];
         GameMIDlet.saveRecord[1] = (continueCount + 1) << 24 >> 24; // (byte) 截断
@@ -537,7 +537,7 @@ export class GameCanvas extends Canvas {
         this.menuSelection = 1;
         this.uiState = UiState.MainMenu;
       }
-      this.inputAction = 0;
+      this.inputAction = InputAction.None;
     }
     let optionIndex = 0;
     while (optionIndex < 2) {
@@ -597,7 +597,7 @@ export class GameCanvas extends Canvas {
       GameMIDlet.accessSaveRecord(1);
       return;
     }
-    if (this.inputAction === 32768) {
+    if (this.inputAction === InputAction.SoftRight) {
       this.resultAnimCounter = 0;
       this.resultAnimFrame = 34;
       return;
@@ -630,17 +630,17 @@ export class GameCanvas extends Canvas {
     this.drawWrappedLines(graphics, GameMIDlet.tempText3, 5, 6, 19, this.subState, 9);
     LevelScene.hudFont.drawCell(graphics, 158, 189, 40, 0, 0);
     LevelScene.hudFont.drawCell(graphics, 5, 189, 39, 0, 0);
-    if (this.inputAction === 32768) {
+    if (this.inputAction === InputAction.SoftRight) {
       this.subState += 9;
       if (this.subState > 26) {
         this.subState = 0;
       }
-      this.inputAction = 0;
+      this.inputAction = InputAction.None;
       return;
     }
-    if (this.inputAction !== 16384) return;
+    if (this.inputAction !== InputAction.SoftLeft) return;
     this.uiState = UiState.MainMenu;
-    this.inputAction = 0;
+    this.inputAction = InputAction.None;
     GameMIDlet.tempText3 = null as unknown as string;
     // System.gc();
   }
@@ -651,9 +651,9 @@ export class GameCanvas extends Canvas {
     graphics.setColor(65280);
     this.drawWrappedLines(graphics, GameMIDlet.tempText3, 5, 5, 18, 0, 10);
     LevelScene.hudFont.drawCell(graphics, 5, 186, 39, 0, 0);
-    if (this.inputAction !== 16384) return;
+    if (this.inputAction !== InputAction.SoftLeft) return;
     this.uiState = UiState.MainMenu;
-    this.inputAction = 0;
+    this.inputAction = InputAction.None;
     GameMIDlet.tempText3 = null as unknown as string;
     // System.gc();
   }
@@ -690,7 +690,7 @@ export class GameCanvas extends Canvas {
     if (this.uiState === UiState.InGame || this.uiState === UiState.MissionBrief) {
       this.menuSelection = 0;
       this.menuStartItem = 0;
-      this.inputAction = 0;
+      this.inputAction = InputAction.None;
       this.uiState = UiState.MainMenu;
     }
   }
@@ -717,7 +717,7 @@ export class GameCanvas extends Canvas {
           graphics.setColor(0);
           graphics.setClip(0, 0, 176, 204);
           graphics.fillRect(0, 0, 176, 204);
-          if (this.inputAction === 32768) {
+          if (this.inputAction === InputAction.SoftRight) {
             this.uiState = UiState.LevelIntroLoading;
             return;
           }
@@ -743,7 +743,7 @@ export class GameCanvas extends Canvas {
               if (++GameCanvas.briefingAnimD <= 20) break;
               GameMIDlet.loadTextEntry(0, "/res/string.bin");
               GameCanvas.briefingAnimD = 20;
-              this.inputAction = 0;
+              this.inputAction = InputAction.None;
               ++this.transitionProgress;
               GameCanvas.briefingLineState[0] = 0;
               GameCanvas.briefingLineState[1] = 0;
@@ -774,7 +774,7 @@ export class GameCanvas extends Canvas {
           graphics.drawString(GameMIDlet.interludeTexts[0], 5, 201, 36);
           isLastParagraph = this.selectParagraph(GameCanvas.briefingLineState[0]);
           textFullyDrawn = this.drawTypesetText(graphics, GameCanvas.briefingLineState[1], GameCanvas.briefingLineState[2], GameCanvas.briefingNumberX[GameCanvas.briefingLineState[0] % 2], GameCanvas.briefingNumberY[GameCanvas.briefingLineState[0] % 2], 90, 19);
-          const advanceInput = this.inputAction === 16384 || this.inputAction === 16;
+          const advanceInput = this.inputAction === InputAction.SoftLeft || this.inputAction === InputAction.Fire;
           if (advanceInput) break block18;
           const lineDelay = GameCanvas.briefingLineState[3];
           GameCanvas.briefingLineState[3] = lineDelay - 1;
@@ -791,7 +791,7 @@ export class GameCanvas extends Canvas {
           GameCanvas.briefingLineState[3] = 60;
         }
       }
-      this.inputAction = 0;
+      this.inputAction = InputAction.None;
     }
   }
 
@@ -955,73 +955,73 @@ export class GameCanvas extends Canvas {
 
   // d(int) → d_I（键码 → 游戏动作位）
   private keyToAction(keyCode: number): number {
-    let action = 0;
-    this.heldAction = 0;
+    let action = InputAction.None;
+    this.heldAction = InputAction.None;
     switch (keyCode) {
       case -1:
       case 1:
       case 50: {
         if (this.uiState === UiState.InGame) {
-          action = 32;
+          action = InputAction.ClimbUp;
           break;
         }
-        action = 4;
+        action = InputAction.Up;
         break;
       }
       case -6:
       case 6:
       case 56: {
-        action = 8;
+        action = InputAction.Down;
         break;
       }
       case -2:
       case 2:
       case 52: {
-        action = 1;
+        action = InputAction.Left;
         break;
       }
       case -5:
       case 5:
       case 54: {
-        action = 2;
+        action = InputAction.Right;
         break;
       }
       case -20:
       case 20:
       case 53: {
-        action = 16;
-        this.heldAction = 16;
+        action = InputAction.Fire;
+        this.heldAction = InputAction.Fire;
         break;
       }
       case 55: {
-        action = 2048;
+        action = InputAction.Reload;
         break;
       }
       case 35:
       case 57: {
-        action = 1024;
+        action = InputAction.Grenade;
         break;
       }
       case 42: {
-        action = 4096;
+        action = InputAction.SwitchWeapon;
         break;
       }
       case 49: {
-        action = 64;
+        action = InputAction.JumpLeft;
         break;
       }
       case 51: {
-        action = 128;
+        action = InputAction.JumpRight;
         break;
       }
       case -21:
       case 21: {
-        action = 16384;
+        action = InputAction.SoftLeft;
         break;
       }
       case -22:
       case 22: {
-        action = this.uiState === UiState.MainMenu ? 16 : 32768;
+        action = this.uiState === UiState.MainMenu ? InputAction.Fire : InputAction.SoftRight;
       }
     }
     return action;
@@ -1041,7 +1041,7 @@ export class GameCanvas extends Canvas {
         this.uiState = UiState.MainMenu;
         this.menuStartItem = 0;
         this.menuSelection = 0;
-        this.inputAction = 0;
+        this.inputAction = InputAction.None;
         return;
       }
     } else if ((keyCode === 22 || keyCode === -22) && this.uiState === UiState.InGame && this.scene.subState === 0) {
@@ -1056,7 +1056,7 @@ export class GameCanvas extends Canvas {
    * @param keyCode J2ME 键码（此实现不区分具体键，统一清状态）
    */
   keyReleased(keyCode: number): void {
-    this.inputAction = 0;
+    this.inputAction = InputAction.None;
     this.heldAction = -1;
   }
 

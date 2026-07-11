@@ -32,7 +32,7 @@ import { SpriteDef } from "./SpriteDef.ts";
 import { ItemActor } from "./ItemActor.ts";
 import { LevelScene } from "./LevelScene.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
-import { ActorType, LevelSubState, MIRROR_FLAG, px } from "./constants.ts";
+import { ActorType, LevelSubState, MIRROR_FLAG, InputAction, px } from "./constants.ts";
 
 /**
  * 玩家 Actor（游戏2《深海战舰》主角，对应 CFR 基准 reverse/game2/2-decompiled-cfr/tjge/g.java，继承自 Actor 基类 h=ActorBase）。
@@ -188,7 +188,7 @@ export class PlayerActor extends ActorBase {
       } else if (this.targetVelY > 0 && ((n = this.tileAt(n3, n2 = (this.posY + this.velY >> 10) + 4 >> 3)) & 4) == 0) {
         this.velY = (n2 << 13) - this.posY;
         this.reserved &= 0xFFFFFFFD;
-        this.canvas.inputAction = 0;
+        this.canvas.inputAction = InputAction.None;
       }
       this.targetVelY = 0;
     } else if ((this.reserved & 4) != 0) {
@@ -444,7 +444,7 @@ export class PlayerActor extends ActorBase {
       this.posY -= px(8);
       this.reserved &= 0xFFFFFFFD;
       this.setAction(0 | this.actionHighByte);
-      this.canvas.inputAction = 0;
+      this.canvas.inputAction = InputAction.None;
       return;
     }
     this.posY += px(24);
@@ -578,16 +578,16 @@ export class PlayerActor extends ActorBase {
     ++this.inputCounter;
     const dir: number = this.actionHighByte == 0 ? 1 : -1;
     switch (action) {
-      case 1: this.handleInputLeft(); return;
-      case 2: this.handleInputRight(); return;
-      case 64:
-      case 128: this.handleInputJump(dir); return;
-      case 8: this.handleInputDown(dir); return;
-      case 32: this.handleInputUp(dir); return;
-      case 16: this.handleInputFire(dir); return;
-      case 1024: this.handleInputGrenade(); return;
-      case 2048: this.handleInputReload(); return;
-      case 4096: this.handleInputSwitchWeapon(); return;
+      case InputAction.Left: this.handleInputLeft(); return;
+      case InputAction.Right: this.handleInputRight(); return;
+      case InputAction.JumpLeft:
+      case InputAction.JumpRight: this.handleInputJump(dir); return;
+      case InputAction.Down: this.handleInputDown(dir); return;
+      case InputAction.ClimbUp: this.handleInputUp(dir); return;
+      case InputAction.Fire: this.handleInputFire(dir); return;
+      case InputAction.Grenade: this.handleInputGrenade(); return;
+      case InputAction.Reload: this.handleInputReload(); return;
+      case InputAction.SwitchWeapon: this.handleInputSwitchWeapon(); return;
       default: this.handleInputRelease(); return;
     }
   }
@@ -623,7 +623,7 @@ export class PlayerActor extends ActorBase {
     if ((this.reserved & 2) == 0) return;
     if (this.actionHighByte == 0) {
       this.setAction(this.frameGroupIndex | MIRROR_FLAG);
-      this.canvas.inputAction = 0;
+      this.canvas.inputAction = InputAction.None;
       return;
     }
     if (this.collideLeft()) return;
@@ -669,7 +669,7 @@ export class PlayerActor extends ActorBase {
     if ((this.reserved & 2) == 0) return;
     if (this.actionHighByte != 0) {
       this.setAction(this.frameGroupIndex);
-      this.canvas.inputAction = 0;
+      this.canvas.inputAction = InputAction.None;
       return;
     }
     if (this.collideRight()) return;
@@ -692,11 +692,11 @@ export class PlayerActor extends ActorBase {
         this.setAction(0 | this.actionHighByte);
         return;
       }
-      if (this.actionHighByte == 0 && this.canvas.inputAction == 64) {
+      if (this.actionHighByte == 0 && this.canvas.inputAction == InputAction.JumpLeft) {
         this.setAction(this.frameGroupIndex | MIRROR_FLAG);
         return;
       }
-      if (this.actionHighByte != 0 && this.canvas.inputAction == 128) {
+      if (this.actionHighByte != 0 && this.canvas.inputAction == InputAction.JumpRight) {
         this.setAction(this.frameGroupIndex);
         return;
       }
@@ -716,7 +716,7 @@ export class PlayerActor extends ActorBase {
       this.targetVelY = PlayerActor.jumpVelocityY[this.vaultType];
       this.airborneJumping = true;
       this.accelY = px(4);
-      this.canvas.inputAction = 0;
+      this.canvas.inputAction = InputAction.None;
       this.reserved &= 0xFFFFFFFE;
       return;
     }
@@ -751,7 +751,7 @@ export class PlayerActor extends ActorBase {
       }
       this.targetVelX = 0;
       this.setAction(2 | this.actionHighByte);
-      this.canvas.inputAction = 0;
+      this.canvas.inputAction = InputAction.None;
       return;
     }
     if ((this.reserved & 2) != 0) {
@@ -801,7 +801,7 @@ export class PlayerActor extends ActorBase {
     if (this.actionLocked) {
       return;
     }
-    if (this.canvas.inputAction == 32 && (this.reserved & 1) != 0) {
+    if (this.canvas.inputAction == InputAction.ClimbUp && (this.reserved & 1) != 0) {
       this.targetVelX = 0;
       fireSlot = 0;
     } else if (this.frameGroupIndex == 0) {
@@ -861,7 +861,7 @@ export class PlayerActor extends ActorBase {
       const weapon: number = this.currentWeaponIndex;
       PlayerActor.ammoCurrent[weapon] = PlayerActor.ammoCurrent[weapon] - 1;
     }
-    this.canvas.inputAction = 0;
+    this.canvas.inputAction = InputAction.None;
     return;
   }
 
@@ -897,7 +897,7 @@ export class PlayerActor extends ActorBase {
       this.reloadCurrentWeapon();
       this.setAction((this.frameGroupIndex == 0 ? 30 : 31) | this.actionHighByte);
     }
-    this.canvas.inputAction = 0;
+    this.canvas.inputAction = InputAction.None;
     return;
   }
 
