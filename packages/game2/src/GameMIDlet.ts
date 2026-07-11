@@ -113,11 +113,11 @@ export class GameMIDlet extends MIDlet {
     this.notifyDestroyed();
   }
 
-  /** GameMIDlet.a(int)：随机数绝对值取模。 */
-  static randomBelow(n: number): number {
-    let n2 = GameMIDlet.random.nextInt();
-    if (n2 < 0) n2 = -n2;
-    return n2 % n;
+  /** GameMIDlet.a(int)：随机数绝对值取模，返回 [0,bound) 内的值。 */
+  static randomBelow(bound: number): number {
+    let value = GameMIDlet.random.nextInt();
+    if (value < 0) value = -value;
+    return value % bound;
   }
 
   /** GameMIDlet.a(InputStream)：读 1 字节（有符号）。 */
@@ -126,26 +126,26 @@ export class GameMIDlet extends MIDlet {
     return GameMIDlet.byteBuf1[0];
   }
 
-  /** GameMIDlet.b(InputStream)：读小端 16 位（高字节有符号，short 语义）。 */
+  /** GameMIDlet.b(InputStream)：读小端 16 位（高字节有符号，`(x<<16)>>16` 复现 Java short 截断）。 */
   static readShortLE(inputStream: InputStream): number {
     inputStream.read(GameMIDlet.byteBuf2);
-    let n = GameMIDlet.byteBuf2[1];
-    n <<= 8;
-    n |= GameMIDlet.byteBuf2[0] & 0xff;
-    return (n << 16) >> 16;
+    let value = GameMIDlet.byteBuf2[1];
+    value <<= 8;
+    value |= GameMIDlet.byteBuf2[0] & 0xff;
+    return (value << 16) >> 16;
   }
 
-  /** GameMIDlet.a(byte[],int,int)：从字节数组按小端读 n2 字节为 int（最高字节有符号）。 */
-  static readIntLE(byArray: Int8Array, n: number, n2: number): number {
-    let n3 = 0;
-    let n4 = n2 - 1;
-    while (n4 >= 0) {
-      n3 <<= 8;
-      if (n4 === n2 - 1) n3 |= byArray[n4 + n];
-      else n3 |= byArray[n4 + n] & 0xff;
-      --n4;
+  /** GameMIDlet.a(byte[],int,int)：从 bytes 偏移 offset 按小端读 byteCount 字节为 int（最高字节有符号，低字节 `&0xff` 去符号）。 */
+  static readIntLE(bytes: Int8Array, offset: number, byteCount: number): number {
+    let result = 0;
+    let i = byteCount - 1;
+    while (i >= 0) {
+      result <<= 8;
+      if (i === byteCount - 1) result |= bytes[i + offset];
+      else result |= bytes[i + offset] & 0xff;
+      --i;
     }
-    return n3 | 0;
+    return result | 0;
   }
 
   // ---- 音频（MIDI）：自带轻量 WebAudio 合成器播放 sound.bin 的标准 MIDI（设备相关，最佳努力）----
@@ -163,29 +163,29 @@ export class GameMIDlet extends MIDlet {
   static loadSounds(): void {
     const ctx = getAudioContext();
     if (!ctx) return;
-    let n = 0;
-    while (n < GameMIDlet.soundTrackCount) {
+    let trackIndex = 0;
+    while (trackIndex < GameMIDlet.soundTrackCount) {
       try {
-        const bytes = GameMIDlet.readEntryBytes("/res/sound.bin", n);
+        const bytes = GameMIDlet.readEntryBytes("/res/sound.bin", trackIndex);
         if (bytes != null) {
-          GameMIDlet.soundPlayers[n] = new MidiSynth(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength), ctx);
+          GameMIDlet.soundPlayers[trackIndex] = new MidiSynth(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength), ctx);
         }
       } catch (exception) {
         /* ignore */
       }
-      ++n;
+      ++trackIndex;
     }
   }
-  /** 原 a(int,int)：播放音轨 n（k[2]=声音开关；setLoopCount(1)=单次）。 */
-  static playSound(n: number, _n2: number): void {
+  /** 原 a(int,int)：播放音轨 trackIndex（k[2]=声音开关；setLoopCount(1)=单次）。_n2 为保留匹配原签名的死参。 */
+  static playSound(trackIndex: number, _n2: number): void {
     if (GameMIDlet.saveRecord[2] === 0) return; // 声音关
     try {
       GameMIDlet.stopSound();
-      const p = GameMIDlet.soundPlayers[n];
+      const p = GameMIDlet.soundPlayers[trackIndex];
       if (p) {
         p.play(false); // 原 setLoopCount(1)：单次播放
         GameMIDlet.soundTimeout = 2;
-        GameMIDlet.currentSoundIndex = n;
+        GameMIDlet.currentSoundIndex = trackIndex;
       }
     } catch (exception) {
       /* ignore */
@@ -201,27 +201,30 @@ export class GameMIDlet extends MIDlet {
     }
   }
 
-  /** GameMIDlet.b(int)：RMS 存档 "REDDEVIL2"(5字节) → localStorage。 */
-  static accessSaveRecord(n: number): void {
+  /**
+   * GameMIDlet.b(int)：RMS 存档 "REDDEVIL2"(5 字节 [关/继续数/声音/进度/储备弹]) ↔ localStorage。
+   * @param mode 0=读入 saveRecord；1=写出 saveRecord；2=清头两字节（关卡/继续数归零，不落盘）
+   */
+  static accessSaveRecord(mode: number): void {
     try {
-      if (n === 2) {
+      if (mode === 2) {
         GameMIDlet.saveRecord[0] = 0;
         GameMIDlet.saveRecord[1] = 0;
         return;
       }
       const raw = typeof localStorage !== "undefined" ? localStorage.getItem("REDDEVIL2") : null;
       if (raw) {
-        if (n === 0) {
+        if (mode === 0) {
           const arr = raw.split(",").map((x) => Number(x));
           GameMIDlet.saveRecord = Int8Array.from(arr);
-        } else if (n === 1) {
+        } else if (mode === 1) {
           localStorage.setItem("REDDEVIL2", Array.from(GameMIDlet.saveRecord.slice(0, 5)).join(","));
         }
       } else {
-        if (n === 0) {
+        if (mode === 0) {
           GameMIDlet.saveRecord[0] = 0;
           GameMIDlet.saveRecord[1] = 0;
-        } else if (n === 1) {
+        } else if (mode === 1) {
           if (typeof localStorage !== "undefined") {
             localStorage.setItem("REDDEVIL2", Array.from(GameMIDlet.saveRecord.slice(0, 5)).join(","));
           }
@@ -232,69 +235,69 @@ export class GameMIDlet extends MIDlet {
     }
   }
 
-  /** GameMIDlet.a(int,String)：从 string.bin 第 n 条读 UTF-16 文本，存入 l 或 n。 */
-  static loadTextEntry(n: number, string: string): void {
-    const byArray = GameMIDlet.readEntryBytes(string, n);
-    if (byArray != null) {
-      const cArray = new Array<number>(byArray.length / 2);
-      let n2 = 0;
-      while (n2 < ((byArray.length / 2) | 0)) {
-        cArray[n2] = GameMIDlet.readIntLE(byArray, n2 * 2, 2);
-        ++n2;
+  /** GameMIDlet.a(int,String)：从 archivePath 第 entryIndex 条读 UTF-16 文本，存入 tempText1(entryIndex<7) 或 tempText3。 */
+  static loadTextEntry(entryIndex: number, archivePath: string): void {
+    const bytes = GameMIDlet.readEntryBytes(archivePath, entryIndex);
+    if (bytes != null) {
+      const chars = new Array<number>(bytes.length / 2);
+      let i = 0;
+      while (i < ((bytes.length / 2) | 0)) {
+        chars[i] = GameMIDlet.readIntLE(bytes, i * 2, 2);
+        ++i;
       }
-      const s = String.fromCharCode(...cArray);
-      if (n < 7) GameMIDlet.tempText1 = s;
-      else GameMIDlet.tempText3 = s;
+      const text = String.fromCharCode(...chars);
+      if (entryIndex < 7) GameMIDlet.tempText1 = text;
+      else GameMIDlet.tempText3 = text;
       // System.gc();
     }
   }
 
-  /** GameMIDlet.a(String,int)：从归档第 n 条 PNG 取图（预解码缓存）。 */
-  static loadImage(string: string, n: number): Image {
-    // 原版：c(string,n) 取 PNG 字节 → Image.createImage；这里取预解码缓存（见 docs/05 §5）
-    return getCachedImage<Image>(string, n);
+  /** GameMIDlet.a(String,int)：从 archivePath 第 entryIndex 条 PNG 取图（预解码缓存）。 */
+  static loadImage(archivePath: string, entryIndex: number): Image {
+    // 原版：c(archivePath,entryIndex) 取 PNG 字节 → Image.createImage；这里取预解码缓存（见 docs/05 §5）
+    return getCachedImage<Image>(archivePath, entryIndex);
   }
 
-  /** GameMIDlet.b(String,int)：返回定位到归档第 n 条起始的输入流。 */
-  static openEntryStream(string: string, n: number): InputStream | null {
-    let n2 = 0;
+  /** GameMIDlet.b(String,int)：返回定位到 archivePath 第 entryIndex 条起始的输入流。 */
+  static openEntryStream(archivePath: string, entryIndex: number): InputStream | null {
+    let offset = 0;
     try {
-      const inputStream = getResourceAsStream(string)!;
+      const inputStream = getResourceAsStream(archivePath)!;
       inputStream.read(GameMIDlet.byteBuf4);
-      const n3 = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
-      let n4 = 0;
-      while (n4 < n3) {
+      const entryCount = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
+      let i = 0;
+      while (i < entryCount) {
         inputStream.read(GameMIDlet.byteBuf4);
-        if (n4 === n) n2 = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
-        ++n4;
+        if (i === entryIndex) offset = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
+        ++i;
       }
-      inputStream.skip(n2);
+      inputStream.skip(offset);
       return inputStream;
     } catch (exception) {
       return null;
     }
   }
 
-  /** GameMIDlet.c(String,int)：取归档第 n 条目的字节切片。 */
-  static readEntryBytes(string: string, n: number): Int8Array | null {
-    let n2 = 0;
-    let n3 = 0;
+  /** GameMIDlet.c(String,int)：取 archivePath 第 entryIndex 条目的字节切片（读第 entryIndex 与 entryIndex+1 条 offset 之差为长度）。 */
+  static readEntryBytes(archivePath: string, entryIndex: number): Int8Array | null {
+    let startOffset = 0;
+    let byteCount = 0;
     try {
-      const inputStream = getResourceAsStream(string)!;
+      const inputStream = getResourceAsStream(archivePath)!;
       inputStream.read(GameMIDlet.byteBuf4);
-      const n4 = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
-      let n5 = 0;
-      while (n5 < n4) {
+      const entryCount = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
+      let i = 0;
+      while (i < entryCount) {
         inputStream.read(GameMIDlet.byteBuf4);
-        if (n5 === n) n2 = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
-        else if (n5 === n + 1) n3 = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4) - n2;
-        ++n5;
+        if (i === entryIndex) startOffset = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4);
+        else if (i === entryIndex + 1) byteCount = GameMIDlet.readIntLE(GameMIDlet.byteBuf4, 0, 4) - startOffset;
+        ++i;
       }
-      inputStream.skip(n2);
-      const byArray = new Int8Array(n3);
-      inputStream.read(byArray);
+      inputStream.skip(startOffset);
+      const result = new Int8Array(byteCount);
+      inputStream.read(result);
       inputStream.close();
-      return byArray;
+      return result;
     } catch (exception) {
       return null;
     }
