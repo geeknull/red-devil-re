@@ -134,185 +134,216 @@ export class EffectActor extends ActorBase {
    * 下面以 if/标号-跳转的等价形式忠实还原 case 9 → case 7 的回退控制流。
    */
   public update(): void {
-    const var1_1: PlayerActor = this.world.player;
+    const player: PlayerActor = this.world.player;
     this.tintBits = this.frameIndex & FACING_MASK;
+    // 按 typeId 分派 update<Type> helper（switch 是方法末块，顶层 break→helper return）。
+    // ⚠️ RegeneratingBarrier(9) 原本 fall-through 到 ExplosiveBarrel(7)：由 updateRegeneratingBarrier
+    //    末尾调用 updateExplosiveBarrel() 复现（两者共享 type7 主体，靠 typeId 判据区分）。
     switch (this.typeId) {
-      case ActorType.GrabAnchorZone: {
-        if (this.intersectsActor(var1_1)) {
-          var1_1.actionFlag = true;
-          var1_1.linkedEnemy = this;
-          var1_1.spareO = this.anchorX << 4;
-          var1_1.spareP = this.anchorY << 4;
-          return;
-        }
-        if (var1_1.linkedEnemy !== this) break;
-        var1_1.actionFlag = false;
-        var1_1.linkedEnemy = null;
-        return;
+      case ActorType.GrabAnchorZone:
+        this.updateGrabAnchorZone(player);
+        break;
+      case ActorType.GatedTrigger:
+        this.updateGatedTrigger(player);
+        break;
+      case ActorType.RegeneratingBarrier:
+        this.updateRegeneratingBarrier();
+        break;
+      case ActorType.ExplosiveBarrel:
+        this.updateExplosiveBarrel();
+        break;
+      case ActorType.RescueTargetNpc:
+        this.updateRescueTargetNpc(player);
+        break;
+      case ActorType.CaptureTrigger:
+        this.updateCaptureTrigger(player);
+        break;
+    }
+  }
+
+  // update case type22（GrabAnchorZone，抓取锚点区）：玩家进入即联动主角抓取标志/锚点坐标，离开则解除。
+  private updateGrabAnchorZone(player: PlayerActor): void {
+    if (this.intersectsActor(player)) {
+      player.actionFlag = true;
+      player.linkedEnemy = this;
+      player.spareO = this.anchorX << 4;
+      player.spareP = this.anchorY << 4;
+      return;
+    }
+    if (player.linkedEnemy !== this) return;
+    player.actionFlag = false;
+    player.linkedEnemy = null;
+  }
+
+  // update case type12（GatedTrigger，事件门控触发器）：flagE 开启后玩家进入且按住动作位 → 切 GoalCutscene。
+  private updateGatedTrigger(player: PlayerActor): void {
+    if (!this.world.flagE) {
+      return;
+    }
+    if (this.intersectsActor(player)) {
+      this.activated = true;
+    }
+    if (!this.activated || (player.stateFlags & 1) === 0) return;
+    this.deactivate();
+    this.world.state = GameState.GoalCutscene;
+  }
+
+  // update case type9（RegeneratingBarrier，可再生屏障）：先按 hitPoints 选损坏帧，
+  // 再 fall-through 到 type7 主体（原 GOTO lbl32，用调用 updateExplosiveBarrel 复现）。
+  private updateRegeneratingBarrier(): void {
+    if (this.hitPoints >= 4) {
+      // lbl28
+      if (this.hitPoints < 7) {
+        this.setFrame(1);
+      } else {
+        this.setFrame(0);
       }
-      case ActorType.GatedTrigger: {
-        if (!this.world.flagE) {
-          return;
-        }
-        if (this.intersectsActor(var1_1)) {
-          this.activated = true;
-        }
-        if (!this.activated || (var1_1.stateFlags & 1) === 0) break;
-        this.deactivate();
-        this.world.state = GameState.GoalCutscene;
-        return;
-      }
-      case ActorType.RegeneratingBarrier: {
-        // case 9 落入：先依 d 选择动画帧，再 fall-through 到 case 7
-        if (this.hitPoints >= 4) {
-          // lbl28
-          if (this.hitPoints < 7) {
-            this.setFrame(1);
-          } else {
-            this.setFrame(0);
+    } else {
+      this.setFrame(2);
+    }
+    // GOTO lbl32 → 进入 case 7 主体（原 fall-through，用调用复现；共享体靠 this.typeId 区分 9/7）
+    this.updateExplosiveBarrel();
+  }
+
+  // update case type7（ExplosiveBarrel，爆炸桶；亦为 type9 落穿共享主体）：耐久耗尽则爆炸+清上方瓦片+销毁；
+  // 激活时横向晃动；type9 还按 regenTimer 再生耐久。内部靠 this.typeId 区分 7/9 行为。
+  private updateExplosiveBarrel(): void {
+    if (this.hitPoints <= 0) {
+      let canExplode = false;
+      if (this.typeId === ActorType.RegeneratingBarrier) {
+        if (this.world.levelIndex === 7 && this.posX >> 10 > 1720) {
+          if ((this.world.player.stateFlags & 1) !== 0) {
+            canExplode = true;
+            this.world.stateTimer = 11;
+            this.world.state = GameState.GoalCutscene;
           }
         } else {
-          this.setFrame(2);
+          canExplode = true;
         }
-        // GOTO lbl32 → 进入 case 7 主体
+      } else {
+        canExplode = true;
       }
-      // lbl32
-      case ActorType.ExplosiveBarrel: {
-        if (this.hitPoints <= 0) {
-          let var2_2 = false;
-          if (this.typeId === ActorType.RegeneratingBarrier) {
-            if (this.world.levelIndex === 7 && this.posX >> 10 > 1720) {
-              if ((this.world.player.stateFlags & 1) !== 0) {
-                var2_2 = true;
-                this.world.stateTimer = 11;
-                this.world.state = GameState.GoalCutscene;
-              }
-            } else {
-              var2_2 = true;
-            }
-          } else {
-            var2_2 = true;
-          }
-          if (var2_2) {
-            if (this.typeId === ActorType.RegeneratingBarrier) {
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY - px(5), 2);
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX - px(10), this.posY - px(20), 2);
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX + px(5), this.posY - px(10), 2);
-            } else {
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 1, this.posX, this.posY - px(5), 2);
-            }
-            this.posX = this.anchorX;
-            this.posY = this.anchorY;
-            let var3_4 = this.posX >> 14;
-            const var4_6 = (this.posY - px(5)) >> 14;
-            while (this.world.tileMap.queryColumnTileAt(--var3_4, var4_6, true) === 1) {
-            }
-            const var5_7 = this.typeId === ActorType.ExplosiveBarrel ? 2 : 3;
-            let var6_8 = 0;
-            while (var6_8 < var5_7) {
-              this.world.tileMap.clearTileAt(var3_4 + 1, var4_6 - var6_8);
-              ++var6_8;
-            }
-            this.deactivate();
-            this.world.scriptFlagL = false;
-            this.world.levelLoader.actorSpawned[this.extra] = true;
-            GameScreen.playSound(5, 1, 220);
-          }
-          return;
+      if (canExplode) {
+        if (this.typeId === ActorType.RegeneratingBarrier) {
+          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY - px(5), 2);
+          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX - px(10), this.posY - px(20), 2);
+          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX + px(5), this.posY - px(10), 2);
+        } else {
+          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 1, this.posX, this.posY - px(5), 2);
         }
-        if (this.activated) {
-          this.regenTimer = 0;
-          // v0 = this.C = (this.C == this.b ? this.C + 2048 : this.b)
-          this.posX = this.posX === this.anchorX ? this.posX + px(2) : this.anchorX;
-          if (this.shakeTick++ <= 5) break;
-          this.activated = false;
-          this.shakeTick = 0;
-          this.posX = this.anchorX;
-          return;
+        this.posX = this.anchorX;
+        this.posY = this.anchorY;
+        let col = this.posX >> 14;
+        const row = (this.posY - px(5)) >> 14;
+        while (this.world.tileMap.queryColumnTileAt(--col, row, true) === 1) {
         }
-        if (this.typeId !== ActorType.RegeneratingBarrier || this.regenTimer++ <= 40) break;
-        if (this.hitPoints < 4 && this.hitPoints > 0) {
-          this.hitPoints = 6;
-        } else if (this.hitPoints < 7) {
-          this.hitPoints = 9;
+        const clearCount = this.typeId === ActorType.ExplosiveBarrel ? 2 : 3;
+        let i = 0;
+        while (i < clearCount) {
+          this.world.tileMap.clearTileAt(col + 1, row - i);
+          ++i;
         }
-        this.regenTimer = 0;
-        return;
+        this.deactivate();
+        this.world.scriptFlagL = false;
+        this.world.levelLoader.actorSpawned[this.extra] = true;
+        GameScreen.playSound(5, 1, 220);
       }
-      case ActorType.RescueTargetNpc: {
-        if (this.intersectsActor(var1_1)) {
-          this.activated = true;
-        }
-        if (!this.activated || (var1_1.stateFlags & 1) === 0) break;
-        this.world.state = GameState.GoalCutscene;
-        return;
-      }
-      case ActorType.CaptureTrigger: {
-        if (this.destroyedFlag === 1) {
-          this.setFrame(1 | this.tintBits);
-          var1_1.health = 0;
-          this.world.state = GameState.CaptureCutscene;
-          return;
-        }
-        if (this.activated) {
-          if ((var1_1.stateFlags & 1) === 0 || var1_1.posY <= 490000) break;
-          this.world.state = GameState.GoalCutscene;
-          return;
-        }
-        if (this.world.scriptFlagL && this.world.reinforceBudget <= 0 && this.world.enemyAliveCount <= 0) {
-          this.activated = true;
-          return;
-        }
-        const var2_3 = this.frameIndex & SEQUENCE_MASK;
-        const var3_5 = this.frameIndex & FACING_MASK;
-        if (var2_3 !== 1 || !this.isAnimationDone()) break;
-        this.setFrame(0 | var3_5);
-      }
+      return;
     }
+    if (this.activated) {
+      this.regenTimer = 0;
+      // v0 = this.C = (this.C == this.b ? this.C + 2048 : this.b)
+      this.posX = this.posX === this.anchorX ? this.posX + px(2) : this.anchorX;
+      if (this.shakeTick++ <= 5) return;
+      this.activated = false;
+      this.shakeTick = 0;
+      this.posX = this.anchorX;
+      return;
+    }
+    if (this.typeId !== ActorType.RegeneratingBarrier || this.regenTimer++ <= 40) return;
+    if (this.hitPoints < 4 && this.hitPoints > 0) {
+      this.hitPoints = 6;
+    } else if (this.hitPoints < 7) {
+      this.hitPoints = 9;
+    }
+    this.regenTimer = 0;
+  }
+
+  // update case type4（RescueTargetNpc，感应触发器）：玩家进入且按住动作位 → 切 GoalCutscene。
+  private updateRescueTargetNpc(player: PlayerActor): void {
+    if (this.intersectsActor(player)) {
+      this.activated = true;
+    }
+    if (!this.activated || (player.stateFlags & 1) === 0) return;
+    this.world.state = GameState.GoalCutscene;
+  }
+
+  // update case type5（CaptureTrigger，关键目标/被捕触发）：被打爆→CaptureCutscene；激活且满足条件→GoalCutscene；
+  // 清场后激活；否则按帧推进动画。
+  private updateCaptureTrigger(player: PlayerActor): void {
+    if (this.destroyedFlag === 1) {
+      this.setFrame(1 | this.tintBits);
+      player.health = 0;
+      this.world.state = GameState.CaptureCutscene;
+      return;
+    }
+    if (this.activated) {
+      if ((player.stateFlags & 1) === 0 || player.posY <= 490000) return;
+      this.world.state = GameState.GoalCutscene;
+      return;
+    }
+    if (this.world.scriptFlagL && this.world.reinforceBudget <= 0 && this.world.enemyAliveCount <= 0) {
+      this.activated = true;
+      return;
+    }
+    const actionId = this.frameIndex & SEQUENCE_MASK;
+    const tint = this.frameIndex & FACING_MASK;
+    if (actionId !== 1 || !this.isAnimationDone()) return;
+    this.setFrame(0 | tint);
   }
 
   /**
    * 覆写基类绘制（CFR e.a(Graphics,int,int)）：当 typeId===12 且世界事件标志
    * {@link GameScreen.flagE} 尚未置位时跳过绘制（该解谜门控特效隐藏），
    * 否则委托父类 {@link ActorBase.paint} 正常渲染。
-   * @param n 屏幕绘制偏移 X（相机偏移）。
-   * @param n2 屏幕绘制偏移 Y（相机偏移）。
+   * @param cameraX 屏幕绘制偏移 X（相机偏移）。
+   * @param cameraY 屏幕绘制偏移 Y（相机偏移）。
    */
-  public paint(graphics: Graphics, n: number, n2: number): void {
+  public paint(graphics: Graphics, cameraX: number, cameraY: number): void {
     if (this.typeId === ActorType.GatedTrigger && !this.world.flagE) {
       return;
     }
-    super.paint(graphics, n, n2);
+    super.paint(graphics, cameraX, cameraY);
   }
 
   /**
    * 被弹丸/单位命中回调（CFR e.a(tjge.l)），由 {@link ProjectileActor} 的碰撞检测调用。
-   * 依本体 {@link ActorBase.typeId} 与来袭弹丸 l2 的类型分派结算：
+   * 依本体 {@link ActorBase.typeId} 与来袭弹丸 projectile 的类型分派结算：
    *   - 7/9 可破坏物：近战(21)/普通弹(10) 激活并扣 1 点耐久（21 还击退并改帧）；
    *     火箭/重弹(15/20) 生成爆炸特效、销毁弹丸、扣 3 点并放音效。
    *   - 5 关键目标：近战(21) 销毁弹丸并扣耐久，归零则置 destroyedFlag 并放音效；
    *     火箭/重弹(15/20) 生成爆炸、销毁弹丸并直接置 destroyedFlag。
    * 命中时清 {@link shakeTick} 以触发受击晃动。
-   * @param l2 命中本体的投射物。
+   * @param projectile 命中本体的投射物。
    */
-  public onProjectileHit(l2: ProjectileActor): void {
+  public onProjectileHit(projectile: ProjectileActor): void {
     block18: {
       switch (this.typeId) {
         case ActorType.ExplosiveBarrel:
         case ActorType.RegeneratingBarrier: {
-          switch (l2.typeId) {
+          switch (projectile.typeId) {
             case ActorType.GuidedMissileProjectile: {
-              if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
+              if ((projectile.frameIndex & SEQUENCE_MASK) !== 0) break;
               this.activated = true;
               this.shakeTick = 0;
               --this.hitPoints;
-              if (l2.targetVelX > 0) {
-                l2.posX += px(8);
-              } else if (l2.targetVelX < 0) {
-                l2.posX -= px(8);
+              if (projectile.targetVelX > 0) {
+                projectile.posX += px(8);
+              } else if (projectile.targetVelX < 0) {
+                projectile.posX -= px(8);
               }
-              l2.targetVelX = 0;
-              l2.setFrame(1);
+              projectile.targetVelX = 0;
+              projectile.setFrame(1);
               break;
             }
             case ActorType.PlayerBounceShot: {
@@ -325,8 +356,8 @@ export class EffectActor extends ActorBase {
             case ActorType.FallingBombProjectile: {
               this.activated = true;
               this.shakeTick = 0;
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY, 2);
-              l2.deactivate();
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, projectile.posX, projectile.posY, 2);
+              projectile.deactivate();
               this.hitPoints -= 3;
               GameScreen.playSound(5, 1, 220);
             }
@@ -334,10 +365,10 @@ export class EffectActor extends ActorBase {
           return;
         }
         case ActorType.CaptureTrigger: {
-          switch (l2.typeId) {
+          switch (projectile.typeId) {
             case ActorType.GuidedMissileProjectile: {
-              if ((l2.frameIndex & SEQUENCE_MASK) === 0) {
-                l2.deactivate();
+              if ((projectile.frameIndex & SEQUENCE_MASK) === 0) {
+                projectile.deactivate();
                 if (--this.hitPoints <= 0) {
                   this.destroyedFlag = 1;
                   GameScreen.playSound(4, 1, 200);
@@ -350,8 +381,8 @@ export class EffectActor extends ActorBase {
             }
             case ActorType.GrenadeProjectile:
             case ActorType.FallingBombProjectile: {
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY + px(8), 2);
-              l2.deactivate();
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, projectile.posX, projectile.posY + px(8), 2);
+              projectile.deactivate();
               this.destroyedFlag = 1;
               GameScreen.playSound(5, 1, 220);
             }
