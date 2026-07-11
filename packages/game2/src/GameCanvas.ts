@@ -1025,162 +1025,162 @@ export class GameCanvas extends Canvas {
 
   /**
    * 展开/收缩描边框绘制原语（CFR a.java:895-922；原 9 参 `a(Graphics,...)` → 契约名 a_GIIIIIIIIZ）。
-   * 过场/任务简报/结算页对话框边框的动画基元：把矩形从 (n,n2) 朝 (n3,n4) 按进度 n6/n5 比例收缩，
-   * 用颜色 n7 描边、n8≥0 时填充内部；bl=true 再叠加内层黑+绿双描边。进度 n6≤0 时不绘制。
+   * 过场/任务简报/结算页对话框边框的动画基元：把矩形从 (x0,y0) 朝 (x1,y1) 按进度 progress/fullProgress 比例收缩，
+   * 用颜色 strokeColor 描边、fillColor≥0 时填充内部；doubleBorder=true 再叠加内层黑+绿双描边。进度 progress≤0 时不绘制。
    * @param graphics 目标图形上下文
-   * @param n 起点 X
-   * @param n2 起点 Y
-   * @param n3 终点 X
-   * @param n4 终点 Y
-   * @param n5 进度分母（满进度）
-   * @param n6 当前进度（0..n5）
-   * @param n7 描边颜色
-   * @param n8 填充颜色（<0 表示不填充）
-   * @param bl 是否叠加双层内描边
+   * @param x0 起点 X
+   * @param y0 起点 Y
+   * @param x1 终点 X
+   * @param y1 终点 Y
+   * @param fullProgress 进度分母（满进度）
+   * @param progress 当前进度（0..fullProgress）
+   * @param strokeColor 描边颜色
+   * @param fillColor 填充颜色（<0 表示不填充）
+   * @param doubleBorder 是否叠加双层内描边
    */
   // a(Graphics,int,int,int,int,int,int,int,int,boolean) → a_GIIIIIIIIZ
-  // 由 (n,n2)→(n3,n4) 按进度 n6/n5 收缩绘制的双层描边框（过场展开动画原语）
+  // 由 (x0,y0)→(x1,y1) 按进度 progress/fullProgress 收缩绘制的双层描边框（过场展开动画原语）
   static drawExpandingFrame(
     graphics: Graphics,
-    n: number,
-    n2: number,
-    n3: number,
-    n4: number,
-    n5: number,
-    n6: number,
-    n7: number,
-    n8: number,
-    bl: boolean
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    fullProgress: number,
+    progress: number,
+    strokeColor: number,
+    fillColor: number,
+    doubleBorder: boolean
   ): void {
-    if (n6 <= 0) {
+    if (progress <= 0) {
       return;
     }
-    let n9 = Math.abs(n - n3);
-    let n10 = Math.abs(n2 - n4);
-    n9 = ((n9 * n6) / n5) | 0;
-    n10 = ((n10 * n6) / n5) | 0;
-    if (n > n3) {
-      n -= n9;
+    let width = Math.abs(x0 - x1);
+    let height = Math.abs(y0 - y1);
+    width = ((width * progress) / fullProgress) | 0;
+    height = ((height * progress) / fullProgress) | 0;
+    if (x0 > x1) {
+      x0 -= width;
     }
-    if (n2 > n4) {
-      n2 -= n10;
+    if (y0 > y1) {
+      y0 -= height;
     }
-    graphics.setColor(n7);
-    graphics.drawRect(n, n2, n9, n10);
-    if (n8 >= 0) {
-      graphics.setColor(n8);
-      graphics.fillRect(n + 1, n2 + 1, n9 - 1, n10 - 1);
+    graphics.setColor(strokeColor);
+    graphics.drawRect(x0, y0, width, height);
+    if (fillColor >= 0) {
+      graphics.setColor(fillColor);
+      graphics.fillRect(x0 + 1, y0 + 1, width - 1, height - 1);
     }
-    if (bl) {
+    if (doubleBorder) {
       graphics.setColor(0);
-      graphics.drawRect(n + 1, n2 + 1, n9 - 2, n10 - 2);
+      graphics.drawRect(x0 + 1, y0 + 1, width - 2, height - 2);
       graphics.setColor(65280);
-      graphics.drawRect(n + 2, n2 + 2, n9 - 4, n10 - 4);
+      graphics.drawRect(x0 + 2, y0 + 2, width - 4, height - 4);
     }
   }
 
   /**
    * 按 \r(回车,char 13) 分行绘制多行文本（CFR a.java:923-942；原 `a(Graphics,String,...)` → 契约名 a_GSIIIII）。
-   * 帮助/关于页用：跳过前 n4 行，从第 n4 行起、以 (n,n2) 为左上、行高 n3 连续绘制至多 n5 行。
+   * 帮助/关于页用：跳过前 skipLines 行，从第 skipLines 行起、以 (x,y) 为左上、行高 lineHeight 连续绘制至多 maxLines 行。
    * @param graphics 目标图形上下文
-   * @param string 含 \r 分隔的多行原文
-   * @param n 起始 X
-   * @param n2 起始 Y
-   * @param n3 行高
-   * @param n4 起始行号（跳过的行数）
-   * @param n5 最多绘制的行数
+   * @param text 含 \r 分隔的多行原文
+   * @param x 起始 X
+   * @param y 起始 Y
+   * @param lineHeight 行高
+   * @param skipLines 起始行号（跳过的行数）
+   * @param maxLines 最多绘制的行数
    */
-  // a(Graphics,String,int,int,int,int,int) → a_GSIIIII（按 \r 分行绘制字符串，从第 n4 行起绘 n5 行）
-  drawWrappedLines(graphics: Graphics, string: string, n: number, n2: number, n3: number, n4: number, n5: number): void {
-    let n6 = 0;
-    let n7 = 0;
-    let n8 = 0;
+  // a(Graphics,String,int,int,int,int,int) → a_GSIIIII（按 \r 分行绘制字符串，从第 skipLines 行起绘 maxLines 行）
+  drawWrappedLines(graphics: Graphics, text: string, x: number, y: number, lineHeight: number, skipLines: number, maxLines: number): void {
+    let cursor = 0;
+    let breakPos = 0;
+    let lineNo = 0;
     do {
-      n7 = string.indexOf("\r", n6); // indexOf(13,...)：char 13 = '\r'
-      if (n8 >= n4) {
-        if (n7 === -1) {
-          graphics.drawString(string.substring(n6), n, n2, 20);
+      breakPos = text.indexOf("\r", cursor); // indexOf(13,...)：char 13 = '\r'
+      if (lineNo >= skipLines) {
+        if (breakPos === -1) {
+          graphics.drawString(text.substring(cursor), x, y, 20);
         } else {
-          graphics.drawString(string.substring(n6, n7), n, n2, 20);
+          graphics.drawString(text.substring(cursor, breakPos), x, y, 20);
         }
-        n2 += n3;
-        --n5;
+        y += lineHeight;
+        --maxLines;
       }
-      n6 = n7 + 2;
-      ++n8;
-    } while (n7 >= 0 && n5 > 0);
+      cursor = breakPos + 2;
+      ++lineNo;
+    } while (breakPos >= 0 && maxLines > 0);
   }
 
   /**
    * 选取任务简报正文的第 n 段（CFR a.java:943-958；原 `c(int)` → 契约名 c_I）。
-   * 在 GameMIDlet.tempText1 中按 \r(char 13) 跳过前 n 段，把第 n 段子串存入 GameMIDlet.tempText2，
+   * 在 GameMIDlet.tempText1 中按 \r(char 13) 跳过前 paragraphIndex 段，把第 paragraphIndex 段子串存入 GameMIDlet.tempText2，
    * 供 drawTypesetText 逐字折行绘制。任务简报逐段推进时由 paintLevelIntro 调用。
-   * @param n 目标段落游标（从 0 起）
+   * @param paragraphIndex 目标段落游标（从 0 起）
    * @returns 是否已到最后一段（无更多 \r）
    */
-  // c(int) → c_I（取 GameMIDlet.l 的第 n 段（\r 分隔）存入 GameMIDlet.m，返回是否为最后一段）
-  selectParagraph(n: number): boolean {
-    let n2 = 0;
-    let n3 = 0;
-    let n4 = 0;
-    while (n4 < n) {
-      if ((n2 = GameMIDlet.tempText1.indexOf("\r", n2)) === -1) {
+  // c(int) → c_I（取 GameMIDlet.l 的第 paragraphIndex 段（\r 分隔）存入 GameMIDlet.m，返回是否为最后一段）
+  selectParagraph(paragraphIndex: number): boolean {
+    let searchPos = 0;
+    let breakPos = 0;
+    let counter = 0;
+    while (counter < paragraphIndex) {
+      if ((searchPos = GameMIDlet.tempText1.indexOf("\r", searchPos)) === -1) {
         // indexOf(13,...)：char 13 = '\r'
         return true;
       }
-      n2 += 2;
-      ++n4;
+      searchPos += 2;
+      ++counter;
     }
-    n3 = GameMIDlet.tempText1.indexOf("\r", n2); // indexOf(13,...)
-    GameMIDlet.tempText2 = n3 === -1 ? GameMIDlet.tempText1.substring(n2) : GameMIDlet.tempText1.substring(n2, n3);
-    return n3 < 0;
+    breakPos = GameMIDlet.tempText1.indexOf("\r", searchPos); // indexOf(13,...)
+    GameMIDlet.tempText2 = breakPos === -1 ? GameMIDlet.tempText1.substring(searchPos) : GameMIDlet.tempText1.substring(searchPos, breakPos);
+    return breakPos < 0;
   }
 
   /**
    * 按字宽自动折行绘制任务简报正文（CFR a.java:959-979；原 6 参 `a(Graphics,...)` → 契约名 a_GIIIIII）。
-   * 对 GameMIDlet.tempText2 逐字测宽断行：跳过前 n 行，从第 n 行起、左上 (n3,n4)、行宽 n5、行高 n6
-   * 连续绘制至多 n2 行。shim 无 Font，故用底层 ctx.measureText 近似测宽、drawString 近似绘子串
+   * 对 GameMIDlet.tempText2 逐字测宽断行：跳过前 skipLines 行，从第 skipLines 行起、左上 (x,y)、行宽 wrapWidth、行高 lineHeight
+   * 连续绘制至多 maxLines 行。shim 无 Font，故用底层 ctx.measureText 近似测宽、drawString 近似绘子串
    * （控制流逐行与 CFR 一致，见类级 JSDoc 偏差说明）。
    * @param graphics 目标图形上下文
-   * @param n 起始行号（跳过的行数）
-   * @param n2 最多绘制的行数
-   * @param n3 起始 X（左边界）
-   * @param n4 起始 Y
-   * @param n5 折行宽度
-   * @param n6 行高
+   * @param skipLines 起始行号（跳过的行数）
+   * @param maxLines 最多绘制的行数
+   * @param x 起始 X（左边界）
+   * @param y 起始 Y
+   * @param wrapWidth 折行宽度
+   * @param lineHeight 行高
    * @returns 文本是否已全部绘完
    */
-  // a(Graphics,int,int,int,int,int,int) → a_GIIIIII（对 GameMIDlet.m 按宽度逐字换行绘制，从第 n 行起绘 n2 行）
-  drawTypesetText(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): boolean {
-    let n7 = 0;
-    let n8 = 0;
-    const n9 = GameMIDlet.tempText2.length;
-    while (n7 < n9 && n2 > 0) {
-      let n10 = n3;
-      let n11 = n7 + 1;
-      while (n10 < n3 + n5 && n11 < n9) {
-        n10 = n3 + graphics.getFont().substringWidth(GameMIDlet.tempText2, n7, n11 - n7);
-        ++n11;
+  // a(Graphics,int,int,int,int,int,int) → a_GIIIIII（对 GameMIDlet.m 按宽度逐字换行绘制，从第 skipLines 行起绘 maxLines 行）
+  drawTypesetText(graphics: Graphics, skipLines: number, maxLines: number, x: number, y: number, wrapWidth: number, lineHeight: number): boolean {
+    let charCursor = 0;
+    let lineNo = 0;
+    const textLen = GameMIDlet.tempText2.length;
+    while (charCursor < textLen && maxLines > 0) {
+      let penX = x;
+      let charEnd = charCursor + 1;
+      while (penX < x + wrapWidth && charEnd < textLen) {
+        penX = x + graphics.getFont().substringWidth(GameMIDlet.tempText2, charCursor, charEnd - charCursor);
+        ++charEnd;
       }
-      if (++n8 > n) {
-        graphics.drawSubstring(GameMIDlet.tempText2, n7, n11 - n7, n3, n4, 20);
-        n4 += n6;
-        --n2;
+      if (++lineNo > skipLines) {
+        graphics.drawSubstring(GameMIDlet.tempText2, charCursor, charEnd - charCursor, x, y, 20);
+        y += lineHeight;
+        --maxLines;
       }
-      n7 = n11;
+      charCursor = charEnd;
     }
-    return n7 >= n9;
+    return charCursor >= textLen;
   }
 
-  // e(int) → e_I（启动菜单下划线伸缩动画，目标宽 n）
-  private startUnderline(n: number): void {
-    this.underlineTargetWidth = n;
+  // e(int) → e_I（启动菜单下划线伸缩动画，目标宽 targetWidth）
+  private startUnderline(targetWidth: number): void {
+    this.underlineTargetWidth = targetWidth;
     this.underlineWidth = 48;
     this.underlineDir = 1;
   }
 
-  // a(Graphics,int,int) → a_GII（绘制并推进菜单选中项下划线，以 (n,n2) 为中心横线）
-  private drawUnderline(graphics: Graphics, n: number, n2: number): void {
+  // a(Graphics,int,int) → a_GII（绘制并推进菜单选中项下划线，以 (centerX,centerY) 为中心横线）
+  private drawUnderline(graphics: Graphics, centerX: number, centerY: number): void {
     if (this.underlineDir === 1) {
       this.underlineWidth += 10;
       if (this.underlineWidth > this.underlineTargetWidth) {
@@ -1192,7 +1192,7 @@ export class GameCanvas extends Canvas {
         this.underlineDir = 1;
       }
     }
-    const n3 = this.underlineWidth >>> 1;
-    graphics.drawLine(n - n3, n2, n + n3, n2);
+    const halfWidth = this.underlineWidth >>> 1;
+    graphics.drawLine(centerX - halfWidth, centerY, centerX + halfWidth, centerY);
   }
 }
