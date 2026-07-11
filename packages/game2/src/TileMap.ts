@@ -71,21 +71,21 @@ export class TileMap {
    * @param n  视口宽 viewportWidth（相机一次可见的像素宽）
    * @param n2 视口高 viewportHeight
    */
-  constructor(n: number, n2: number) {
-    this.viewportWidth = n;
-    this.viewportHeight = n2;
+  constructor(viewportWidth: number, viewportHeight: number) {
+    this.viewportWidth = viewportWidth;
+    this.viewportHeight = viewportHeight;
   }
 
   /**
    * 设置相机左上角像素坐标（绘制偏移）。{@link render} 据此从离屏缓冲取景。
    * 对应 CFR b.java a(int,int)。
-   * @param n  相机 X（cameraX）
-   * @param n2 相机 Y（cameraY）
+   * @param cameraX  相机 X（cameraX）
+   * @param cameraY 相机 Y（cameraY）
    */
   // a(int,int) → a_II
-  public setCameraPosition(n: number, n2: number): void {
-    this.cameraX = n;
-    this.cameraY = n2;
+  public setCameraPosition(cameraX: number, cameraY: number): void {
+    this.cameraX = cameraX;
+    this.cameraY = cameraY;
   }
 
   /**
@@ -129,12 +129,12 @@ export class TileMap {
   }
 
   // e(int,int) → e_II
-  private sampleGridIndex(n: number, n2: number): number {
-    let n3 = this.gridIndices[((n2 / (this.cellTilesY * this.tileHeight)) | 0) * this.gridCols + ((n / (this.cellTilesX * this.tileWidth)) | 0)];
-    if (n3 < -1) {
-      n3 += 256;
+  private sampleGridIndex(pixelX: number, pixelY: number): number {
+    let gridIndex = this.gridIndices[((pixelY / (this.cellTilesY * this.tileHeight)) | 0) * this.gridCols + ((pixelX / (this.cellTilesX * this.tileWidth)) | 0)];
+    if (gridIndex < -1) {
+      gridIndex += 256;
     }
-    return n3;
+    return gridIndex;
   }
 
   /**
@@ -144,39 +144,40 @@ export class TileMap {
    * 按 RLE 段长累加定位命中段并返回其属性字节。
    * 属性语义（参见 g.java 碰撞）：`&3 != 0` 视为实心，`==4` 视为可站立平台面。
    * 对应 CFR b.java b(int,int)（核心碰撞）。
-   * @param n  查询点像素 X
-   * @param n2 查询点像素 Y
+   * @param pixelX  查询点像素 X（越过映射行后原地复用为碰撞条带的列）
+   * @param pixelY 查询点像素 Y（越过映射行后原地复用为碰撞条带的行）
    * @returns 碰撞属性值（0 表示无碰撞/越界）
    */
   // b(int,int) → b_II
-  public sampleCollision(n: number, n2: number): number {
-    if (n2 < 0) {
+  public sampleCollision(pixelX: number, pixelY: number): number {
+    if (pixelY < 0) {
       return 0;
     }
-    if (n2 >= this.getMapHeight()) {
+    if (pixelY >= this.getMapHeight()) {
       return 0;
     }
-    if (n < 0 || n >= this.getMapWidth()) {
+    if (pixelX < 0 || pixelX >= this.getMapWidth()) {
       return 0;
     }
-    const n3 = this.sampleGridIndex(n, n2);
-    if (n3 === -1) {
+    const gridIndex = this.sampleGridIndex(pixelX, pixelY);
+    if (gridIndex === -1) {
       return 0;
     }
-    n = (((n3 % ((this.foregroundPaletteWidth / this.cellTilesX) | 0)) * this.cellTilesX + ((n / this.tileWidth) | 0) % this.cellTilesX) * this.tileWidth / this.collisionStepX) | 0;
-    if (this.collisionRows[(n2 = ((((n3 / ((this.foregroundPaletteWidth / this.cellTilesX) | 0)) | 0) * this.cellTilesY + ((n2 / this.tileHeight) | 0) % this.cellTilesY) * this.tileHeight / this.collisionStepY) | 0)]![0] === 0) {
+    // 以下 pixelX/pixelY 被原地复用为碰撞属性条带的列/行下标（CFR 寄存器复用惯用法）。
+    pixelX = (((gridIndex % ((this.foregroundPaletteWidth / this.cellTilesX) | 0)) * this.cellTilesX + ((pixelX / this.tileWidth) | 0) % this.cellTilesX) * this.tileWidth / this.collisionStepX) | 0;
+    if (this.collisionRows[(pixelY = ((((gridIndex / ((this.foregroundPaletteWidth / this.cellTilesX) | 0)) | 0) * this.cellTilesY + ((pixelY / this.tileHeight) | 0) % this.cellTilesY) * this.tileHeight / this.collisionStepY) | 0)]![0] === 0) {
       return 0;
     }
-    let n4 = 0;
-    let n5 = 2;
+    let runLength = 0;
+    let segCursor = 2;
     do {
-      n4 += this.collisionRows[n2]![n5 + 1];
-      if (this.collisionRows[n2]![n5 + 1] < 0) {
-        n4 += 256;
+      runLength += this.collisionRows[pixelY]![segCursor + 1];
+      if (this.collisionRows[pixelY]![segCursor + 1] < 0) {
+        runLength += 256;
       }
-      n5 += 2;
-    } while (n4 < n + 1);
-    return this.collisionRows[n2]![(n5 -= 2)];
+      segCursor += 2;
+    } while (runLength < pixelX + 1);
+    return this.collisionRows[pixelY]![(segCursor -= 2)];
   }
 
   /**
@@ -188,22 +189,23 @@ export class TileMap {
    * @returns 前景 cell 索引；-1 表示该格无前景瓦片
    */
   // c(int,int) → c_II（throws Exception）
-  public sampleForegroundTile(n: number, n2: number): number {
-    let n3 = -1;
-    let n4 = this.sampleGridIndex(n, n2);
-    if (n4 !== -1) {
-      n = n4 % ((this.foregroundPaletteWidth / this.cellTilesX) | 0) * this.cellTilesX + ((n / this.tileWidth) | 0) % this.cellTilesX;
-      n2 = ((n4 / ((this.foregroundPaletteWidth / this.cellTilesX) | 0)) | 0) * this.cellTilesY + ((n2 / this.tileHeight) | 0) % this.cellTilesY;
-      n4 = n2 * this.foregroundPaletteWidth + n;
-      n3 = this.foregroundTileIndices[n4];
-      if (this.foregroundTileIndices[n4] < 0) {
-        n3 += 256;
+  // 入参 pixelX/pixelY 中途被原地复用为前景图集的列/行；gridIndex 从网格块索引复用为扁平表下标（CFR 寄存器复用）。
+  public sampleForegroundTile(pixelX: number, pixelY: number): number {
+    let cellIndex = -1;
+    let gridIndex = this.sampleGridIndex(pixelX, pixelY);
+    if (gridIndex !== -1) {
+      pixelX = gridIndex % ((this.foregroundPaletteWidth / this.cellTilesX) | 0) * this.cellTilesX + ((pixelX / this.tileWidth) | 0) % this.cellTilesX;
+      pixelY = ((gridIndex / ((this.foregroundPaletteWidth / this.cellTilesX) | 0)) | 0) * this.cellTilesY + ((pixelY / this.tileHeight) | 0) % this.cellTilesY;
+      gridIndex = pixelY * this.foregroundPaletteWidth + pixelX;
+      cellIndex = this.foregroundTileIndices[gridIndex];
+      if (this.foregroundTileIndices[gridIndex] < 0) {
+        cellIndex += 256;
       }
-      if (n3 < 0) {
+      if (cellIndex < 0) {
         throw new Error("error index");
       }
     }
-    return n3;
+    return cellIndex;
   }
 
   /**
@@ -214,17 +216,17 @@ export class TileMap {
    * @returns 背景 cell 索引
    */
   // d(int,int) → d_II（throws Exception）
-  public sampleBackgroundTile(n: number, n2: number): number {
-    let n3 = 0;
-    const n4 = ((n2 %= this.backgroundBlockHeight * this.backgroundPaletteRows) / this.backgroundBlockHeight | 0) * this.backgroundPaletteCols + ((n %= this.backgroundBlockWidth * this.backgroundPaletteCols) / this.backgroundBlockWidth | 0);
-    n3 = this.backgroundIndices[n4];
-    if (this.backgroundIndices[n4] < 0) {
-      n3 += 256;
+  public sampleBackgroundTile(pixelX: number, pixelY: number): number {
+    let cellIndex = 0;
+    const blockIndex = ((pixelY %= this.backgroundBlockHeight * this.backgroundPaletteRows) / this.backgroundBlockHeight | 0) * this.backgroundPaletteCols + ((pixelX %= this.backgroundBlockWidth * this.backgroundPaletteCols) / this.backgroundBlockWidth | 0);
+    cellIndex = this.backgroundIndices[blockIndex];
+    if (this.backgroundIndices[blockIndex] < 0) {
+      cellIndex += 256;
     }
-    if (n3 < 0) {
+    if (cellIndex < 0) {
       throw new Error("error index");
     }
-    return n3;
+    return cellIndex;
   }
 
   // f(int,int) → f_II
