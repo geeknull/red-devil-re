@@ -661,8 +661,8 @@ export class GameCanvas extends Canvas {
   private paintLevelIntro(graphics: Graphics): void {
     block17: {
       block19: {
-        let bl: boolean;
-        let bl2: boolean;
+        let textFullyDrawn: boolean;
+        let isLastParagraph: boolean;
         block18: {
           graphics.setColor(0);
           graphics.setClip(0, 0, 176, 204);
@@ -722,17 +722,17 @@ export class GameCanvas extends Canvas {
           graphics.setClip(0, 0, 176, 204);
           graphics.setColor(65280);
           graphics.drawString(GameMIDlet.interludeTexts[0], 5, 201, 36);
-          bl2 = this.selectParagraph(GameCanvas.briefingLineState[0]);
-          bl = this.drawTypesetText(graphics, GameCanvas.briefingLineState[1], GameCanvas.briefingLineState[2], GameCanvas.briefingNumberX[GameCanvas.briefingLineState[0] % 2], GameCanvas.briefingNumberY[GameCanvas.briefingLineState[0] % 2], 90, 19);
-          const bl3 = this.inputAction === 16384 || this.inputAction === 16;
-          if (bl3) break block18;
-          const n = GameCanvas.briefingLineState[3];
-          GameCanvas.briefingLineState[3] = n - 1;
-          if (n >= 0) break block19;
+          isLastParagraph = this.selectParagraph(GameCanvas.briefingLineState[0]);
+          textFullyDrawn = this.drawTypesetText(graphics, GameCanvas.briefingLineState[1], GameCanvas.briefingLineState[2], GameCanvas.briefingNumberX[GameCanvas.briefingLineState[0] % 2], GameCanvas.briefingNumberY[GameCanvas.briefingLineState[0] % 2], 90, 19);
+          const advanceInput = this.inputAction === 16384 || this.inputAction === 16;
+          if (advanceInput) break block18;
+          const lineDelay = GameCanvas.briefingLineState[3];
+          GameCanvas.briefingLineState[3] = lineDelay - 1;
+          if (lineDelay >= 0) break block19;
         }
-        if (bl2) {
+        if (isLastParagraph) {
           ++this.transitionProgress;
-        } else if (bl) {
+        } else if (textFullyDrawn) {
           GameCanvas.briefingLineState[0] = GameCanvas.briefingLineState[0] + 1;
           GameCanvas.briefingLineState[1] = 0;
           GameCanvas.briefingLineState[3] = 60;
@@ -758,10 +758,10 @@ export class GameCanvas extends Canvas {
     this.viewportHeight = px(172);
     this.sceneWidth = this.scene.mapWidth << 10;
     this.sceneHeight = this.scene.mapHeight << 10;
-    const n = GameMIDlet.readIntLE(this.scene.actorInstanceTable[0]!, 1, 2);
-    const n2 = GameMIDlet.readIntLE(this.scene.actorInstanceTable[0]!, 3, 2);
-    this.player.posX = n << 10;
-    this.player.posY = n2 << 10;
+    const spawnX = GameMIDlet.readIntLE(this.scene.actorInstanceTable[0]!, 1, 2);
+    const spawnY = GameMIDlet.readIntLE(this.scene.actorInstanceTable[0]!, 3, 2);
+    this.player.posX = spawnX << 10;
+    this.player.posY = spawnY << 10;
     this.cameraX = this.player.posX - (((this.viewportWidth * 1) / 4) | 0);
     this.cameraY = this.player.posY - (((this.viewportHeight * 7) / 10) | 0);
     if (this.cameraX > this.sceneWidth - this.viewportWidth) {
@@ -776,47 +776,47 @@ export class GameCanvas extends Canvas {
     if (this.cameraY < 0) {
       this.cameraY = 0;
     }
-    const n3 = this.cameraX >> 10;
-    const n4 = this.cameraY >> 10;
-    this.scene.loadCell(n3, n4);
+    const cameraCellX = this.cameraX >> 10;
+    const cameraCellY = this.cameraY >> 10;
+    this.scene.loadCell(cameraCellX, cameraCellY);
   }
 
   /**
    * 镜头平滑跟随（CFR a.java:698-748；原 `a(int,int)` → 契约名 a_II）。
-   * 每帧由场景调用，把相机朝目标 (n,n2) 做差值步进（X/Y 各自计算 cameraVelX/cameraVelY，
+   * 每帧由场景调用，把相机朝目标 (targetX,targetY) 做差值步进（X/Y 各自计算 cameraVelX/cameraVelY，
    * 超过阈值用玩家速度叠加偏移、否则直接吸附），叠加震屏抖动（shaking 时按帧奇偶 ±2048 并递减
    * shakeCounter），最后按场景边界钳制相机坐标。
-   * @param n 目标相机 X（定点）
-   * @param n2 目标相机 Y（定点）
+   * @param targetX 目标相机 X（定点）
+   * @param targetY 目标相机 Y（定点）
    */
-  // a(int,int) → a_II（镜头跟随玩家平滑滚动到 (n,n2)）
-  followCamera(n: number, n2: number): void {
+  // a(int,int) → a_II（镜头跟随玩家平滑滚动到 (targetX,targetY)）
+  followCamera(targetX: number, targetY: number): void {
     this.cameraVelX = 0;
     this.cameraVelY = 0;
-    if (this.cameraX < n) {
-      if (n - this.cameraX > px(16)) {
+    if (this.cameraX < targetX) {
+      if (targetX - this.cameraX > px(16)) {
         this.cameraVelX = this.player.targetVelX + px(16);
       } else {
-        this.cameraX = n;
+        this.cameraX = targetX;
       }
-    } else if (this.cameraX > n) {
-      if (this.cameraX - n > px(16)) {
+    } else if (this.cameraX > targetX) {
+      if (this.cameraX - targetX > px(16)) {
         this.cameraVelX = this.player.targetVelX - px(16);
       } else {
-        this.cameraX = n;
+        this.cameraX = targetX;
       }
     }
-    if (this.cameraY < n2) {
-      if (n2 - this.cameraY > px(10)) {
+    if (this.cameraY < targetY) {
+      if (targetY - this.cameraY > px(10)) {
         this.cameraVelY = Math.min(this.player.targetVelY + px(10), px(15));
       } else {
-        this.cameraY = n2;
+        this.cameraY = targetY;
       }
-    } else if (this.cameraY > n2) {
-      if (this.cameraY - n2 > px(10)) {
+    } else if (this.cameraY > targetY) {
+      if (this.cameraY - targetY > px(10)) {
         this.cameraVelY = Math.max(this.player.targetVelY - px(10), px(-15));
       } else {
-        this.cameraY = n2;
+        this.cameraY = targetY;
       }
     }
     this.cameraX += this.cameraVelX;
