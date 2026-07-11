@@ -29,21 +29,30 @@ export function parseSMF(buf: Uint8Array): { notes: NoteEvent[]; duration: numbe
   type Raw = { tick: number; kind: "tempo" | "note"; data: number; on?: boolean; note?: number; vel?: number };
   const raw: Raw[] = [];
 
+  // 读取一个变长量(VLQ)：MSB-续位编码，从游标 q 起逐字节 (val<<7)|低7位，
+  // 直到某字节最高位(0x80)清零为止，就地推进 q。SMF 的 delta-time / meta 长度 /
+  // sysex 长度三处共用此编码（与本文件 parseOTT.readBits 同「闭包就地推进游标」风格）。
+  let q = 0;
+  const readVarLen = (): number => {
+    let val = 0;
+    let byte: number;
+    do {
+      byte = buf[q++];
+      val = (val << 7) | (byte & 0x7f);
+    } while (byte & 0x80);
+    return val;
+  };
+
   while (p < buf.length - 8) {
     if (dv.getUint32(p) !== 0x4d54726b) break; // 'MTrk'
     const len = dv.getUint32(p + 4);
-    let q = p + 8;
+    q = p + 8;
     const end = q + len;
     let tick = 0;
     let running = 0;
     while (q < end) {
       // 变长 delta-time
-      let dt = 0;
-      let b: number;
-      do {
-        b = buf[q++];
-        dt = (dt << 7) | (b & 0x7f);
-      } while (b & 0x80);
+      const dt = readVarLen();
       tick += dt;
 
       let status = buf[q];
@@ -55,12 +64,7 @@ export function parseSMF(buf: Uint8Array): { notes: NoteEvent[]; duration: numbe
       if (status === 0xff) {
         // meta
         const type = buf[q++];
-        let mlen = 0;
-        let mb: number;
-        do {
-          mb = buf[q++];
-          mlen = (mlen << 7) | (mb & 0x7f);
-        } while (mb & 0x80);
+        const mlen = readVarLen();
         if (type === 0x51 && mlen === 3) {
           const us = (buf[q] << 16) | (buf[q + 1] << 8) | buf[q + 2];
           raw.push({ tick, kind: "tempo", data: us });
@@ -68,12 +72,7 @@ export function parseSMF(buf: Uint8Array): { notes: NoteEvent[]; duration: numbe
         q += mlen;
       } else if (status === 0xf0 || status === 0xf7) {
         // sysex：跳过
-        let slen = 0;
-        let sb: number;
-        do {
-          sb = buf[q++];
-          slen = (slen << 7) | (sb & 0x7f);
-        } while (sb & 0x80);
+        const slen = readVarLen();
         q += slen;
       } else if (hi === 0x90 || hi === 0x80) {
         const note = buf[q++];
