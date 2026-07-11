@@ -136,139 +136,170 @@ export class EffectActor extends ActorBase {
   public update(): void {
     const player: PlayerActor = this.world.player;
     this.tintBits = this.frameIndex & FACING_MASK;
+    // 按 typeId 分派 update<Type> helper（switch 是方法末块，顶层 break→helper return）。
+    // ⚠️ RegeneratingBarrier(9) 原本 fall-through 到 ExplosiveBarrel(7)：由 updateRegeneratingBarrier
+    //    末尾调用 updateExplosiveBarrel() 复现（两者共享 type7 主体，靠 typeId 判据区分）。
     switch (this.typeId) {
-      case ActorType.GrabAnchorZone: {
-        if (this.intersectsActor(player)) {
-          player.actionFlag = true;
-          player.linkedEnemy = this;
-          player.spareO = this.anchorX << 4;
-          player.spareP = this.anchorY << 4;
-          return;
-        }
-        if (player.linkedEnemy !== this) break;
-        player.actionFlag = false;
-        player.linkedEnemy = null;
-        return;
+      case ActorType.GrabAnchorZone:
+        this.updateGrabAnchorZone(player);
+        break;
+      case ActorType.GatedTrigger:
+        this.updateGatedTrigger(player);
+        break;
+      case ActorType.RegeneratingBarrier:
+        this.updateRegeneratingBarrier();
+        break;
+      case ActorType.ExplosiveBarrel:
+        this.updateExplosiveBarrel();
+        break;
+      case ActorType.RescueTargetNpc:
+        this.updateRescueTargetNpc(player);
+        break;
+      case ActorType.CaptureTrigger:
+        this.updateCaptureTrigger(player);
+        break;
+    }
+  }
+
+  // update case type22（GrabAnchorZone，抓取锚点区）：玩家进入即联动主角抓取标志/锚点坐标，离开则解除。
+  private updateGrabAnchorZone(player: PlayerActor): void {
+    if (this.intersectsActor(player)) {
+      player.actionFlag = true;
+      player.linkedEnemy = this;
+      player.spareO = this.anchorX << 4;
+      player.spareP = this.anchorY << 4;
+      return;
+    }
+    if (player.linkedEnemy !== this) return;
+    player.actionFlag = false;
+    player.linkedEnemy = null;
+  }
+
+  // update case type12（GatedTrigger，事件门控触发器）：flagE 开启后玩家进入且按住动作位 → 切 GoalCutscene。
+  private updateGatedTrigger(player: PlayerActor): void {
+    if (!this.world.flagE) {
+      return;
+    }
+    if (this.intersectsActor(player)) {
+      this.activated = true;
+    }
+    if (!this.activated || (player.stateFlags & 1) === 0) return;
+    this.deactivate();
+    this.world.state = GameState.GoalCutscene;
+  }
+
+  // update case type9（RegeneratingBarrier，可再生屏障）：先按 hitPoints 选损坏帧，
+  // 再 fall-through 到 type7 主体（原 GOTO lbl32，用调用 updateExplosiveBarrel 复现）。
+  private updateRegeneratingBarrier(): void {
+    if (this.hitPoints >= 4) {
+      // lbl28
+      if (this.hitPoints < 7) {
+        this.setFrame(1);
+      } else {
+        this.setFrame(0);
       }
-      case ActorType.GatedTrigger: {
-        if (!this.world.flagE) {
-          return;
-        }
-        if (this.intersectsActor(player)) {
-          this.activated = true;
-        }
-        if (!this.activated || (player.stateFlags & 1) === 0) break;
-        this.deactivate();
-        this.world.state = GameState.GoalCutscene;
-        return;
-      }
-      case ActorType.RegeneratingBarrier: {
-        // case 9 落入：先依 d 选择动画帧，再 fall-through 到 case 7
-        if (this.hitPoints >= 4) {
-          // lbl28
-          if (this.hitPoints < 7) {
-            this.setFrame(1);
-          } else {
-            this.setFrame(0);
+    } else {
+      this.setFrame(2);
+    }
+    // GOTO lbl32 → 进入 case 7 主体（原 fall-through，用调用复现；共享体靠 this.typeId 区分 9/7）
+    this.updateExplosiveBarrel();
+  }
+
+  // update case type7（ExplosiveBarrel，爆炸桶；亦为 type9 落穿共享主体）：耐久耗尽则爆炸+清上方瓦片+销毁；
+  // 激活时横向晃动；type9 还按 regenTimer 再生耐久。内部靠 this.typeId 区分 7/9 行为。
+  private updateExplosiveBarrel(): void {
+    if (this.hitPoints <= 0) {
+      let canExplode = false;
+      if (this.typeId === ActorType.RegeneratingBarrier) {
+        if (this.world.levelIndex === 7 && this.posX >> 10 > 1720) {
+          if ((this.world.player.stateFlags & 1) !== 0) {
+            canExplode = true;
+            this.world.stateTimer = 11;
+            this.world.state = GameState.GoalCutscene;
           }
         } else {
-          this.setFrame(2);
+          canExplode = true;
         }
-        // GOTO lbl32 → 进入 case 7 主体
+      } else {
+        canExplode = true;
       }
-      // lbl32
-      case ActorType.ExplosiveBarrel: {
-        if (this.hitPoints <= 0) {
-          let canExplode = false;
-          if (this.typeId === ActorType.RegeneratingBarrier) {
-            if (this.world.levelIndex === 7 && this.posX >> 10 > 1720) {
-              if ((this.world.player.stateFlags & 1) !== 0) {
-                canExplode = true;
-                this.world.stateTimer = 11;
-                this.world.state = GameState.GoalCutscene;
-              }
-            } else {
-              canExplode = true;
-            }
-          } else {
-            canExplode = true;
-          }
-          if (canExplode) {
-            if (this.typeId === ActorType.RegeneratingBarrier) {
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY - px(5), 2);
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX - px(10), this.posY - px(20), 2);
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX + px(5), this.posY - px(10), 2);
-            } else {
-              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 1, this.posX, this.posY - px(5), 2);
-            }
-            this.posX = this.anchorX;
-            this.posY = this.anchorY;
-            let col = this.posX >> 14;
-            const row = (this.posY - px(5)) >> 14;
-            while (this.world.tileMap.queryColumnTileAt(--col, row, true) === 1) {
-            }
-            const clearCount = this.typeId === ActorType.ExplosiveBarrel ? 2 : 3;
-            let i = 0;
-            while (i < clearCount) {
-              this.world.tileMap.clearTileAt(col + 1, row - i);
-              ++i;
-            }
-            this.deactivate();
-            this.world.scriptFlagL = false;
-            this.world.levelLoader.actorSpawned[this.extra] = true;
-            GameScreen.playSound(5, 1, 220);
-          }
-          return;
+      if (canExplode) {
+        if (this.typeId === ActorType.RegeneratingBarrier) {
+          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY - px(5), 2);
+          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX - px(10), this.posY - px(20), 2);
+          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX + px(5), this.posY - px(10), 2);
+        } else {
+          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 1, this.posX, this.posY - px(5), 2);
         }
-        if (this.activated) {
-          this.regenTimer = 0;
-          // v0 = this.C = (this.C == this.b ? this.C + 2048 : this.b)
-          this.posX = this.posX === this.anchorX ? this.posX + px(2) : this.anchorX;
-          if (this.shakeTick++ <= 5) break;
-          this.activated = false;
-          this.shakeTick = 0;
-          this.posX = this.anchorX;
-          return;
+        this.posX = this.anchorX;
+        this.posY = this.anchorY;
+        let col = this.posX >> 14;
+        const row = (this.posY - px(5)) >> 14;
+        while (this.world.tileMap.queryColumnTileAt(--col, row, true) === 1) {
         }
-        if (this.typeId !== ActorType.RegeneratingBarrier || this.regenTimer++ <= 40) break;
-        if (this.hitPoints < 4 && this.hitPoints > 0) {
-          this.hitPoints = 6;
-        } else if (this.hitPoints < 7) {
-          this.hitPoints = 9;
+        const clearCount = this.typeId === ActorType.ExplosiveBarrel ? 2 : 3;
+        let i = 0;
+        while (i < clearCount) {
+          this.world.tileMap.clearTileAt(col + 1, row - i);
+          ++i;
         }
-        this.regenTimer = 0;
-        return;
+        this.deactivate();
+        this.world.scriptFlagL = false;
+        this.world.levelLoader.actorSpawned[this.extra] = true;
+        GameScreen.playSound(5, 1, 220);
       }
-      case ActorType.RescueTargetNpc: {
-        if (this.intersectsActor(player)) {
-          this.activated = true;
-        }
-        if (!this.activated || (player.stateFlags & 1) === 0) break;
-        this.world.state = GameState.GoalCutscene;
-        return;
-      }
-      case ActorType.CaptureTrigger: {
-        if (this.destroyedFlag === 1) {
-          this.setFrame(1 | this.tintBits);
-          player.health = 0;
-          this.world.state = GameState.CaptureCutscene;
-          return;
-        }
-        if (this.activated) {
-          if ((player.stateFlags & 1) === 0 || player.posY <= 490000) break;
-          this.world.state = GameState.GoalCutscene;
-          return;
-        }
-        if (this.world.scriptFlagL && this.world.reinforceBudget <= 0 && this.world.enemyAliveCount <= 0) {
-          this.activated = true;
-          return;
-        }
-        const actionId = this.frameIndex & SEQUENCE_MASK;
-        const tint = this.frameIndex & FACING_MASK;
-        if (actionId !== 1 || !this.isAnimationDone()) break;
-        this.setFrame(0 | tint);
-      }
+      return;
     }
+    if (this.activated) {
+      this.regenTimer = 0;
+      // v0 = this.C = (this.C == this.b ? this.C + 2048 : this.b)
+      this.posX = this.posX === this.anchorX ? this.posX + px(2) : this.anchorX;
+      if (this.shakeTick++ <= 5) return;
+      this.activated = false;
+      this.shakeTick = 0;
+      this.posX = this.anchorX;
+      return;
+    }
+    if (this.typeId !== ActorType.RegeneratingBarrier || this.regenTimer++ <= 40) return;
+    if (this.hitPoints < 4 && this.hitPoints > 0) {
+      this.hitPoints = 6;
+    } else if (this.hitPoints < 7) {
+      this.hitPoints = 9;
+    }
+    this.regenTimer = 0;
+  }
+
+  // update case type4（RescueTargetNpc，感应触发器）：玩家进入且按住动作位 → 切 GoalCutscene。
+  private updateRescueTargetNpc(player: PlayerActor): void {
+    if (this.intersectsActor(player)) {
+      this.activated = true;
+    }
+    if (!this.activated || (player.stateFlags & 1) === 0) return;
+    this.world.state = GameState.GoalCutscene;
+  }
+
+  // update case type5（CaptureTrigger，关键目标/被捕触发）：被打爆→CaptureCutscene；激活且满足条件→GoalCutscene；
+  // 清场后激活；否则按帧推进动画。
+  private updateCaptureTrigger(player: PlayerActor): void {
+    if (this.destroyedFlag === 1) {
+      this.setFrame(1 | this.tintBits);
+      player.health = 0;
+      this.world.state = GameState.CaptureCutscene;
+      return;
+    }
+    if (this.activated) {
+      if ((player.stateFlags & 1) === 0 || player.posY <= 490000) return;
+      this.world.state = GameState.GoalCutscene;
+      return;
+    }
+    if (this.world.scriptFlagL && this.world.reinforceBudget <= 0 && this.world.enemyAliveCount <= 0) {
+      this.activated = true;
+      return;
+    }
+    const actionId = this.frameIndex & SEQUENCE_MASK;
+    const tint = this.frameIndex & FACING_MASK;
+    if (actionId !== 1 || !this.isAnimationDone()) return;
+    this.setFrame(0 | tint);
   }
 
   /**
