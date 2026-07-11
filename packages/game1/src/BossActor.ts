@@ -165,207 +165,222 @@ export class BossActor extends ActorBase {
   update(): void {
     const player: PlayerActor = this.screen.player!;
     const actionId: number = this.frameIndex & SEQUENCE_MASK;
+    // 按 typeId 分派 update<Type> helper（switch 是方法末块，各 case 原为 return/落尾，逐字节 verbatim 迁移）。
     switch (this.typeId) {
-      case ActorType.ScriptedFuseTrigger: {
-        if (this.intersectsActor(player)) {
-          this.phase = 1;
-          this.setFrame(1);
-          this.screen.levelLoader!.actorSpawned[this.extra] = true;
-        }
-        if (this.phase !== 1 || this.delayTimer-- >= 0) return;
-        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, 2);
-        this.deactivate();
-        GameScreen.playSound(5, 1, 220);
-        return;
-      }
-      case ActorType.AtvVehicleBoss: {
-        const screenRightFx: number = this.screen.cameraX + GameScreen.viewWidthFx;
-        switch (this.screen.levelIndex) {
-          case 3:
-          case 6: {
-            if (!this.screen.scriptFlagL) return;
-            if (this.delayTimer-- > 0) {
-              return;
-            }
-            if (this.health < 0) {
-              this.health = 0;
-            }
-            this.screen.showIndicator = true;
-            const indicator: number = (this.screen.indicatorValue = this.waveCount < 6 ? this.health : this.health + (this.waveCount - 6) * 5);
-            if (!this.phaseTriggered && this.intersectsActor(player) && this.health > 0) {
-              player.takeDamage(3);
-              if (this.targetVelX === 0) {
-                this.phase = 2;
-                this.subTimer = 11;
-                this.setFrame(-2147483647);
-                this.phaseTriggered = true;
-              }
-            } else if (this.health === 0) {
-              if (--this.waveCount < 6) {
-                if (this.waveCount <= 0) {
-                  this.visible = false;
-                  let canDeactivate: boolean = false;
-                  this.screen.showIndicator = false;
-                  if (this.screen.levelIndex !== 6) {
-                    canDeactivate = true;
-                  } else if ((player.stateFlags & 1) !== 0 && player.posY > 500000) {
-                    canDeactivate = true;
-                    this.screen.state = GameState.GoalCutscene;
-                  }
-                  if (!canDeactivate) return;
-                  this.deactivate();
-                  this.screen.scriptFlagL = false;
-                  this.screen.levelLoader!.actorSpawned[this.extra] = true;
-                  return;
-                }
-                this.spawnDeathBurst();
-                return;
-              }
-              this.health = 5;
-              this.subTimer = 0;
-              this.phase = 2;
-            }
-            if (this.targetVelX !== 0 && this.hitFlashing) {
-              this.hitFlashing = false;
-              this.flashCounter = 0;
-            } else if (this.hitFlashing) {
-              const steppedX: number = (this.posX = this.posX === this.homeX ? this.posX + px(2) : this.homeX);
-              if (this.flashCounter++ > 5) {
-                this.hitFlashing = false;
-                this.flashCounter = 0;
-                this.posX = this.homeX;
-              }
-            }
-            switch (this.phase) {
-              case 0: {
-                this.targetVelX = px(-2);
-                if (this.posX >= screenRightFx - px(20)) break;
-                this.phase = 1;
-                this.targetVelX = 0;
-                this.setFrame(-2147483646);
-                return;
-              }
-              case 1: {
-                if (this.subTimer++ > 15) {
-                  const muzzleOffset: number = px(35);
-                  if (this.attackMode === 0) {
-                    const missile: ProjectileActor | null = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, MIRROR_FLAG, 0, this.posX - muzzleOffset, this.posY - muzzleOffset, 1);
-                    if (missile === null) break;
-                    missile.targetVelX = px(-12);
-                    this.subTimer = 0;
-                    if (this.targetVelX === 0) {
-                      this.setFrame(-2147483644);
-                      return;
-                    }
-                    this.setFrame(-2147483645);
-                    return;
-                  }
-                  const bomb: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX + px(5), this.posY - muzzleOffset, 1);
-                  if (bomb === null) break;
-                  this.subTimer = 0;
-                  bomb.launchArc(0);
-                  if (this.targetVelX > 0) {
-                    this.setFrame(-2147483643);
-                    return;
-                  }
-                  this.setFrame(-2147483642);
-                  return;
-                }
-                if (this.targetVelX === 0 && this.isAnimationDone()) {
-                  this.setFrame(-2147483646);
-                  return;
-                }
-                if (this.targetVelX <= 0) break;
-                if (this.isAnimationDone()) {
-                  this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
-                }
-                if (this.posX <= screenRightFx - px(20)) break;
-                this.subTimer = 0;
-                this.targetVelX = 0;
-                if (this.screen.levelIndex !== 6) {
-                  this.attackMode = 0;
-                }
-                this.phaseTriggered = false;
-                return;
-              }
-              case 2: {
-                if (this.subTimer++ > 15) {
-                  this.subTimer = 0;
-                  this.phase = 3;
-                  this.targetVelX = px(-10);
-                  this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
-                  return;
-                }
-                if (!this.isAnimationDone()) break;
-                this.setFrame(-2147483647);
-                return;
-              }
-              case 3: {
-                if (!this.collideLeftWall(this.screen.tileMap!)) break;
-                this.targetVelX = px(4);
-                this.phase = 1;
-                this.attackMode = 1;
-              }
-            }
-            return;
-          }
-          case 4: {
-            if (this.disabled) return;
-            if (this.minion!.active && this.minion!.lives > 0) {
-              this.minion!.posX = this.posX - px(23);
-              if ((this.posX >= player.posX || this.posX <= this.screen.cameraX + px(32)) && (this.posX <= player.posX || this.posX >= this.screen.cameraX + px(182))) return;
-              this.targetVelX = this.screen.cameraVelX;
-              return;
-            }
-            if (this.minion!.aiState === 9 && this.minion!.lives <= 0 && this.minion!.targetVelY === 0) {
-              this.minion!.targetVelY = px(12);
-              this.minion!.targetVelX = 0;
-              this.minion!.isPatroller = false;
-              this.targetVelX = this.posX > player.posX ? this.screen.cameraVelX + px(8) : 0;
-              return;
-            }
-            if (this.posX <= this.screen.cameraX + px(206) && this.posX >= this.screen.cameraX - px(30)) return;
-            this.deactivate();
-            return;
-          }
-        }
-        return;
-      }
-      case ActorType.DivingHazard: {
+      case ActorType.ScriptedFuseTrigger:
+        this.updateScriptedFuseTrigger(player);
+        break;
+      case ActorType.AtvVehicleBoss:
+        this.updateAtvVehicleBoss(player);
+        break;
+      case ActorType.DivingHazard:
+        this.updateDivingHazard(actionId);
+        break;
+    }
+  }
+
+  // update case type14（ScriptedFuseTrigger，剧情引爆触发牌）：与玩家相交即触发，延迟到点生成爆炸并自毁。
+  private updateScriptedFuseTrigger(player: PlayerActor): void {
+    if (this.intersectsActor(player)) {
+      this.phase = 1;
+      this.setFrame(1);
+      this.screen.levelLoader!.actorSpawned[this.extra] = true;
+    }
+    if (this.phase !== 1 || this.delayTimer-- >= 0) return;
+    this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, 2);
+    this.deactivate();
+    GameScreen.playSound(5, 1, 220);
+  }
+
+  // update case type8（AtvVehicleBoss，载具 Boss）：按 levelIndex 分——关3/6 走 HUD 指示+接触伤害+波次死亡+phase0-3
+  // 追踪/开火/冲刺子状态机（内层 switch(phase) break 保留）；关4 联动 minion。
+  private updateAtvVehicleBoss(player: PlayerActor): void {
+    const screenRightFx: number = this.screen.cameraX + GameScreen.viewWidthFx;
+    switch (this.screen.levelIndex) {
+      case 3:
+      case 6: {
+        if (!this.screen.scriptFlagL) return;
         if (this.delayTimer-- > 0) {
           return;
         }
-        switch (actionId) {
+        if (this.health < 0) {
+          this.health = 0;
+        }
+        this.screen.showIndicator = true;
+        const indicator: number = (this.screen.indicatorValue = this.waveCount < 6 ? this.health : this.health + (this.waveCount - 6) * 5);
+        if (!this.phaseTriggered && this.intersectsActor(player) && this.health > 0) {
+          player.takeDamage(3);
+          if (this.targetVelX === 0) {
+            this.phase = 2;
+            this.subTimer = 11;
+            this.setFrame(-2147483647);
+            this.phaseTriggered = true;
+          }
+        } else if (this.health === 0) {
+          if (--this.waveCount < 6) {
+            if (this.waveCount <= 0) {
+              this.visible = false;
+              let canDeactivate: boolean = false;
+              this.screen.showIndicator = false;
+              if (this.screen.levelIndex !== 6) {
+                canDeactivate = true;
+              } else if ((player.stateFlags & 1) !== 0 && player.posY > 500000) {
+                canDeactivate = true;
+                this.screen.state = GameState.GoalCutscene;
+              }
+              if (!canDeactivate) return;
+              this.deactivate();
+              this.screen.scriptFlagL = false;
+              this.screen.levelLoader!.actorSpawned[this.extra] = true;
+              return;
+            }
+            this.spawnDeathBurst();
+            return;
+          }
+          this.health = 5;
+          this.subTimer = 0;
+          this.phase = 2;
+        }
+        if (this.targetVelX !== 0 && this.hitFlashing) {
+          this.hitFlashing = false;
+          this.flashCounter = 0;
+        } else if (this.hitFlashing) {
+          const steppedX: number = (this.posX = this.posX === this.homeX ? this.posX + px(2) : this.homeX);
+          if (this.flashCounter++ > 5) {
+            this.hitFlashing = false;
+            this.flashCounter = 0;
+            this.posX = this.homeX;
+          }
+        }
+        switch (this.phase) {
           case 0: {
-            if (!this.isAnimationDone()) return;
-            this.setFrame(1);
-            this.targetVelY = px(12);
+            this.targetVelX = px(-2);
+            if (this.posX >= screenRightFx - px(20)) break;
+            this.phase = 1;
+            this.targetVelX = 0;
+            this.setFrame(-2147483646);
             return;
           }
           case 1: {
-            if (this.intersectsActor(this.screen.player!)) {
-              this.screen.player!.takeDamage(1);
-              this.setFrame(2);
-              this.targetVelY = 0;
+            if (this.subTimer++ > 15) {
+              const muzzleOffset: number = px(35);
+              if (this.attackMode === 0) {
+                const missile: ProjectileActor | null = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, MIRROR_FLAG, 0, this.posX - muzzleOffset, this.posY - muzzleOffset, 1);
+                if (missile === null) break;
+                missile.targetVelX = px(-12);
+                this.subTimer = 0;
+                if (this.targetVelX === 0) {
+                  this.setFrame(-2147483644);
+                  return;
+                }
+                this.setFrame(-2147483645);
+                return;
+              }
+              const bomb: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX + px(5), this.posY - muzzleOffset, 1);
+              if (bomb === null) break;
+              this.subTimer = 0;
+              bomb.launchArc(0);
+              if (this.targetVelX > 0) {
+                this.setFrame(-2147483643);
+                return;
+              }
+              this.setFrame(-2147483642);
               return;
             }
-            if (!this.collideGround(this.screen.tileMap!)) return;
-            this.setFrame(2);
+            if (this.targetVelX === 0 && this.isAnimationDone()) {
+              this.setFrame(-2147483646);
+              return;
+            }
+            if (this.targetVelX <= 0) break;
+            if (this.isAnimationDone()) {
+              this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
+            }
+            if (this.posX <= screenRightFx - px(20)) break;
+            this.subTimer = 0;
+            this.targetVelX = 0;
+            if (this.screen.levelIndex !== 6) {
+              this.attackMode = 0;
+            }
+            this.phaseTriggered = false;
             return;
           }
           case 2: {
-            if (!this.isAnimationDone()) return;
-            this.posX = this.homeX;
-            this.posY = this.homeY;
-            this.subTimer = this.flashCounter;
-            this.setFrame(3);
+            if (this.subTimer++ > 15) {
+              this.subTimer = 0;
+              this.phase = 3;
+              this.targetVelX = px(-10);
+              this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
+              return;
+            }
+            if (!this.isAnimationDone()) break;
+            this.setFrame(-2147483647);
             return;
           }
           case 3: {
-            if (this.subTimer-- >= 0) return;
-            this.setFrame(0);
+            if (!this.collideLeftWall(this.screen.tileMap!)) break;
+            this.targetVelX = px(4);
+            this.phase = 1;
+            this.attackMode = 1;
           }
         }
+        return;
+      }
+      case 4: {
+        if (this.disabled) return;
+        if (this.minion!.active && this.minion!.lives > 0) {
+          this.minion!.posX = this.posX - px(23);
+          if ((this.posX >= player.posX || this.posX <= this.screen.cameraX + px(32)) && (this.posX <= player.posX || this.posX >= this.screen.cameraX + px(182))) return;
+          this.targetVelX = this.screen.cameraVelX;
+          return;
+        }
+        if (this.minion!.aiState === 9 && this.minion!.lives <= 0 && this.minion!.targetVelY === 0) {
+          this.minion!.targetVelY = px(12);
+          this.minion!.targetVelX = 0;
+          this.minion!.isPatroller = false;
+          this.targetVelX = this.posX > player.posX ? this.screen.cameraVelX + px(8) : 0;
+          return;
+        }
+        if (this.posX <= this.screen.cameraX + px(206) && this.posX >= this.screen.cameraX - px(30)) return;
+        this.deactivate();
+        return;
+      }
+    }
+  }
+
+  // update case type17（DivingHazard，俯冲危害物）：延迟后按帧 actionId 走 俯冲(0)→下落(1)→归位(2)→等待(3) 循环。
+  private updateDivingHazard(actionId: number): void {
+    if (this.delayTimer-- > 0) {
+      return;
+    }
+    switch (actionId) {
+      case 0: {
+        if (!this.isAnimationDone()) return;
+        this.setFrame(1);
+        this.targetVelY = px(12);
+        return;
+      }
+      case 1: {
+        if (this.intersectsActor(this.screen.player!)) {
+          this.screen.player!.takeDamage(1);
+          this.setFrame(2);
+          this.targetVelY = 0;
+          return;
+        }
+        if (!this.collideGround(this.screen.tileMap!)) return;
+        this.setFrame(2);
+        return;
+      }
+      case 2: {
+        if (!this.isAnimationDone()) return;
+        this.posX = this.homeX;
+        this.posY = this.homeY;
+        this.subTimer = this.flashCounter;
+        this.setFrame(3);
+        return;
+      }
+      case 3: {
+        if (this.subTimer-- >= 0) return;
+        this.setFrame(0);
       }
     }
   }
