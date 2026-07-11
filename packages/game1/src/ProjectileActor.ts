@@ -13,6 +13,7 @@ import { Graphics } from "@red-devil/j2me-shim";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { EffectActor } from "./EffectActor.ts";
+import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { MIRROR_FLAG, ActorType, SEQUENCE_MASK, px } from "./constants.ts";
 
@@ -47,101 +48,120 @@ export class ProjectileActor extends ActorBase {
    * 16=命中特效弹（动画播完即销毁）。inactive（!active）时提前返回。
    */
   update(): void {
-    let n = 0;
-    while (n < this.world.drawQueueCount) {
-      if (this.intersectsActor(this.world.drawQueue[n]!)) {
-        this.world.drawQueue[n]!.onProjectileHit(this);
+    let i = 0;
+    while (i < this.world.drawQueueCount) {
+      if (this.intersectsActor(this.world.drawQueue[i]!)) {
+        this.world.drawQueue[i]!.onProjectileHit(this);
       }
-      ++n;
+      ++i;
     }
     if (!this.active) {
       return;
     }
-    const n2 = this.frameIndex & SEQUENCE_MASK;
-    const f2 = this.world.player;
+    const actionId = this.frameIndex & SEQUENCE_MASK;
+    const player = this.world.player;
+    // 按 typeId 分派 update<Type> helper（switch 是方法末块，顶层 break→return；内层 switch(actionId) break 保留）。
     switch (this.typeId) {
       case ActorType.GrenadeProjectile:
-      case ActorType.GuidedMissileProjectile: {
-        switch (n2) {
-          case 0: {
-            if (this.world.levelIndex !== 4) {
-              if (this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap)) {
-                if (this.typeId === ActorType.GuidedMissileProjectile) {
-                  this.posX += this.velX;
-                  this.setFrame(1);
-                } else {
-                  this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
-                  this.deactivate();
-                  GameScreen.playSound(5, 1, 220);
-                }
-              } else if ((this.targetVelX > 0 && this.posX - this.launchOriginX > px(200)) || (this.targetVelX < 0 && this.launchOriginX - this.posX > px(200))) {
-                this.deactivate();
-              }
-            }
-            if (this.posX >= this.world.cameraX && this.posX <= this.world.cameraX + GameScreen.viewWidthFx) break;
-            this.deactivate();
-            break;
-          }
-          case 1: {
-            if (!this.isAnimationDone()) break;
-            this.deactivate();
-          }
-        }
-        return;
-      }
-      case ActorType.PlayerBounceShot: {
-        if (this.mode === 2) {
-          if (this.armingDelay-- > 0) {
-            return;
-          }
-          if (this.intersectsActor(this.world.player)) {
-            this.world.player.takeDamage(2);
-          }
-        }
-        switch (n2) {
-          case 1: {
-            if (this.frameCounter-- >= 0) break;
-            if (this.subType === 1) {
-              this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
-              break;
-            }
-            this.setFrame(0);
-            break;
-          }
-          case 0: {
-            if (!this.isAnimationDone()) break;
-            if (this.mode === 2) {
-              this.frameCounter = this.loopFrames;
+      case ActorType.GuidedMissileProjectile:
+        this.updateGrenadeOrMissile(actionId);
+        break;
+      case ActorType.PlayerBounceShot:
+        this.updateBounceShot(actionId);
+        break;
+      case ActorType.FallingBombProjectile:
+        this.updateFallingBomb(player);
+        break;
+      case ActorType.ExplosionEffect:
+        this.updateExplosion();
+        break;
+    }
+  }
+
+  // update case type15/21（GrenadeProjectile/GuidedMissileProjectile 共享，靠 this.typeId 区分）：
+  // 帧0 撞墙则导弹推进改帧、榴弹爆炸销毁，或超射程/出屏销毁；帧1 动画播完销毁。
+  private updateGrenadeOrMissile(actionId: number): void {
+    switch (actionId) {
+      case 0: {
+        if (this.world.levelIndex !== 4) {
+          if (this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap)) {
+            if (this.typeId === ActorType.GuidedMissileProjectile) {
+              this.posX += this.velX;
               this.setFrame(1);
-              break;
+            } else {
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
+              this.deactivate();
+              GameScreen.playSound(5, 1, 220);
             }
+          } else if ((this.targetVelX > 0 && this.posX - this.launchOriginX > px(200)) || (this.targetVelX < 0 && this.launchOriginX - this.posX > px(200))) {
             this.deactivate();
           }
         }
-        return;
+        if (this.posX >= this.world.cameraX && this.posX <= this.world.cameraX + GameScreen.viewWidthFx) break;
+        this.deactivate();
+        break;
       }
-      case ActorType.FallingBombProjectile: {
-        if (this.mode === 1 && --this.lifeTimer < 0) {
-          const n3 = (this.targetVelX = this.world.levelIndex === 4 ? this.world.cameraVelX : 0); // n3 为反编译产生的死值，保留赋值链
-          void n3;
-        }
-        if (
-          (this.world.levelIndex !== 4 && (this.collideGround(this.world.tileMap) || this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap))) ||
-          (this.world.levelIndex === 4 && this.posY >= f2.posY + px(30))
-        ) {
-          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
-          this.deactivate();
-          GameScreen.playSound(5, 1, 220);
-          return;
-        }
-        ++this.frameCounter;
-        return;
-      }
-      case ActorType.ExplosionEffect: {
+      case 1: {
         if (!this.isAnimationDone()) break;
         this.deactivate();
       }
     }
+  }
+
+  // update case type10（PlayerBounceShot，弹反/地雷弹）：mode2 起爆延迟+接触伤害；帧1 循环计时改帧、帧0 播完循环或销毁。
+  private updateBounceShot(actionId: number): void {
+    if (this.mode === 2) {
+      if (this.armingDelay-- > 0) {
+        return;
+      }
+      if (this.intersectsActor(this.world.player)) {
+        this.world.player.takeDamage(2);
+      }
+    }
+    switch (actionId) {
+      case 1: {
+        if (this.frameCounter-- >= 0) break;
+        if (this.subType === 1) {
+          this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
+          break;
+        }
+        this.setFrame(0);
+        break;
+      }
+      case 0: {
+        if (!this.isAnimationDone()) break;
+        if (this.mode === 2) {
+          this.frameCounter = this.loopFrames;
+          this.setFrame(1);
+          break;
+        }
+        this.deactivate();
+      }
+    }
+  }
+
+  // update case type20（FallingBombProjectile，落弹）：mode1 生命耗尽设水平速度；撞地/墙或到玩家高度则爆炸销毁，否则计帧。
+  private updateFallingBomb(player: PlayerActor): void {
+    if (this.mode === 1 && --this.lifeTimer < 0) {
+      const n3 = (this.targetVelX = this.world.levelIndex === 4 ? this.world.cameraVelX : 0); // n3 为反编译产生的死值，保留赋值链
+      void n3;
+    }
+    if (
+      (this.world.levelIndex !== 4 && (this.collideGround(this.world.tileMap) || this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap))) ||
+      (this.world.levelIndex === 4 && this.posY >= player.posY + px(30))
+    ) {
+      this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
+      this.deactivate();
+      GameScreen.playSound(5, 1, 220);
+      return;
+    }
+    ++this.frameCounter;
+  }
+
+  // update case type16（ExplosionEffect，爆炸特效）：动画播完即销毁。
+  private updateExplosion(): void {
+    if (!this.isAnimationDone()) return;
+    this.deactivate();
   }
 
   /**
@@ -149,14 +169,14 @@ export class ProjectileActor extends ActorBase {
    * 定时/抛物弹(typeId==20)在前两帧(frameCounter<2)处于上膛阶段不可见，直接跳过；
    * 其余情形委托父类 ActorBase.paint 按当前帧绘制。
    * @param graphics 目标画布
-   * @param n 屏幕绘制 X（相机相对像素坐标）
-   * @param n2 屏幕绘制 Y
+   * @param cameraX 屏幕绘制 X（相机相对像素坐标）
+   * @param cameraY 屏幕绘制 Y
    */
-  paint(graphics: Graphics, n: number, n2: number): void {
+  paint(graphics: Graphics, cameraX: number, cameraY: number): void {
     if (this.typeId === ActorType.FallingBombProjectile && this.frameCounter < 2) {
       return;
     }
-    super.paint(graphics, n, n2);
+    super.paint(graphics, cameraX, cameraY);
   }
 
   /**
@@ -166,61 +186,61 @@ export class ProjectileActor extends ActorBase {
    * 目标处于同高区间或无目标时令 targetVelY 归零。
    */
   computeHomingTrajectory(): void {
-    let n = 0;
-    let n2 = 0;
-    let n3 = 0;
-    let n4 = 0;
-    let n5 = 0;
-    while (n5 < this.world.drawQueueCount) {
-      if (this.isHomingTarget(this.world.drawQueue[n5]!.typeId) && (n4 > (n2 = Math.abs(this.posY - this.world.drawQueue[n5]!.posY + px(15))) || n4 === 0)) {
-        n4 = n2;
-        n3 = this.world.drawQueue[n5]!.posY - px(20);
-        n = Math.abs(this.posX - this.world.drawQueue[n5]!.posX);
+    let horizDist = 0;
+    let vertDist = 0;
+    let targetTop = 0;
+    let bestDist = 0;
+    let i = 0;
+    while (i < this.world.drawQueueCount) {
+      if (this.isHomingTarget(this.world.drawQueue[i]!.typeId) && (bestDist > (vertDist = Math.abs(this.posY - this.world.drawQueue[i]!.posY + px(15))) || bestDist === 0)) {
+        bestDist = vertDist;
+        targetTop = this.world.drawQueue[i]!.posY - px(20);
+        horizDist = Math.abs(this.posX - this.world.drawQueue[i]!.posX);
       }
-      ++n5;
+      ++i;
     }
     this.targetVelX += this.world.player!.facingFlag === 0 ? px(12) : px(-12);
-    if (n4 === 0 || (this.posY > n3 - px(10) && this.posY < n3 + px(10))) {
+    if (bestDist === 0 || (this.posY > targetTop - px(10) && this.posY < targetTop + px(10))) {
       this.targetVelY = 0;
       return;
     }
-    n2 = Math.abs(this.targetVelX);
-    if ((n = (n / n2) | 0) <= 0) {
-      n = 1;
+    vertDist = Math.abs(this.targetVelX);
+    if ((horizDist = (horizDist / vertDist) | 0) <= 0) {
+      horizDist = 1;
     }
-    this.targetVelY = this.posY > n3 ? -n4 : (n4 = (n4 / n) | 0);
+    this.targetVelY = this.posY > targetTop ? -bestDist : (bestDist = (bestDist / horizDist) | 0);
   }
 
   /**
    * 沿给定水平方向推进一步并做碰撞检测：对应 CFR l.java a(boolean)（契约 a_Z）。
    * 先检测与可命中特效类敌人(isEffectType 判定 typeId 7/9)的相交（命中回调 onProjectileHit 并返回 true）；
    * 再检查当前列及相邻列(bl 决定 +1 还是 -1)对应高度区间的地形格是否为实心(瓦片值==1)。
-   * @param bl 推进方向：true 取右侧相邻列、false 取左侧相邻列做地形碰撞
+   * @param toRight 推进方向：true 取右侧相邻列、false 取左侧相邻列做地形碰撞
    * @returns 命中敌人或地形则返回 true，否则 false
    */
-  advanceAndCollide(bl: boolean): boolean {
-    let e2: EffectActor;
-    let n = 0;
-    while (n < this.world.drawQueueCount) {
-      if (this.isEffectType(this.world.drawQueue[n]!.typeId) && this.intersectsActor((e2 = this.world.drawQueue[n]! as EffectActor))) {
-        e2.onProjectileHit(this);
+  advanceAndCollide(toRight: boolean): boolean {
+    let effect: EffectActor;
+    let i = 0;
+    while (i < this.world.drawQueueCount) {
+      if (this.isEffectType(this.world.drawQueue[i]!.typeId) && this.intersectsActor((effect = this.world.drawQueue[i]! as EffectActor))) {
+        effect.onProjectileHit(this);
         return true;
       }
-      ++n;
+      ++i;
     }
-    e2 = null as unknown as EffectActor;
-    void e2;
-    const n2 = this.posX >> 14;
-    const n3 = bl ? n2 + 1 : n2 - 1;
-    const n4 = this.posY >> 10;
-    const n5 = (n4 + this.boundsTop + 1) >> 4;
-    const n6 = (n4 + this.boundsBottom - 2) >> 4;
-    let n7 = n5;
-    while (n7 <= n6) {
-      if (this.world.tileMap.queryColumnTileAt(n2, n7, false) === 1 || this.world.tileMap.queryColumnTileAt(n3, n7, false) === 1) {
+    effect = null as unknown as EffectActor;
+    void effect;
+    const col = this.posX >> 14;
+    const adjCol = toRight ? col + 1 : col - 1;
+    const pixelY = this.posY >> 10;
+    const topRow = (pixelY + this.boundsTop + 1) >> 4;
+    const bottomRow = (pixelY + this.boundsBottom - 2) >> 4;
+    let row = topRow;
+    while (row <= bottomRow) {
+      if (this.world.tileMap.queryColumnTileAt(col, row, false) === 1 || this.world.tileMap.queryColumnTileAt(adjCol, row, false) === 1) {
         return true;
       }
-      ++n7;
+      ++row;
     }
     return false;
   }
@@ -229,41 +249,41 @@ export class ProjectileActor extends ActorBase {
    * 初始化抛物轨迹参数：对应 CFR l.java b(int)（契约 b_I）。
    * 依据与玩家的水平距离推算抛物所需初速、重力加速度与生命计时，
    * 设置 targetVelX/targetVelY（初速，向上为负）、accelY（重力）、maxVelY（终速上限）、lifeTimer（飞行帧数）。
-   * @param n 水平朝向：0 表示向左(-5120)，非 0 表示向右(+5120)
+   * @param facingDir 水平朝向：0 表示向左(-5120)，非 0 表示向右(+5120)
    */
-  launchArc(n: number): void {
-    let n2 = 0;
-    let n3 = Math.abs(this.world.player.posX - this.posX);
-    if (n3 < px(40)) {
-      n3 = px(40);
+  launchArc(facingDir: number): void {
+    let vy = 0;
+    let dist = Math.abs(this.world.player.posX - this.posX);
+    if (dist < px(40)) {
+      dist = px(40);
     }
-    const n4 = (n3 / px(5)) | 0;
-    const n5 = n4 >>> 1;
-    let n6 = 0;
-    let n7 = 0;
-    while (n7 < n5) {
-      n6 += n7;
-      ++n7;
+    const frames = (dist / px(5)) | 0;
+    const halfFrames = frames >>> 1;
+    let accel = 0;
+    let i = 0;
+    while (i < halfFrames) {
+      accel += i;
+      ++i;
     }
-    n3 = (n3 >>> 2) * 3;
-    n6 = ((n3 >>> 1) / n6) | 0;
-    n2 = (n5 - 1) * n6;
-    this.targetVelX += n === 0 ? px(-5) : px(5);
-    if (n2 > px(15)) {
-      n2 = px(15);
+    dist = (dist >>> 2) * 3;
+    accel = ((dist >>> 1) / accel) | 0;
+    vy = (halfFrames - 1) * accel;
+    this.targetVelX += facingDir === 0 ? px(-5) : px(5);
+    if (vy > px(15)) {
+      vy = px(15);
     }
-    this.targetVelY = -n2;
-    this.accelY = n6;
-    this.maxVelY = n2;
-    this.lifeTimer = n4;
+    this.targetVelY = -vy;
+    this.accelY = accel;
+    this.maxVelY = vy;
+    this.lifeTimer = frames;
   }
 
-  private isEffectType(n: number): boolean {
-    return n === ActorType.ExplosiveBarrel || n === ActorType.RegeneratingBarrier;
+  private isEffectType(typeId: number): boolean {
+    return typeId === ActorType.ExplosiveBarrel || typeId === ActorType.RegeneratingBarrier;
   }
 
-  private isHomingTarget(n: number): boolean {
-    return n === ActorType.MeleeBomberEnemy || n === ActorType.ReconScoutEnemy;
+  private isHomingTarget(typeId: number): boolean {
+    return typeId === ActorType.MeleeBomberEnemy || typeId === ActorType.ReconScoutEnemy;
   }
 
   /**
