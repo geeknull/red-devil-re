@@ -399,12 +399,12 @@ export class EnemyActor extends ActorBase {
       }
       case 5: {
         if (this.typeId === ActorType.TurretEmplacement) {
-          const n: number = EnemyActor.turretShotParams[2] | this.actionHighByte;
-          const n2: number = this.posX + (EnemyActor.turretShotParams[0] << 10) * this.facingSign;
-          const n3: number = this.posY + (EnemyActor.turretShotParams[1] << 10);
-          const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.ArcCannonShell, n, n2, n3, 1, null);
-          if (k2 == null) break;
-          k2.targetVelX = EnemyActor.turretShotParams[3] * this.facingSign;
+          const action: number = EnemyActor.turretShotParams[2] | this.actionHighByte;
+          const spawnX: number = this.posX + (EnemyActor.turretShotParams[0] << 10) * this.facingSign;
+          const spawnY: number = this.posY + (EnemyActor.turretShotParams[1] << 10);
+          const bullet: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.ArcCannonShell, action, spawnX, spawnY, 1, null);
+          if (bullet == null) break;
+          bullet.targetVelX = EnemyActor.turretShotParams[3] * this.facingSign;
           this.reserved = 1;
           this.timer = 12;
           this.setAction(3 | this.actionHighByte);
@@ -459,26 +459,27 @@ export class EnemyActor extends ActorBase {
     if (this.reserved === 6 || this.reserved === 7 || this.reserved === 5 || this.reserved === 1 || this.player.health <= 0) {
       return 0;
     }
-    const bl: boolean = false;
-    let n: number = 0;
-    let n2: number = 0;
-    let n3: number = 0;
-    let n4: number = 0;
-    let n5: number = 2;
-    let n6: number = 2;
-    const bl2: boolean = false;
+    const bl: boolean = false; // 反编译死局部（CFR 产物，无副作用未引用），随体保留
+    let senseLeft: number = 0;
+    let senseRight: number = 0;
+    let senseUp: number = 0;
+    let senseDown: number = 0;
+    let leftWeight: number = 2;
+    let rightWeight: number = 2;
+    const bl2: boolean = false; // 反编译死局部（同上）
     if (this.actionHighByte === 0) {
-      n5 = 1;
+      leftWeight = 1;
     } else {
-      n6 = 1;
+      rightWeight = 1;
     }
-    n = (((this.canvas.viewportWidth * 9) / 10) | 0) / ((2 / n5) | 0) | 0;
-    n2 = (((this.canvas.viewportWidth * 9) / 10) | 0) / ((2 / n6) | 0) | 0;
-    n3 = px(20);
-    n4 = px(20);
+    senseLeft = (((this.canvas.viewportWidth * 9) / 10) | 0) / ((2 / leftWeight) | 0) | 0;
+    senseRight = (((this.canvas.viewportWidth * 9) / 10) | 0) / ((2 / rightWeight) | 0) | 0;
+    senseUp = px(20);
+    senseDown = px(20);
     switch (this.typeId) {
       case ActorType.RiflemanGrunt:
       case ActorType.GrenadierGrunt: {
+        // n7..n10 是多角色 scratch：先作近身检测框四角（±30/±20px），命中 4 后复用为纵向感知子范围。
         let n7: number = this.posX - px(30);
         let n8: number = this.posX + px(30);
         let n9: number = this.posY - px(20);
@@ -491,12 +492,12 @@ export class EnemyActor extends ActorBase {
         }
         if (this.enemyVariant <= 0) break;
         if (this.typeId === ActorType.GrenadierGrunt) {
-          n3 = this.canvas.viewportHeight;
-          n4 = this.canvas.viewportHeight;
+          senseUp = this.canvas.viewportHeight;
+          senseDown = this.canvas.viewportHeight;
           break;
         }
-        n7 = n >> 2;
-        n8 = n2 >> 2;
+        n7 = senseLeft >> 2;
+        n8 = senseRight >> 2;
         n9 = this.canvas.viewportHeight;
         n10 = this.canvas.viewportHeight;
         if (this.player.posX < this.posX - ((n7 / this.reactionFactor) | 0) || this.player.posX > this.posX + ((n8 / this.reactionFactor) | 0)) break;
@@ -507,7 +508,7 @@ export class EnemyActor extends ActorBase {
         return 3;
       }
     }
-    if (this.player.posX < this.posX - n || this.player.posX > this.posX + n2 || this.player.posY < this.posY - n3 || this.player.posY > this.posY + n4) {
+    if (this.player.posX < this.posX - senseLeft || this.player.posX > this.posX + senseRight || this.player.posY < this.posY - senseUp || this.player.posY > this.posY + senseDown) {
       return 0;
     }
     return 1;
@@ -642,22 +643,22 @@ export class EnemyActor extends ActorBase {
     }
     switch (this.typeId) {
       case ActorType.RiflemanGrunt: {
-        const nArray: number[] = [9, 10, 8, 11];
+        const attackFrames: number[] = [9, 10, 8, 11];
         if (this.threatCode === 1) {
           if (this.timer === this.attackRhythm) {
             if (this.burstCount > 0) {
-              this.setAction(nArray[GameMIDlet.randomBelow(2)] | this.actionHighByte);
+              this.setAction(attackFrames[GameMIDlet.randomBelow(2)] | this.actionHighByte);
             } else {
-              this.setAction(nArray[0] | this.actionHighByte);
+              this.setAction(attackFrames[0] | this.actionHighByte);
             }
           } else {
             this.setAction(this.frameGroupIndex | this.actionHighByte);
           }
         } else {
-          this.setAction(nArray[this.threatCode] | this.actionHighByte);
+          this.setAction(attackFrames[this.threatCode] | this.actionHighByte);
         }
         if (this.player.frameGroupIndex === 24 || this.timer-- >= 0) break;
-        if (this.burstCount === 1 && this.frameGroupIndex === nArray[this.burstCount]) {
+        if (this.burstCount === 1 && this.frameGroupIndex === attackFrames[this.burstCount]) {
           this.isAiming = false;
           return;
         }
@@ -666,12 +667,12 @@ export class EnemyActor extends ActorBase {
         return;
       }
       case ActorType.GrenadierGrunt: {
-        const nArray: number[] = [0, 4];
+        const throwFrames: number[] = [0, 4];
         if (this.timer === this.attackRhythm && this.burstCount > 0) {
-          this.setAction(nArray[GameMIDlet.randomBelow(2)] | this.actionHighByte);
+          this.setAction(throwFrames[GameMIDlet.randomBelow(2)] | this.actionHighByte);
         }
         if (this.player.frameGroupIndex === 24 || this.timer-- >= 0) break;
-        if (this.burstCount === 1 && this.frameGroupIndex === nArray[this.burstCount]) {
+        if (this.burstCount === 1 && this.frameGroupIndex === throwFrames[this.burstCount]) {
           this.isAiming = false;
           return;
         }
