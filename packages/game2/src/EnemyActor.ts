@@ -248,11 +248,11 @@ export class EnemyActor extends ActorBase {
           this.attackRhythm = this.timer;
           this.setAction((this.frameGroupIndex === 8 ? 0 : 4) | this.actionHighByte);
         } else if (this.typeId === ActorType.GrenadierGrunt && this.frameIndex === 2) {
-          const n: number = this.frameGroupIndex === 8 ? 0 : 1;
-          const n2: number = 6 | this.actionHighByte;
-          const n3: number = this.posX + (EnemyActor.throwOffsetTable[n][0] << 10) * this.facingSign;
-          const n4: number = this.posY + (EnemyActor.throwOffsetTable[n][1] << 10);
-          this.launchProjectile(ProjectileActor.spawnProjectile(ActorType.DirectBullet, n2, n3, n4, 25, null)); // this.a(tjge.k)：传入投射物 → a_Tk
+          const throwRow: number = this.frameGroupIndex === 8 ? 0 : 1;
+          const action: number = 6 | this.actionHighByte;
+          const spawnX: number = this.posX + (EnemyActor.throwOffsetTable[throwRow][0] << 10) * this.facingSign;
+          const spawnY: number = this.posY + (EnemyActor.throwOffsetTable[throwRow][1] << 10);
+          this.launchProjectile(ProjectileActor.spawnProjectile(ActorType.DirectBullet, action, spawnX, spawnY, 25, null)); // this.a(tjge.k)：传入投射物 → a_Tk
         }
         this.hasFired = false;
         break;
@@ -299,15 +299,15 @@ export class EnemyActor extends ActorBase {
           break;
         }
         if (this.typeId === ActorType.RiflemanGrunt) {
-          const n: number = this.frameGroupIndex - 8;
-          const n5: number = EnemyActor.fireOffsetTable[n][4] | this.actionHighByte;
-          const n6: number = this.posX + (EnemyActor.fireOffsetTable[n][0] << 10) * this.facingSign;
-          const n7: number = this.posY + (EnemyActor.fireOffsetTable[n][1] << 10);
-          const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, n5, n6, n7, 25, null);
-          if (k2 == null) break;
-          if (!k2.hitWall) {
-            k2.targetVelX = (EnemyActor.fireOffsetTable[n][2] << 10) * this.facingSign;
-            k2.targetVelY = EnemyActor.fireOffsetTable[n][3] << 10;
+          const fireRow: number = this.frameGroupIndex - 8;
+          const action: number = EnemyActor.fireOffsetTable[fireRow][4] | this.actionHighByte;
+          const spawnX: number = this.posX + (EnemyActor.fireOffsetTable[fireRow][0] << 10) * this.facingSign;
+          const spawnY: number = this.posY + (EnemyActor.fireOffsetTable[fireRow][1] << 10);
+          const bullet: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, action, spawnX, spawnY, 25, null);
+          if (bullet == null) break;
+          if (!bullet.hitWall) {
+            bullet.targetVelX = (EnemyActor.fireOffsetTable[fireRow][2] << 10) * this.facingSign;
+            bullet.targetVelY = EnemyActor.fireOffsetTable[fireRow][3] << 10;
           }
           this.reserved = 1;
           this.setAction(this.frameGroupIndex | this.actionHighByte);
