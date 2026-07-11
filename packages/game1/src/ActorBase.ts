@@ -130,35 +130,35 @@ export class ActorBase {
    * 据 {@link orientation}===270 做轴交换；最后重置帧计数器并清动画完成标志。
    * @param n 动画动作索引（高位保留翻转标志，内部用 `n & 0xffffff` 去标志后查表）
    */
-  public setFrame(n: number): void {
-    this.frameIndex = n;
-    if ((n &= SEQUENCE_MASK) < 0 || n > this.spriteDef.getSequenceCount()) {
+  public setFrame(frameCode: number): void {
+    this.frameIndex = frameCode;
+    if ((frameCode &= SEQUENCE_MASK) < 0 || frameCode > this.spriteDef.getSequenceCount()) {
       return;
     }
     if ((this.frameIndex & MIRROR_FLAG) === 0) {
       // Integer.MIN_VALUE == 0x80000000
-      this.boundsLeft = this.spriteDef.collisionBoxX[n];
-      this.boundsRight = this.spriteDef.collisionBoxY[n];
+      this.boundsLeft = this.spriteDef.collisionBoxX[frameCode];
+      this.boundsRight = this.spriteDef.collisionBoxY[frameCode];
     } else {
-      this.boundsLeft = -this.spriteDef.collisionBoxY[n];
-      this.boundsRight = -this.spriteDef.collisionBoxX[n];
+      this.boundsLeft = -this.spriteDef.collisionBoxY[frameCode];
+      this.boundsRight = -this.spriteDef.collisionBoxX[frameCode];
     }
     if ((this.frameIndex & FLIP_VERTICAL_BIT) === 0) {
-      this.boundsTop = this.spriteDef.collisionBoxWidth[n];
-      this.boundsBottom = this.spriteDef.collisionBoxHeight[n];
+      this.boundsTop = this.spriteDef.collisionBoxWidth[frameCode];
+      this.boundsBottom = this.spriteDef.collisionBoxHeight[frameCode];
     } else {
-      this.boundsTop = -this.spriteDef.collisionBoxHeight[n];
-      this.boundsBottom = -this.spriteDef.collisionBoxWidth[n];
+      this.boundsTop = -this.spriteDef.collisionBoxHeight[frameCode];
+      this.boundsBottom = -this.spriteDef.collisionBoxWidth[frameCode];
     }
     if (this.orientation === 270) {
-      let n2 = 0;
+      let tmp = 0;
       // 原版 CFR 中的混淆交换写法：this.z = this.x = this.z; （x 取 z 值，z 不变）
       this.boundsTop = this.boundsLeft = this.boundsTop;
-      n2 = this.boundsRight;
+      tmp = this.boundsRight;
       this.boundsRight = this.boundsBottom;
-      this.boundsBottom = n2;
+      this.boundsBottom = tmp;
     }
-    this.frameCount = this.spriteDef.getSequenceFrameCount(n);
+    this.frameCount = this.spriteDef.getSequenceFrameCount(frameCode);
     this.currentFrame = 0;
     this.animationDone = false;
   }
@@ -217,9 +217,9 @@ export class ActorBase {
   /**
    * 被子弹/投射物命中时的交互钩子（对应 CFR a(l)）。
    * 基类为空，子类（敌人/Boss/可破坏物等）覆写以扣血/触发受击。
-   * @param l2 命中本演员的投射物
+   * @param projectile 命中本演员的投射物
    */
-  public onProjectileHit(l2: ProjectileActor): void {
+  public onProjectileHit(projectile: ProjectileActor): void {
   }
 
   /**
@@ -227,91 +227,91 @@ export class ActorBase {
    * 据帧绘制范围 + 翻转位做视锥剔除（出屏直接 return），命中则委托
    * {@link SpriteDef.paintSequenceFrame} 实际绘制。可被子类覆写（如闪烁/不可见帧）。
    * @param graphics 绘制上下文
-   * @param n  相机 X（像素）
-   * @param n2 相机 Y（像素）
+   * @param cameraX  相机 X（像素）
+   * @param cameraY 相机 Y（像素）
    */
-  public paint(graphics: Graphics, n: number, n2: number): void {
-    let s: number; // short
-    let s2: number; // short
-    let s3: number; // short
-    let s4: number; // short
-    const n3 = (this.posX >> 10) - n;
-    const n4 = (this.posY >> 10) - n2;
-    const n5 = this.frameIndex & MIRROR_FLAG; // Integer.MIN_VALUE
-    const n6 = this.frameIndex & FLIP_VERTICAL_BIT;
-    if (n5 !== 0) {
-      s4 = ((-this.spriteDef.boundsY) << 16) >> 16; // (short)(-k)：Java short 取负带 i2s 截断
-      s3 = ((-this.spriteDef.boundsX) << 16) >> 16;
+  public paint(graphics: Graphics, cameraX: number, cameraY: number): void {
+    let topBound: number; // short
+    let bottomBound: number; // short
+    let leftBound: number; // short
+    let rightBound: number; // short
+    const screenX = (this.posX >> 10) - cameraX;
+    const screenY = (this.posY >> 10) - cameraY;
+    const mirrorFlag = this.frameIndex & MIRROR_FLAG; // Integer.MIN_VALUE
+    const flipFlag = this.frameIndex & FLIP_VERTICAL_BIT;
+    if (mirrorFlag !== 0) {
+      rightBound = ((-this.spriteDef.boundsY) << 16) >> 16; // (short)(-k)：Java short 取负带 i2s 截断
+      leftBound = ((-this.spriteDef.boundsX) << 16) >> 16;
     } else {
-      s4 = this.spriteDef.boundsX;
-      s3 = this.spriteDef.boundsY;
+      rightBound = this.spriteDef.boundsX;
+      leftBound = this.spriteDef.boundsY;
     }
-    if (n3 + s3 < 0 || n3 + s4 > GameScreen.screenWidth) {
+    if (screenX + leftBound < 0 || screenX + rightBound > GameScreen.screenWidth) {
       return;
     }
-    if (n6 !== 0) {
-      s2 = ((-this.spriteDef.boundsHeight) << 16) >> 16; // (short)(-m)
-      s = ((-this.spriteDef.boundsWidth) << 16) >> 16;
+    if (flipFlag !== 0) {
+      bottomBound = ((-this.spriteDef.boundsHeight) << 16) >> 16; // (short)(-m)
+      topBound = ((-this.spriteDef.boundsWidth) << 16) >> 16;
     } else {
-      s2 = this.spriteDef.boundsWidth;
-      s = this.spriteDef.boundsHeight;
+      bottomBound = this.spriteDef.boundsWidth;
+      topBound = this.spriteDef.boundsHeight;
     }
-    if (n4 + s < 0 || n4 + s2 > GameScreen.playHeight) {
+    if (screenY + topBound < 0 || screenY + bottomBound > GameScreen.playHeight) {
       return;
     }
-    this.spriteDef.paintSequenceFrame(graphics, n3, n4, this.frameIndex, this.currentFrame, this.drawParam, this.orientation);
+    this.spriteDef.paintSequenceFrame(graphics, screenX, screenY, this.frameIndex, this.currentFrame, this.drawParam, this.orientation);
   }
 
   /**
    * 与另一演员做 AABB（轴对齐包围盒）碰撞检测（对应 CFR a(g)）。
    * 各自用「世界坐标(>>10) + 当前帧碰撞箱偏移」构成矩形求重叠；自身比较或任一退化
    * 包围盒（左右/上下相等）直接返回 false。
-   * @param g2 另一演员
+   * @param other 另一演员
    * @returns 两包围盒是否重叠
    */
-  public intersectsActor(g2: ActorBase): boolean {
-    if (this === g2 || this.boundsLeft === this.boundsRight || this.boundsTop === this.boundsBottom || g2.boundsLeft === g2.boundsRight || g2.boundsTop === g2.boundsBottom) {
+  public intersectsActor(other: ActorBase): boolean {
+    if (this === other || this.boundsLeft === this.boundsRight || this.boundsTop === this.boundsBottom || other.boundsLeft === other.boundsRight || other.boundsTop === other.boundsBottom) {
       return false;
     }
-    const n = (this.posX >> 10) + this.boundsLeft;
-    const n2 = (this.posX >> 10) + this.boundsRight;
-    const n3 = (this.posY >> 10) + this.boundsTop;
-    const n4 = (this.posY >> 10) + this.boundsBottom;
-    const n5 = (g2.posX >> 10) + g2.boundsLeft;
-    const n6 = (g2.posX >> 10) + g2.boundsRight;
-    const n7 = (g2.posY >> 10) + g2.boundsTop;
-    const n8 = (g2.posY >> 10) + g2.boundsBottom;
-    return n2 >= n5 && n <= n6 && n4 >= n7 && n3 <= n8;
+    const myLeft = (this.posX >> 10) + this.boundsLeft;
+    const myRight = (this.posX >> 10) + this.boundsRight;
+    const myTop = (this.posY >> 10) + this.boundsTop;
+    const myBottom = (this.posY >> 10) + this.boundsBottom;
+    const otherLeft = (other.posX >> 10) + other.boundsLeft;
+    const otherRight = (other.posX >> 10) + other.boundsRight;
+    const otherTop = (other.posY >> 10) + other.boundsTop;
+    const otherBottom = (other.posY >> 10) + other.boundsBottom;
+    return myRight >= otherLeft && myLeft <= otherRight && myBottom >= otherTop && myTop <= otherBottom;
   }
 
   /**
    * 向左（负 X）撞墙检测与解算（对应 CFR a(b)）。velX>=0 时直接返回 false。
    * 扫描左缘所在瓦片列，命中实心瓦片（值 1）则清零横向 targetVelX、把 X 吸附到墙面，返回 true。
-   * @param b2 地图瓦片层
+   * @param tileMap 地图瓦片层
    */
-  public collideLeftWall(b2: TileMap): boolean {
+  public collideLeftWall(tileMap: TileMap): boolean {
     if (this.velX >= 0) {
       return false;
     }
-    let n = (this.posY + this.velY) >> 10;
-    const n2 = (((this.posX + this.velX) >> 10) + this.boundsLeft) >> 4;
-    const n3 = (n + this.boundsTop + 1) >> 4;
-    const n4 = (n + this.boundsBottom - 2) >> 4;
-    let n5 = n3;
-    while (n5 <= n4) {
-      let n6 = 0;
-      while (n6 < 2) {
-        n = b2.queryColumnTileAt(n2 + n6, n5, false);
+    let n = (this.posY + this.velY) >> 10; // n 多角色：先为像素 Y（算行），下面循环内复用为瓦片值
+    const col = (((this.posX + this.velX) >> 10) + this.boundsLeft) >> 4;
+    const topRow = (n + this.boundsTop + 1) >> 4;
+    const bottomRow = (n + this.boundsBottom - 2) >> 4;
+    let row = topRow;
+    while (row <= bottomRow) {
+      let colOffset = 0;
+      while (colOffset < 2) {
+        n = tileMap.queryColumnTileAt(col + colOffset, row, false);
         if (n === 1) {
           this.targetVelX = 0;
           // Java int 字面量 0xFFFFFC00 即 -1024（高位置 1），& 后清除低 10 位定点小数。
           this.posX &= 0xfffffc00;
-          this.velX = ((((n2 + n6) << 4) + 15) << 10) - (this.posX + (this.boundsLeft << 10));
+          this.velX = ((((col + colOffset) << 4) + 15) << 10) - (this.posX + (this.boundsLeft << 10));
           return true;
         }
-        ++n6;
+        ++colOffset;
       }
-      ++n5;
+      ++row;
     }
     return false;
   }
@@ -319,31 +319,31 @@ export class ActorBase {
   /**
    * 向右（正 X）撞墙检测与解算（对应 CFR b(b)）。velX<=0 时直接返回 false。
    * 扫描右缘所在瓦片列，命中实心瓦片（值 1）则清零横向 targetVelX、把 X 吸附到墙面，返回 true。
-   * @param b2 地图瓦片层
+   * @param tileMap 地图瓦片层
    */
-  public collideRightWall(b2: TileMap): boolean {
+  public collideRightWall(tileMap: TileMap): boolean {
     if (this.velX <= 0) {
       return false;
     }
-    let n = (this.posY + this.velY) >> 10;
-    const n2 = (((this.posX + this.velX) >> 10) + this.boundsRight) >> 4;
-    const n3 = (n + this.boundsTop + 1) >> 4;
-    const n4 = (n + this.boundsBottom - 2) >> 4;
-    let n5 = n3;
-    while (n5 <= n4) {
-      let n6 = 0;
-      while (n6 < 2) {
-        n = b2.queryColumnTileAt(n2 - n6, n5, false);
+    let n = (this.posY + this.velY) >> 10; // n 多角色：先为像素 Y（算行），下面循环内复用为瓦片值
+    const col = (((this.posX + this.velX) >> 10) + this.boundsRight) >> 4;
+    const topRow = (n + this.boundsTop + 1) >> 4;
+    const bottomRow = (n + this.boundsBottom - 2) >> 4;
+    let row = topRow;
+    while (row <= bottomRow) {
+      let colOffset = 0;
+      while (colOffset < 2) {
+        n = tileMap.queryColumnTileAt(col - colOffset, row, false);
         if (n === 1) {
           this.targetVelX = 0;
           // Java int 字面量 0xFFFFFC00 即 -1024（高位置 1），& 后清除低 10 位定点小数。
           this.posX &= 0xfffffc00;
-          this.velX = ((((n2 - n6) << 4) - 1) << 10) - (this.posX + (this.boundsRight << 10));
+          this.velX = ((((col - colOffset) << 4) - 1) << 10) - (this.posX + (this.boundsRight << 10));
           return true;
         }
-        ++n6;
+        ++colOffset;
       }
-      ++n5;
+      ++row;
     }
     return false;
   }
@@ -352,27 +352,27 @@ export class ActorBase {
    * 向下/落地碰撞检测与解算（对应 CFR c(b)）。velY<0（上升中）时直接返回 false。
    * 扫描脚下瓦片行，命中实心瓦片（值 1）则清零纵向加速度与速度、把演员吸附到瓦片顶面，返回 true。
    * 可被子类覆写。
-   * @param b2 地图瓦片层
+   * @param tileMap 地图瓦片层
    */
-  public collideGround(b2: TileMap): boolean {
+  public collideGround(tileMap: TileMap): boolean {
     if (this.velY < 0) {
       return false;
     }
-    const n = (((this.posY + this.velY) >> 10) + this.boundsBottom) >> 4;
-    const n2 = (((this.posX + this.velX) >> 10) + this.boundsLeft + 1) >> 4;
-    const n3 = (((this.posX + this.velX) >> 10) + this.boundsRight - 1) >> 4;
-    let n4 = n2;
-    while (n4 <= n3) {
-      const n5 = b2.queryColumnTileAt(n4, n, false);
-      if (n5 === 1) {
+    const bottomRow = (((this.posY + this.velY) >> 10) + this.boundsBottom) >> 4;
+    const leftCol = (((this.posX + this.velX) >> 10) + this.boundsLeft + 1) >> 4;
+    const rightCol = (((this.posX + this.velX) >> 10) + this.boundsRight - 1) >> 4;
+    let col = leftCol;
+    while (col <= rightCol) {
+      const tile = tileMap.queryColumnTileAt(col, bottomRow, false);
+      if (tile === 1) {
         this.accelY = 0;
         this.targetVelY = 0;
-        this.velY = (((n << 4) - this.boundsBottom) << 10) - this.posY;
+        this.velY = (((bottomRow << 4) - this.boundsBottom) << 10) - this.posY;
         this.posY += this.velY;
         this.velY = 0;
         return true;
       }
-      ++n4;
+      ++col;
     }
     return false;
   }
@@ -381,17 +381,17 @@ export class ActorBase {
    * 向上/触顶碰撞检测与解算（对应 CFR d(b)）。velY>0（下落中）时直接返回 false。
    * 检测头顶瓦片，命中实心瓦片（值 1）则清零上升 targetVelY、吸附到瓦片下方，
    * 并把纵向加速度重置为重力 4096（恢复下落），返回 true。
-   * @param b2 地图瓦片层
+   * @param tileMap 地图瓦片层
    */
-  public collideCeiling(b2: TileMap): boolean {
+  public collideCeiling(tileMap: TileMap): boolean {
     if (this.velY > 0) {
       return false;
     }
-    const n = (this.posX + this.velX) >> 14;
-    const n2 = (((this.posY + this.velY) >> 10) + this.boundsTop - 4) >> 4;
-    if (b2.queryColumnTileAt(n, n2, false) === 1) {
+    const col = (this.posX + this.velX) >> 14;
+    const row = (((this.posY + this.velY) >> 10) + this.boundsTop - 4) >> 4;
+    if (tileMap.queryColumnTileAt(col, row, false) === 1) {
       this.targetVelY = 0;
-      this.velY = (((n2 << 4) + 15 - this.boundsTop + 4) << 10) - this.posY;
+      this.velY = (((row << 4) + 15 - this.boundsTop + 4) << 10) - this.posY;
       this.accelY = px(4);
       return true;
     }
