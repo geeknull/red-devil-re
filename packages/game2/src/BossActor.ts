@@ -201,26 +201,26 @@ export class BossActor extends ActorBase {
     switch (this.typeId) {
       case ActorType.MobileGunEmplacement: {
         if (this.pendingFire) {
-          let n: number;
-          let n2: number;
-          let n3: number;
-          let n4: number;
-          let k2: ProjectileActor | null;
+          let spawnY: number;
+          let facingSign: number;
+          let spawnX: number;
+          let frameParam: number;
+          let bullet: ProjectileActor | null;
           this.pendingFire = false;
           this.fireable = false;
-          let n5 = 0;
+          let paramRow = 0;
           if (this.frameGroupIndex >= 2) {
-            n5 = 1;
+            paramRow = 1;
           }
-          if ((k2 = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (n4 = BossActor.BULLET_PARAMS_T11[n5][2]), (n3 = this.posX + (BossActor.BULLET_PARAMS_T11[n5][0] << 10) * (n2 = this.actionHighByte === 0 ? 1 : -1)), (n = this.posY + (BossActor.BULLET_PARAMS_T11[n5][1] << 10)), 1, null)) != null) {
-            if (n5 === 1) {
-              k2.targetVelX = (BossActor.BULLET_PARAMS_T11[n5][4] << 10) * n2;
-              k2.targetVelY = BossActor.BULLET_PARAMS_T11[n5][5] << 10;
+          if ((bullet = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (frameParam = BossActor.BULLET_PARAMS_T11[paramRow][2]), (spawnX = this.posX + (BossActor.BULLET_PARAMS_T11[paramRow][0] << 10) * (facingSign = this.actionHighByte === 0 ? 1 : -1)), (spawnY = this.posY + (BossActor.BULLET_PARAMS_T11[paramRow][1] << 10)), 1, null)) != null) {
+            if (paramRow === 1) {
+              bullet.targetVelX = (BossActor.BULLET_PARAMS_T11[paramRow][4] << 10) * facingSign;
+              bullet.targetVelY = BossActor.BULLET_PARAMS_T11[paramRow][5] << 10;
             } else {
-              this.aimProjectile(k2);
+              this.aimProjectile(bullet);
             }
           }
-          this.setAction(BossActor.BULLET_PARAMS_T11[n5][3] | this.actionHighByte);
+          this.setAction(BossActor.BULLET_PARAMS_T11[paramRow][3] | this.actionHighByte);
         } else if (this.isAnimationDone()) {
           if (this.frameGroupIndex === 1) {
             this.setAction(0 | this.actionHighByte);
@@ -246,12 +246,12 @@ export class BossActor extends ActorBase {
         return;
       }
       case ActorType.PatrolLauncher: {
-        let n: number;
-        let n6: number;
-        let n7: number;
-        let n8: number;
-        let n9: number;
-        let k3: ProjectileActor | null;
+        let spawnY: number;
+        let facingSign: number;
+        let spawnX: number;
+        let paramRow: number;
+        let frameParam: number;
+        let bullet: ProjectileActor | null;
         if (this.axisOrPhase === 0) {
           if (this.posX < this.rangeMin) {
             this.targetVelX = px(2);
@@ -265,10 +265,10 @@ export class BossActor extends ActorBase {
             this.targetVelY = px(-2);
           }
         }
-        if (this.cP-- < 0 && (k3 = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (n9 = BossActor.BULLET_PARAMS_T17[(n8 = (this.frameGroupIndex / 3) | 0)][2] | (this.actionHighByte ^ MIRROR_FLAG)), (n7 = this.posX + this.targetVelX + (BossActor.BULLET_PARAMS_T17[n8][0] << 10) * (n6 = this.actionHighByte === 0 ? 1 : -1)), (n = this.posY + this.targetVelY + (BossActor.BULLET_PARAMS_T17[n8][1] << 10)), 1, null)) != null) {
-          k3.targetVelX = (BossActor.BULLET_PARAMS_T17[n8][4] << 10) * n6;
-          k3.targetVelY = BossActor.BULLET_PARAMS_T17[n8][5] << 10;
-          this.setAction(BossActor.BULLET_PARAMS_T17[n8][3] | this.actionHighByte);
+        if (this.cP-- < 0 && (bullet = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (frameParam = BossActor.BULLET_PARAMS_T17[(paramRow = (this.frameGroupIndex / 3) | 0)][2] | (this.actionHighByte ^ MIRROR_FLAG)), (spawnX = this.posX + this.targetVelX + (BossActor.BULLET_PARAMS_T17[paramRow][0] << 10) * (facingSign = this.actionHighByte === 0 ? 1 : -1)), (spawnY = this.posY + this.targetVelY + (BossActor.BULLET_PARAMS_T17[paramRow][1] << 10)), 1, null)) != null) {
+          bullet.targetVelX = (BossActor.BULLET_PARAMS_T17[paramRow][4] << 10) * facingSign;
+          bullet.targetVelY = BossActor.BULLET_PARAMS_T17[paramRow][5] << 10;
+          this.setAction(BossActor.BULLET_PARAMS_T17[paramRow][3] | this.actionHighByte);
           this.cP = this.cO;
         }
         if (this.frameGroupIndex === BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][6]) {
@@ -354,13 +354,15 @@ export class BossActor extends ActorBase {
         return;
       }
       case ActorType.HelicopterBoss: {
+        // n / n10 是跨「击退坠落」与「开火」两互斥分支复用的多角色 scratch（n：碎片循环计数 / 手雷生成 Y；
+        // n10：碎片生成 Y / 手雷生成 X），单一语义名会误导，故沿用反编译名（同 LevelScene.loadLevel 的处理）。
         let n: number;
         let n10: number;
         if (this.dormant) {
           return;
         }
         if (this.frameGroupIndex === 0) {
-          let bl = false;
+          let moving = false;
           switch (this.phaseIndex) {
             case 0: {
               if (this.patrolCountdown-- >= 0) break;
@@ -373,7 +375,7 @@ export class BossActor extends ActorBase {
             case 1: {
               if (this.canvas.scene.waveSpawnCount > 0) break;
               this.cP = 32;
-              bl = true;
+              moving = true;
               this.cO = 6;
               this.phaseIndex = 2;
               break;
@@ -381,34 +383,34 @@ export class BossActor extends ActorBase {
             case 2: {
               if (this.cP === 26) {
                 if (this.cO-- >= 0) break;
-                bl = true;
+                moving = true;
                 this.cN = 0;
                 this.phaseIndex = 3;
                 break;
               }
-              bl = true;
+              moving = true;
               break;
             }
             case 3: {
-              let k4: ProjectileActor | null;
-              if (this.cN % 4 < 2 && (this.cP > 7 || this.cP < 3) && (k4 = ProjectileActor.spawnProjectile(ActorType.DirectBullet, 12, this.posX, this.posY, 1, null)) != null) {
-                k4.targetVelX = 0;
-                k4.targetVelY = px(8);
-                k4.accelY = px(1);
-                k4.maxVelY = px(10);
+              let bomb: ProjectileActor | null;
+              if (this.cN % 4 < 2 && (this.cP > 7 || this.cP < 3) && (bomb = ProjectileActor.spawnProjectile(ActorType.DirectBullet, 12, this.posX, this.posY, 1, null)) != null) {
+                bomb.targetVelX = 0;
+                bomb.targetVelY = px(8);
+                bomb.accelY = px(1);
+                bomb.maxVelY = px(10);
               }
               if (this.posY < this.canvas.cameraY - px(5)) {
                 this.posX = this.axisOrPhase > 0 ? this.canvas.cameraX - px(30) : this.canvas.cameraX + this.canvas.viewportWidth + px(30);
                 this.patrolCountdown = 20;
                 this.phaseIndex = 0;
               } else {
-                bl = true;
+                moving = true;
               }
               ++this.cN;
               this.cN %= 4;
             }
           }
-          if (bl) {
+          if (moving) {
             this.targetVelX = this.axisOrPhase > 0 ? px(-6) : px(6);
             this.targetVelY = (this.cP - 16) * 512;
             --this.cP;
@@ -441,8 +443,8 @@ export class BossActor extends ActorBase {
             n10 = this.posY - ((2 + GameMIDlet.randomBelow(Math.abs(this.boxTop))) << 10);
             n = 0;
             while (n < 2) {
-              const n11 = this.posX + ((this.boxRight - GameMIDlet.randomBelow(this.boxRight * 2)) << 10);
-              ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, n11, n10, 0, null);
+              const debrisX = this.posX + ((this.boxRight - GameMIDlet.randomBelow(this.boxRight * 2)) << 10);
+              ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, debrisX, n10, 0, null);
               ++n;
             }
           }
@@ -472,14 +474,14 @@ export class BossActor extends ActorBase {
           }
         }
         if (!this.pendingFire) break;
-        const nArray: number[] = [-12, -28, -42];
-        n10 = this.posX + (nArray[this.phaseIndex] << 10);
+        const grenadeOffsetX: number[] = [-12, -28, -42];
+        n10 = this.posX + (grenadeOffsetX[this.phaseIndex] << 10);
         n = this.posY - px(35);
         this.targetVelX = 0;
         this.setAction((2 + this.phaseIndex) | this.actionHighByte);
-        const k5 = ProjectileActor.spawnProjectile(ActorType.GuidedGrenade, 0, n10, n, 1, null);
+        const grenade = ProjectileActor.spawnProjectile(ActorType.GuidedGrenade, 0, n10, n, 1, null);
         if (this.knockedBack) {
-          k5!.isSpecialGrenade = true;
+          grenade!.isSpecialGrenade = true;
         }
         ++this.phaseIndex;
         this.phaseIndex %= 3;
