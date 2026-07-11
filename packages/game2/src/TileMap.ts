@@ -229,12 +229,12 @@ export class TileMap {
     return cellIndex;
   }
 
-  // f(int,int) → f_II
-  private ensureOffscreenBuffer(n: number, n2: number): void {
+  // f(int,int) → f_II（按视口宽高分配对齐到瓦片的离屏缓冲）
+  private ensureOffscreenBuffer(width: number, height: number): void {
     if (TileMap.offscreenBuffer == null) {
-      const n3 = n % this.tileWidth === 0 ? n + this.tileWidth : n - (n % this.tileWidth) + 2 * this.tileWidth;
-      const n4 = n2 % this.tileHeight === 0 ? this.viewportHeight + this.tileHeight : n2 - (n2 % this.tileHeight) + 2 * this.tileHeight;
-      TileMap.offscreenBuffer = Image.createMutable(n3 | 0, n4 | 0);
+      const bufWidth = width % this.tileWidth === 0 ? width + this.tileWidth : width - (width % this.tileWidth) + 2 * this.tileWidth;
+      const bufHeight = height % this.tileHeight === 0 ? this.viewportHeight + this.tileHeight : height - (height % this.tileHeight) + 2 * this.tileHeight;
+      TileMap.offscreenBuffer = Image.createMutable(bufWidth | 0, bufHeight | 0);
       TileMap.offscreenGraphics = TileMap.offscreenBuffer.getGraphics();
       this.resetDrawnBounds();
     }
@@ -248,53 +248,53 @@ export class TileMap {
    * 查询越界由 try/catch 跳过该格。供 {@link renderViewport} 增量重绘调用。
    * 对应 CFR b.java a(Graphics,6参)（CFR b.java:156-198）。
    * @param graphics 目标（通常为离屏缓冲）Graphics
-   * @param n  绘制范围左边界 x0（瓦片对齐像素）
-   * @param n2 绘制范围上边界 y0
-   * @param n3 绘制范围右边界 x1
-   * @param n4 绘制范围下边界 y1
-   * @param n5 横向回卷模数（缓冲宽）
-   * @param n6 纵向回卷模数（缓冲高）
+   * @param x0  绘制范围左边界 x0（瓦片对齐像素）
+   * @param y0 绘制范围上边界 y0
+   * @param x1 绘制范围右边界 x1
+   * @param y1 绘制范围下边界 y1
+   * @param wrapW 横向回卷模数（缓冲宽）
+   * @param wrapH 纵向回卷模数（缓冲高）
    */
   // a(Graphics,int,int,int,int,int,int) → a_GIIIIII
-  public drawTileRegion(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): void {
-    let n7 = 0;
-    let n8 = n2 % n6;
-    const n9 = this.getMapWidth();
-    const n10 = this.getMapHeight();
-    let n11 = n2;
-    while (n11 <= n4) {
-      let n12 = n % n5;
-      let n13 = n;
-      while (n13 <= n3) {
+  public drawTileRegion(graphics: Graphics, x0: number, y0: number, x1: number, y1: number, wrapW: number, wrapH: number): void {
+    let cell = 0;
+    let bufY = y0 % wrapH;
+    const mapWidth = this.getMapWidth();
+    const mapHeight = this.getMapHeight();
+    let tileY = y0;
+    while (tileY <= y1) {
+      let bufX = x0 % wrapW;
+      let tileX = x0;
+      while (tileX <= x1) {
         block10: {
           if (this.layerMode === 2) {
             try {
-              n7 = this.sampleBackgroundTile(n13, n11);
+              cell = this.sampleBackgroundTile(tileX, tileY);
             } catch (exception) {
               break block10;
             }
-            graphics.setClip(n12, n8, this.backgroundBlockWidth, this.backgroundBlockHeight);
-            graphics.drawImage(this.backgroundImage!, n12 - (n7 % this.backgroundBlocksPerRow) * this.backgroundBlockWidth, n8 - ((n7 / this.backgroundBlocksPerRow) | 0) * this.backgroundBlockHeight, 20);
+            graphics.setClip(bufX, bufY, this.backgroundBlockWidth, this.backgroundBlockHeight);
+            graphics.drawImage(this.backgroundImage!, bufX - (cell % this.backgroundBlocksPerRow) * this.backgroundBlockWidth, bufY - ((cell / this.backgroundBlocksPerRow) | 0) * this.backgroundBlockHeight, 20);
           }
           try {
-            n7 = this.sampleForegroundTile(n13 % n9, n11 % n10);
+            cell = this.sampleForegroundTile(tileX % mapWidth, tileY % mapHeight);
           } catch (exception) {
             break block10;
           }
-          if (n7 !== -1) {
-            graphics.setClip(n12, n8, this.tileWidth, this.tileHeight);
-            graphics.drawImage(this.foregroundImage!, n12 - (n7 % this.foregroundTilesPerRow) * this.tileWidth, n8 - ((n7 / this.foregroundTilesPerRow) | 0) * this.tileHeight, 20);
+          if (cell !== -1) {
+            graphics.setClip(bufX, bufY, this.tileWidth, this.tileHeight);
+            graphics.drawImage(this.foregroundImage!, bufX - (cell % this.foregroundTilesPerRow) * this.tileWidth, bufY - ((cell / this.foregroundTilesPerRow) | 0) * this.tileHeight, 20);
           }
-          if ((n12 += this.tileWidth) >= n5) {
-            n12 = 0;
+          if ((bufX += this.tileWidth) >= wrapW) {
+            bufX = 0;
           }
         }
-        n13 += this.tileWidth;
+        tileX += this.tileWidth;
       }
-      if ((n8 += this.tileHeight) >= n6) {
-        n8 = 0;
+      if ((bufY += this.tileHeight) >= wrapH) {
+        bufY = 0;
       }
-      n11 += this.tileHeight;
+      tileY += this.tileHeight;
     }
   }
 
@@ -304,17 +304,17 @@ export class TileMap {
    * 分 1~4 块调用本方法拼出完整视口（环形缓冲的四象限拼接）。
    * 对应 CFR b.java b(Graphics,6参)。
    * @param graphics 目标画布
-   * @param n  缓冲取样起点 X（相机在缓冲内的 X）
-   * @param n2 缓冲取样起点 Y
-   * @param n3 该块宽
-   * @param n4 该块高
-   * @param n5 目标画布落点 X
-   * @param n6 目标画布落点 Y
+   * @param srcX  缓冲取样起点 X（相机在缓冲内的 X）
+   * @param srcY 缓冲取样起点 Y
+   * @param blockW 该块宽
+   * @param blockH 该块高
+   * @param dstX 目标画布落点 X
+   * @param dstY 目标画布落点 Y
    */
   // b(Graphics,int,int,int,int,int,int) → b_GIIIIII
-  public blitBufferRegion(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): void {
-    graphics.setClip(n5, n6, n3, n4);
-    graphics.drawImage(TileMap.offscreenBuffer!, n5 - n, n6 - n2, 20);
+  public blitBufferRegion(graphics: Graphics, srcX: number, srcY: number, blockW: number, blockH: number, dstX: number, dstY: number): void {
+    graphics.setClip(dstX, dstY, blockW, blockH);
+    graphics.drawImage(TileMap.offscreenBuffer!, dstX - srcX, dstY - srcY, 20);
   }
 
   /**
@@ -324,74 +324,75 @@ export class TileMap {
    * 首帧（drawnLeft<0）或 {@link resetDrawnBounds} 后做整屏重绘。{@link render} 的实现体。
    * 对应 CFR b.java a(Graphics,int,int,int,int)。
    * @param graphics 目标画布
-   * @param n  相机像素 X
-   * @param n2 相机像素 Y
-   * @param n3 视口宽
-   * @param n4 视口高
+   * @param cameraX  相机像素 X
+   * @param cameraY 相机像素 Y
+   * @param viewW 视口宽
+   * @param viewH 视口高
    */
   // a(Graphics,int,int,int,int) → a_GIIII
-  public renderViewport(graphics: Graphics, n: number, n2: number, n3: number, n4: number): void {
-    let n5: number;
-    let n6: number;
-    const n7 = TileMap.offscreenBuffer!.getWidth();
-    const n8 = TileMap.offscreenBuffer!.getHeight();
+  public renderViewport(graphics: Graphics, cameraX: number, cameraY: number, viewW: number, viewH: number): void {
+    // stripStart/stripEnd 为补绘条带的起止边界，横向补绘时表左/右、纵向补绘时表上/下（多轴复用）。
+    let stripEnd: number;
+    let stripStart: number;
+    const bufWidth = TileMap.offscreenBuffer!.getWidth();
+    const bufHeight = TileMap.offscreenBuffer!.getHeight();
     TileMap.offscreenGraphics!.setColor(0xffffff);
-    const n9 = n - (n % this.tileWidth);
-    const n10 = n2 - (n2 % this.tileHeight);
-    const n11 = n + n7 - this.tileWidth - ((n + n7 - this.tileWidth) % this.tileWidth);
-    const n12 = n2 + n8 - this.tileHeight - ((n2 + n8 - this.tileHeight) % this.tileHeight);
+    const alignedLeft = cameraX - (cameraX % this.tileWidth);
+    const alignedTop = cameraY - (cameraY % this.tileHeight);
+    const alignedRight = cameraX + bufWidth - this.tileWidth - ((cameraX + bufWidth - this.tileWidth) % this.tileWidth);
+    const alignedBottom = cameraY + bufHeight - this.tileHeight - ((cameraY + bufHeight - this.tileHeight) % this.tileHeight);
     if (this.drawnLeft < 0) {
-      this.drawTileRegion(TileMap.offscreenGraphics!, n9, n10, n11, n12, n7, n8);
-      this.drawnLeft = n9;
-      this.drawnTop = n10;
-      this.drawnRight = n11;
-      this.drawnBottom = n12;
+      this.drawTileRegion(TileMap.offscreenGraphics!, alignedLeft, alignedTop, alignedRight, alignedBottom, bufWidth, bufHeight);
+      this.drawnLeft = alignedLeft;
+      this.drawnTop = alignedTop;
+      this.drawnRight = alignedRight;
+      this.drawnBottom = alignedBottom;
     }
-    if (this.drawnLeft !== n9) {
-      if (this.drawnLeft < n9) {
-        n6 = this.drawnRight + this.backgroundBlockWidth;
-        n5 = n11;
+    if (this.drawnLeft !== alignedLeft) {
+      if (this.drawnLeft < alignedLeft) {
+        stripStart = this.drawnRight + this.backgroundBlockWidth;
+        stripEnd = alignedRight;
       } else {
-        n6 = n9;
-        n5 = this.drawnLeft - this.backgroundBlockWidth;
+        stripStart = alignedLeft;
+        stripEnd = this.drawnLeft - this.backgroundBlockWidth;
       }
-      this.drawTileRegion(TileMap.offscreenGraphics!, n6, n10, n5, n12, n7, n8);
-      this.drawnLeft = n9;
-      this.drawnRight = n11;
+      this.drawTileRegion(TileMap.offscreenGraphics!, stripStart, alignedTop, stripEnd, alignedBottom, bufWidth, bufHeight);
+      this.drawnLeft = alignedLeft;
+      this.drawnRight = alignedRight;
     }
-    if (this.drawnTop !== n10) {
-      if (this.drawnTop < n10) {
-        n6 = this.drawnBottom + this.backgroundBlockHeight;
-        n5 = n12;
+    if (this.drawnTop !== alignedTop) {
+      if (this.drawnTop < alignedTop) {
+        stripStart = this.drawnBottom + this.backgroundBlockHeight;
+        stripEnd = alignedBottom;
       } else {
-        n6 = n10;
-        n5 = this.drawnTop - this.backgroundBlockHeight;
+        stripStart = alignedTop;
+        stripEnd = this.drawnTop - this.backgroundBlockHeight;
       }
-      this.drawTileRegion(TileMap.offscreenGraphics!, n9, n6, n11, n5, n7, n8);
-      this.drawnTop = n10;
-      this.drawnBottom = n12;
+      this.drawTileRegion(TileMap.offscreenGraphics!, alignedLeft, stripStart, alignedRight, stripEnd, bufWidth, bufHeight);
+      this.drawnTop = alignedTop;
+      this.drawnBottom = alignedBottom;
     }
-    const n13 = n % n7;
-    const n14 = n2 % n8;
-    const n15 = (n + n3) % n7;
-    const n16 = (n2 + n4) % n8;
-    if (n15 > n13) {
-      if (n16 > n14) {
-        this.blitBufferRegion(graphics, n13, n14, n3, n4, 0, 0);
+    const sampleX = cameraX % bufWidth;
+    const sampleY = cameraY % bufHeight;
+    const sampleEndX = (cameraX + viewW) % bufWidth;
+    const sampleEndY = (cameraY + viewH) % bufHeight;
+    if (sampleEndX > sampleX) {
+      if (sampleEndY > sampleY) {
+        this.blitBufferRegion(graphics, sampleX, sampleY, viewW, viewH, 0, 0);
       } else {
-        this.blitBufferRegion(graphics, n13, n14, n3, n4 - n16, 0, 0);
-        this.blitBufferRegion(graphics, n13, 0, n3, n16, 0, n4 - n16);
+        this.blitBufferRegion(graphics, sampleX, sampleY, viewW, viewH - sampleEndY, 0, 0);
+        this.blitBufferRegion(graphics, sampleX, 0, viewW, sampleEndY, 0, viewH - sampleEndY);
       }
-    } else if (n16 > n14) {
-      this.blitBufferRegion(graphics, n13, n14, n3 - n15, n4, 0, 0);
-      this.blitBufferRegion(graphics, 0, n14, n15, n4, n3 - n15, 0);
+    } else if (sampleEndY > sampleY) {
+      this.blitBufferRegion(graphics, sampleX, sampleY, viewW - sampleEndX, viewH, 0, 0);
+      this.blitBufferRegion(graphics, 0, sampleY, sampleEndX, viewH, viewW - sampleEndX, 0);
     } else {
-      this.blitBufferRegion(graphics, n13, n14, n3 - n15, n4 - n16, 0, 0);
-      this.blitBufferRegion(graphics, n13, 0, n3 - n15, n16, 0, n4 - n16);
-      this.blitBufferRegion(graphics, 0, n14, n15, n4 - n16, n3 - n15, 0);
-      this.blitBufferRegion(graphics, 0, 0, n15, n16, n3 - n15, n4 - n16);
+      this.blitBufferRegion(graphics, sampleX, sampleY, viewW - sampleEndX, viewH - sampleEndY, 0, 0);
+      this.blitBufferRegion(graphics, sampleX, 0, viewW - sampleEndX, sampleEndY, 0, viewH - sampleEndY);
+      this.blitBufferRegion(graphics, 0, sampleY, sampleEndX, viewH - sampleEndY, viewW - sampleEndX, 0);
+      this.blitBufferRegion(graphics, 0, 0, sampleEndX, sampleEndY, viewW - sampleEndX, viewH - sampleEndY);
     }
-    graphics.setClip(0, 0, n3, n4);
+    graphics.setClip(0, 0, viewW, viewH);
   }
 
   /**
