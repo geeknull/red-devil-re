@@ -86,11 +86,11 @@ export class PlayerActor extends ActorBase {
 
   /**
    * 构造玩家 Actor：调用父类构造（类型 id n + 精灵定义 d2），并将阵营/碰撞掩码位设为 2。
-   * @param n 类型 id（玩家为 0）
-   * @param d2 动作/动画定义（SpriteDef，来自 a.bin）
+   * @param typeId 类型 id（玩家为 0）
+   * @param spriteDef 动作/动画定义（SpriteDef，来自 a.bin）
    */
-  public constructor(n: number, d2: SpriteDef) {
-    super(n, d2);
+  public constructor(typeId: number, spriteDef: SpriteDef) {
+    super(typeId, spriteDef);
     this.collisionTypeMask = 2;
   }
 
@@ -100,8 +100,8 @@ export class PlayerActor extends ActorBase {
    * 附加入场伴随特效（{@link spawnEntryEffect}）还是直接进入站立态（reserved=1）。
    */
   // a(byte[]) → a_AY
-  public spawnFromBytes(byArray: Int8Array): boolean {
-    super.spawnFromBytes(byArray);
+  public spawnFromBytes(spawnBytes: Int8Array): boolean {
+    super.spawnFromBytes(spawnBytes);
     this.resetVaultState();
     this.publicFlagA = false;
     this.levelCleared = false;
@@ -122,7 +122,7 @@ export class PlayerActor extends ActorBase {
       this.companionEffect.alive = false;
       this.companionEffect = null;
     }
-    if (byArray[7] > 0) {
+    if (spawnBytes[7] > 0) {
       this.spawnEntryEffect();
     } else {
       this.companionEffect = null;
@@ -153,6 +153,8 @@ export class PlayerActor extends ActorBase {
    */
   // i() → i_
   public step(): void {
+    // n/n2/n3（及夹取段的 n4）为 CFR 多角色 scratch：天花板/地面探测段作瓦片 列/行/瓦片值，
+    // 相机夹取段作像素 左/右边缘/边界。纯改名下无单一语义名，保留原名待后续活跃区间拆分。
     let n: number;
     let n2: number;
     let n3: number;
@@ -494,26 +496,26 @@ export class PlayerActor extends ActorBase {
    */
   // p() → p_
   public stepThrowQueue(): number {
-    let n: number = 0;
-    while (n < PlayerActor.throwCooldownQueue.length) {
-      if (PlayerActor.throwCooldownQueue[n][0] > 0) {
-        const nArray: Int32Array = PlayerActor.throwCooldownQueue[n];
-        const n2: number = nArray[1];
-        nArray[1] = n2 - 1;
-        if (n2 > 0) {
-          this.handleInput(PlayerActor.throwCooldownQueue[n][0]);
+    let slot: number = 0;
+    while (slot < PlayerActor.throwCooldownQueue.length) {
+      if (PlayerActor.throwCooldownQueue[slot][0] > 0) {
+        const cooldownRow: Int32Array = PlayerActor.throwCooldownQueue[slot];
+        const countdown: number = cooldownRow[1];
+        cooldownRow[1] = countdown - 1;
+        if (countdown > 0) {
+          this.handleInput(PlayerActor.throwCooldownQueue[slot][0]);
           break;
         }
-        const nArray2: Int32Array = PlayerActor.throwCooldownQueue[n];
-        nArray2[2] = nArray2[2] - 1;
-        if (nArray2[2] < 0) {
-          PlayerActor.throwCooldownQueue[n][0] = 0;
-          return n;
+        const repeatRow: Int32Array = PlayerActor.throwCooldownQueue[slot];
+        repeatRow[2] = repeatRow[2] - 1;
+        if (repeatRow[2] < 0) {
+          PlayerActor.throwCooldownQueue[slot][0] = 0;
+          return slot;
         }
         this.handleInput(0);
         break;
       }
-      ++n;
+      ++slot;
     }
     return -1;
   }
@@ -837,17 +839,17 @@ export class PlayerActor extends ActorBase {
   // s() → s_
   private reloadCurrentWeapon(): boolean {
     if (PlayerActor.ammoCurrent[this.currentWeaponIndex] < PlayerActor.ammoInitTable[this.currentWeaponIndex] && PlayerActor.ammoReserve[this.currentWeaponIndex] > 0) {
-      const n: number = PlayerActor.ammoInitTable[this.currentWeaponIndex] - PlayerActor.ammoCurrent[this.currentWeaponIndex];
-      if (PlayerActor.ammoReserve[this.currentWeaponIndex] >= n) {
+      const deficit: number = PlayerActor.ammoInitTable[this.currentWeaponIndex] - PlayerActor.ammoCurrent[this.currentWeaponIndex];
+      if (PlayerActor.ammoReserve[this.currentWeaponIndex] >= deficit) {
         if (this.currentWeaponIndex != 0) {
-          const n2: number = this.currentWeaponIndex;
-          PlayerActor.ammoReserve[n2] = PlayerActor.ammoReserve[n2] - n;
+          const weapon: number = this.currentWeaponIndex;
+          PlayerActor.ammoReserve[weapon] = PlayerActor.ammoReserve[weapon] - deficit;
         }
-        const n3: number = this.currentWeaponIndex;
-        PlayerActor.ammoCurrent[n3] = PlayerActor.ammoCurrent[n3] + n;
+        const weapon: number = this.currentWeaponIndex;
+        PlayerActor.ammoCurrent[weapon] = PlayerActor.ammoCurrent[weapon] + deficit;
       } else {
-        const n4: number = this.currentWeaponIndex;
-        PlayerActor.ammoCurrent[n4] = PlayerActor.ammoCurrent[n4] + PlayerActor.ammoReserve[this.currentWeaponIndex];
+        const weapon: number = this.currentWeaponIndex;
+        PlayerActor.ammoCurrent[weapon] = PlayerActor.ammoCurrent[weapon] + PlayerActor.ammoReserve[this.currentWeaponIndex];
         PlayerActor.ammoReserve[this.currentWeaponIndex] = 0;
       }
       return true;
@@ -861,33 +863,33 @@ export class PlayerActor extends ActorBase {
    * 4 号造成固定 3 点伤害。返回是否消耗本次命中。
    */
   // a(tjge.h) → a_Th
-  public onHitBy(h2: ActorBase): boolean {
-    if (!h2.hasCollisionFlag(1) || this.frameGroupIndex == 23 || !this.isNewContact(h2)) {
+  public onHitBy(other: ActorBase): boolean {
+    if (!other.hasCollisionFlag(1) || this.frameGroupIndex == 23 || !this.isNewContact(other)) {
       return false;
     }
-    switch (h2.typeId) {
+    switch (other.typeId) {
       case ActorType.GuidedGrenade:
       case ActorType.DirectBullet:
       case ActorType.ExplosionDebris: {
-        this.takeDamage(h2.getDamage(), h2.actionHighByte);
+        this.takeDamage(other.getDamage(), other.actionHighByte);
         return true;
       }
       case ActorType.RiflemanGrunt:
       case ActorType.GrenadierGrunt: {
-        if (h2.frameGroupIndex != 7) break;
+        if (other.frameGroupIndex != 7) break;
         this.velX = 0;
-        if (h2.actionHighByte == 0) {
+        if (other.actionHighByte == 0) {
           if (!this.collideRight()) {
             this.posX += px(8);
           }
         } else if (!this.collideLeft()) {
           this.posX -= px(8);
         }
-        this.takeDamage(h2.getDamage(), h2.actionHighByte);
+        this.takeDamage(other.getDamage(), other.actionHighByte);
         break;
       }
       case ActorType.SentryGrunt: {
-        this.takeDamage(3, h2.actionHighByte);
+        this.takeDamage(3, other.actionHighByte);
       }
     }
     return false;
@@ -898,8 +900,8 @@ export class PlayerActor extends ActorBase {
    * （同朝向的实体障碍）把玩家位置贴靠对齐到对方包围盒边缘。
    */
   // c(tjge.h) → c_Th
-  public onCollide(h2: ActorBase): void {
-    switch (h2.typeId) {
+  public onCollide(other: ActorBase): void {
+    switch (other.typeId) {
       case ActorType.RiflemanGrunt:
       case ActorType.VehicleGunner:
       case ActorType.GrenadierGrunt:
@@ -912,13 +914,13 @@ export class PlayerActor extends ActorBase {
       }
       case ActorType.MobileGunEmplacement:
       case ActorType.DestructibleConsole: {
-        const n: number = h2.actionHighByte == 0 ? h2.posX + (h2.boxLeft << 10) : h2.posX + (h2.boxRight << 10);
-        if (this.actionHighByte != h2.actionHighByte) break;
+        const edge: number = other.actionHighByte == 0 ? other.posX + (other.boxLeft << 10) : other.posX + (other.boxRight << 10);
+        if (this.actionHighByte != other.actionHighByte) break;
         if (this.actionHighByte == 0) {
-          this.posX = n - (this.boxRight << 10);
+          this.posX = edge - (this.boxRight << 10);
           return;
         }
-        this.posX = n - (this.boxLeft << 10);
+        this.posX = edge - (this.boxLeft << 10);
       }
     }
   }
@@ -926,22 +928,22 @@ export class PlayerActor extends ActorBase {
   /**
    * 扣血并触发受击反应：仅在 Normal/BattleWave 相位生效，按当前态（站立/攀爬/空中/入场）
    * 切换受击、格挡或死亡动作并施加击退；Boss 战相位坠落致死则置 publicFlagC 并切过场相位。
-   * @param n 伤害值
-   * @param n2 攻击来源朝向（与自身朝向比较以决定正/背面受击动作）
+   * @param damage 伤害值
+   * @param sourceFacing 攻击来源朝向（与自身朝向比较以决定正/背面受击动作）
    */
   // c(int,int) → c_II
-  private takeDamage(n: number, n2: number): void {
-    if (this.health <= 0 || n <= 0) {
+  private takeDamage(damage: number, sourceFacing: number): void {
+    if (this.health <= 0 || damage <= 0) {
       return;
     }
     if (this.canvas.scene.subState != LevelSubState.Normal && this.canvas.scene.subState != LevelSubState.BattleWave) {
       return;
     }
-    this.health -= n;
+    this.health -= damage;
     this.targetVelX = 0;
     if ((this.reserved & 1) != 0) {
       if (this.isFootOnGround()) {
-        if (n2 == this.actionHighByte) {
+        if (sourceFacing == this.actionHighByte) {
           this.setAction(6 | this.actionHighByte);
         } else {
           this.setAction(5 | this.actionHighByte);
@@ -1284,8 +1286,8 @@ export class PlayerActor extends ActorBase {
    * 则切入通关动作并通知场景进入过场出场相位（TransitionOut），返回是否完成触发。
    */
   // a(boolean) → a_Z
-  public triggerSwitch(bl: boolean): boolean {
-    if (bl) {
+  public triggerSwitch(mark: boolean): boolean {
+    if (mark) {
       this.switchPending = true;
     } else if (this.switchPending && (this.reserved & 1) != 0) {
       this.targetVelX = 0;
@@ -1297,12 +1299,12 @@ export class PlayerActor extends ActorBase {
   }
 
   /**
-   * 按瓦片坐标 (n,n2) 设置玩家定点世界位置（<<14），切回站立动作并重置相机已绘边界。
+   * 按瓦片坐标 (tileX,tileY) 设置玩家定点世界位置（<<14），切回站立动作并重置相机已绘边界。
    */
   // b(int,int) → b_II
-  public setTilePosition(n: number, n2: number): void {
-    this.posX = n << 14;
-    this.posY = n2 << 14;
+  public setTilePosition(tileX: number, tileY: number): void {
+    this.posX = tileX << 14;
+    this.posY = tileY << 14;
     this.setAction(0 | this.actionHighByte);
     LevelScene.camera.resetDrawnBounds();
   }
@@ -1322,20 +1324,20 @@ export class PlayerActor extends ActorBase {
    * 并夹取上限（备用弹药≤99、手雷≤3、血量≤10）。
    */
   // a(tjge.e) → a_Te
-  public applyPickup(e2: ItemActor): void {
-    switch (e2.frameGroupIndex) {
+  public applyPickup(item: ItemActor): void {
+    switch (item.frameGroupIndex) {
       case 0: {
-        PlayerActor.ammoReserve[1] = PlayerActor.ammoReserve[1] + e2.counter;
+        PlayerActor.ammoReserve[1] = PlayerActor.ammoReserve[1] + item.counter;
         PlayerActor.ammoReserve[1] = Math.min(99, PlayerActor.ammoReserve[1]);
         return;
       }
       case 1: {
-        PlayerActor.ammoCurrent[2] = PlayerActor.ammoCurrent[2] + e2.counter;
+        PlayerActor.ammoCurrent[2] = PlayerActor.ammoCurrent[2] + item.counter;
         PlayerActor.ammoCurrent[2] = Math.min(3, PlayerActor.ammoCurrent[2]);
         return;
       }
       case 2: {
-        this.health += e2.counter;
+        this.health += item.counter;
         this.health = Math.min(10, this.health);
       }
     }
