@@ -163,11 +163,11 @@ export class BossActor extends ActorBase {
    */
   // a() → a_
   update(): void {
-    const f2: PlayerActor = this.screen.player!;
-    const n: number = this.frameIndex & SEQUENCE_MASK;
+    const player: PlayerActor = this.screen.player!;
+    const actionId: number = this.frameIndex & SEQUENCE_MASK;
     switch (this.typeId) {
       case ActorType.ScriptedFuseTrigger: {
-        if (this.intersectsActor(f2)) {
+        if (this.intersectsActor(player)) {
           this.phase = 1;
           this.setFrame(1);
           this.screen.levelLoader!.actorSpawned[this.extra] = true;
@@ -179,7 +179,7 @@ export class BossActor extends ActorBase {
         return;
       }
       case ActorType.AtvVehicleBoss: {
-        const n2: number = this.screen.cameraX + GameScreen.viewWidthFx;
+        const screenRightFx: number = this.screen.cameraX + GameScreen.viewWidthFx;
         switch (this.screen.levelIndex) {
           case 3:
           case 6: {
@@ -191,9 +191,9 @@ export class BossActor extends ActorBase {
               this.health = 0;
             }
             this.screen.showIndicator = true;
-            const n3: number = (this.screen.indicatorValue = this.waveCount < 6 ? this.health : this.health + (this.waveCount - 6) * 5);
-            if (!this.phaseTriggered && this.intersectsActor(f2) && this.health > 0) {
-              f2.takeDamage(3);
+            const indicator: number = (this.screen.indicatorValue = this.waveCount < 6 ? this.health : this.health + (this.waveCount - 6) * 5);
+            if (!this.phaseTriggered && this.intersectsActor(player) && this.health > 0) {
+              player.takeDamage(3);
               if (this.targetVelX === 0) {
                 this.phase = 2;
                 this.subTimer = 11;
@@ -204,15 +204,15 @@ export class BossActor extends ActorBase {
               if (--this.waveCount < 6) {
                 if (this.waveCount <= 0) {
                   this.visible = false;
-                  let bl: boolean = false;
+                  let canDeactivate: boolean = false;
                   this.screen.showIndicator = false;
                   if (this.screen.levelIndex !== 6) {
-                    bl = true;
-                  } else if ((f2.stateFlags & 1) !== 0 && f2.posY > 500000) {
-                    bl = true;
+                    canDeactivate = true;
+                  } else if ((player.stateFlags & 1) !== 0 && player.posY > 500000) {
+                    canDeactivate = true;
                     this.screen.state = GameState.GoalCutscene;
                   }
-                  if (!bl) return;
+                  if (!canDeactivate) return;
                   this.deactivate();
                   this.screen.scriptFlagL = false;
                   this.screen.levelLoader!.actorSpawned[this.extra] = true;
@@ -229,7 +229,7 @@ export class BossActor extends ActorBase {
               this.hitFlashing = false;
               this.flashCounter = 0;
             } else if (this.hitFlashing) {
-              const n4: number = (this.posX = this.posX === this.homeX ? this.posX + px(2) : this.homeX);
+              const steppedX: number = (this.posX = this.posX === this.homeX ? this.posX + px(2) : this.homeX);
               if (this.flashCounter++ > 5) {
                 this.hitFlashing = false;
                 this.flashCounter = 0;
@@ -239,7 +239,7 @@ export class BossActor extends ActorBase {
             switch (this.phase) {
               case 0: {
                 this.targetVelX = px(-2);
-                if (this.posX >= n2 - px(20)) break;
+                if (this.posX >= screenRightFx - px(20)) break;
                 this.phase = 1;
                 this.targetVelX = 0;
                 this.setFrame(-2147483646);
@@ -247,11 +247,11 @@ export class BossActor extends ActorBase {
               }
               case 1: {
                 if (this.subTimer++ > 15) {
-                  const n5: number = px(35);
+                  const muzzleOffset: number = px(35);
                   if (this.attackMode === 0) {
-                    const l2: ProjectileActor | null = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, MIRROR_FLAG, 0, this.posX - n5, this.posY - n5, 1);
-                    if (l2 === null) break;
-                    l2.targetVelX = px(-12);
+                    const missile: ProjectileActor | null = this.screen.spawnProjectile(ActorType.GuidedMissileProjectile, MIRROR_FLAG, 0, this.posX - muzzleOffset, this.posY - muzzleOffset, 1);
+                    if (missile === null) break;
+                    missile.targetVelX = px(-12);
                     this.subTimer = 0;
                     if (this.targetVelX === 0) {
                       this.setFrame(-2147483644);
@@ -260,10 +260,10 @@ export class BossActor extends ActorBase {
                     this.setFrame(-2147483645);
                     return;
                   }
-                  const l3: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX + px(5), this.posY - n5, 1);
-                  if (l3 === null) break;
+                  const bomb: ProjectileActor | null = this.screen.spawnProjectile(ActorType.FallingBombProjectile, 0, 0, this.posX + px(5), this.posY - muzzleOffset, 1);
+                  if (bomb === null) break;
                   this.subTimer = 0;
-                  l3.launchArc(0);
+                  bomb.launchArc(0);
                   if (this.targetVelX > 0) {
                     this.setFrame(-2147483643);
                     return;
@@ -279,7 +279,7 @@ export class BossActor extends ActorBase {
                 if (this.isAnimationDone()) {
                   this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
                 }
-                if (this.posX <= n2 - px(20)) break;
+                if (this.posX <= screenRightFx - px(20)) break;
                 this.subTimer = 0;
                 this.targetVelX = 0;
                 if (this.screen.levelIndex !== 6) {
@@ -313,7 +313,7 @@ export class BossActor extends ActorBase {
             if (this.disabled) return;
             if (this.minion!.active && this.minion!.lives > 0) {
               this.minion!.posX = this.posX - px(23);
-              if ((this.posX >= f2.posX || this.posX <= this.screen.cameraX + px(32)) && (this.posX <= f2.posX || this.posX >= this.screen.cameraX + px(182))) return;
+              if ((this.posX >= player.posX || this.posX <= this.screen.cameraX + px(32)) && (this.posX <= player.posX || this.posX >= this.screen.cameraX + px(182))) return;
               this.targetVelX = this.screen.cameraVelX;
               return;
             }
@@ -321,7 +321,7 @@ export class BossActor extends ActorBase {
               this.minion!.targetVelY = px(12);
               this.minion!.targetVelX = 0;
               this.minion!.isPatroller = false;
-              this.targetVelX = this.posX > f2.posX ? this.screen.cameraVelX + px(8) : 0;
+              this.targetVelX = this.posX > player.posX ? this.screen.cameraVelX + px(8) : 0;
               return;
             }
             if (this.posX <= this.screen.cameraX + px(206) && this.posX >= this.screen.cameraX - px(30)) return;
@@ -335,7 +335,7 @@ export class BossActor extends ActorBase {
         if (this.delayTimer-- > 0) {
           return;
         }
-        switch (n) {
+        switch (actionId) {
           case 0: {
             if (!this.isAnimationDone()) return;
             this.setFrame(1);
@@ -375,19 +375,19 @@ export class BossActor extends ActorBase {
    * 按弹丸类型分别处理：type21 落地子态切换并在 Boss 静止时 -1 血；type10 静止时 -1 血；
    * type15/20 生成 type16 爆炸并销毁该弹丸、静止时 -3 血。任意命中都会触发受击闪烁
    * （hitFlashing 置真并记录当前 X 为 homeX）。
-   * @param l2 命中本 Boss 的弹丸（ProjectileActor）
+   * @param projectile 命中本 Boss 的弹丸（ProjectileActor）
    */
   // a(tjge.l) → a_Tl
-  onProjectileHit(l2: ProjectileActor): void {
+  onProjectileHit(projectile: ProjectileActor): void {
     if (this.delayTimer > 0 || this.typeId !== ActorType.AtvVehicleBoss) {
       return;
     }
-    switch (l2.typeId) {
+    switch (projectile.typeId) {
       case ActorType.GuidedMissileProjectile: {
-        if ((l2.frameIndex & SEQUENCE_MASK) !== 0) break;
-        l2.setFrame(1);
-        l2.targetVelX = 0;
-        l2.posY += px(5);
+        if ((projectile.frameIndex & SEQUENCE_MASK) !== 0) break;
+        projectile.setFrame(1);
+        projectile.targetVelX = 0;
+        projectile.posY += px(5);
         if (this.targetVelX !== 0) break;
         --this.health;
         break;
@@ -399,8 +399,8 @@ export class BossActor extends ActorBase {
       }
       case ActorType.GrenadeProjectile:
       case ActorType.FallingBombProjectile: {
-        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, l2.posX, l2.posY, 0);
-        l2.deactivate();
+        this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, projectile.posX, projectile.posY, 0);
+        projectile.deactivate();
         if (this.targetVelX !== 0) break;
         this.health -= 3;
       }
@@ -414,29 +414,29 @@ export class BossActor extends ActorBase {
   // f() → f_
   private spawnDeathBurst(): void {
     this.posX = this.posX === this.homeX ? this.homeX + px(2) : this.homeX;
-    let n: number = 0;
-    let n2: number = this.posX;
-    let n3: number = this.posY + px(5);
+    let i: number = 0;
+    let burstX: number = this.posX;
+    let burstY: number = this.posY + px(5);
     do {
-      let n4: number = GameMIDlet.nextRandomMod(36);
-      n4 = 18 - n4;
-      let n5: number = GameMIDlet.nextRandomMod(20);
-      n5 = 20 - n5;
-      this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, (n2 += n4 << 10), (n3 -= n5 << 10), 2);
-    } while (n++ < 1);
+      let dx: number = GameMIDlet.nextRandomMod(36);
+      dx = 18 - dx;
+      let dy: number = GameMIDlet.nextRandomMod(20);
+      dy = 20 - dy;
+      this.screen.spawnProjectile(ActorType.ExplosionEffect, 0, 0, (burstX += dx << 10), (burstY -= dy << 10), 2);
+    } while (i++ < 1);
     GameScreen.playSound(5, 1, 220);
   }
 
   /**
    * 绘制（覆写基类，CFR c.java:351）。仅当可见标志 `visible` 为真时调用父类绘制，
    * 死亡淡出/隐藏期（visible=false）跳过，从而让 Boss 不再出现在画面上。
-   * @param n 相机 X 偏移（屏幕坐标换算用）
-   * @param n2 相机 Y 偏移
+   * @param cameraX 相机 X 偏移（屏幕坐标换算用）
+   * @param cameraY 相机 Y 偏移
    */
   // a(Graphics,int,int) → a_GII
-  paint(graphics: Graphics, n: number, n2: number): void {
+  paint(graphics: Graphics, cameraX: number, cameraY: number): void {
     if (this.visible) {
-      super.paint(graphics, n, n2);
+      super.paint(graphics, cameraX, cameraY);
     }
   }
 }
