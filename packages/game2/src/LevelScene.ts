@@ -48,7 +48,7 @@ import { ActorBase } from "./ActorBase.ts";
 import { TileSheet } from "./TileSheet.ts";
 import { ProjectileActor } from "./ProjectileActor.ts";
 import { setJ } from "./jref.ts";
-import { ActorType, LevelSubState, px } from "./constants.ts";
+import { ActorType, LevelSubState, InputAction, px } from "./constants.ts";
 
 /**
  * tjge.h 的包内可见（Java protected）成员视图。
@@ -795,7 +795,7 @@ export class LevelScene {
   private runDialogChoice(): void {
     block22: {
       block21: {
-        const confirmPressed: boolean = this.canvas.inputAction === 16;
+        const confirmPressed: boolean = this.canvas.inputAction === InputAction.Fire;
         if (confirmPressed) break block21;
         const countdown: number = GameCanvas.briefingLineState[3];
         GameCanvas.briefingLineState[3] = countdown - 1;
@@ -896,7 +896,7 @@ export class LevelScene {
     graphics.setClip(0, 172, 176, 32);
     this.dialogAdvancePressed = this.canvas.selectParagraph(GameCanvas.briefingLineState[0]);
     this.dialogPagePressed = this.canvas.drawTypesetText(graphics, GameCanvas.briefingLineState[1], GameCanvas.briefingLineState[2], textX[LevelScene.dialogState[1]], 178, 90, 19);
-    this.canvas.inputAction = 0;
+    this.canvas.inputAction = InputAction.None;
   }
 
   /**
@@ -915,7 +915,7 @@ export class LevelScene {
       case LevelSubState.MissionDialog: {
         this.dialogAdvancePressed = false;
         this.dialogPagePressed = false;
-        this.canvas.inputAction = 0;
+        this.canvas.inputAction = InputAction.None;
         GameCanvas.briefingLineState[0] = LevelScene.dialogState[0];
         GameCanvas.briefingLineState[1] = 0;
         GameCanvas.briefingLineState[2] = 1;

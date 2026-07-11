@@ -64,6 +64,43 @@ export enum LevelSubState {
 }
 
 /**
+ * 输入动作位掩码（对应 CFR `GameCanvas.c`/TS `GameCanvas.inputAction`/`heldAction`）。
+ * 由 `GameCanvas.keyToAction` 把 J2ME 键码译成的动作位；paint 各界面分支与 PlayerActor.handleInput
+ * 据此读取。语义经对抗验证（见 memory「按键动作映射」，high 置信）。值与原版逐位一致，勿改。
+ * 权威表见 docs/game2-深海战舰/游戏状态机.md §1 + 主循环与渲染.md §6。
+ */
+export enum InputAction {
+  /** 无输入 / 已消费 */
+  None = 0,
+  /** 左 */
+  Left = 1,
+  /** 右 */
+  Right = 2,
+  /** 上（菜单上移 / 非游戏中） */
+  Up = 4,
+  /** 下（菜单下移） */
+  Down = 8,
+  /** 开火 / 确定（持续按住时同置 heldAction） */
+  Fire = 16,
+  /** 攀爬上（游戏中的「上」键） */
+  ClimbUp = 32,
+  /** 左跳 */
+  JumpLeft = 64,
+  /** 右跳 */
+  JumpRight = 128,
+  /** 手雷 */
+  Grenade = 1024,
+  /** 换弹 */
+  Reload = 2048,
+  /** 切枪 */
+  SwitchWeapon = 4096,
+  /** 左软键（返回 / 关闭页面） */
+  SoftLeft = 16384,
+  /** 右软键（下一步 / 跳过 / 简报确认） */
+  SoftRight = 32768,
+}
+
+/**
  * 精灵帧整数的高位标志（与序列 id 按位或/与）。
  * 来源：reverse/game2/3-readable/SYMBOLS.md。
  */
