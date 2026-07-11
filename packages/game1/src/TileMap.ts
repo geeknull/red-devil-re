@@ -125,19 +125,35 @@ export class TileMap {
       return 0;
     }
     try {
-      let runLength = 0;
-      let segCursor = 2;
-      do {
-        runLength += this.columnRleData[columnIndex]![segCursor + 1];
-        if (this.columnRleData[columnIndex]![segCursor + 1] < 0) {
-          runLength += 256;
-        }
-        segCursor += 2;
-      } while (runLength < cellIndex + 1);
-      return this.columnRleData[columnIndex]![(segCursor -= 2)];
+      return this.columnRleData[columnIndex]![this.rleScanToCell(columnIndex, cellIndex)];
     } catch (exception) {
       return 1;
     }
+  }
+
+  /**
+   * RLE 段扫描（{@link queryColumnTileAt} 与 {@link clearTileAt} 的逐字重复段）。
+   * 列数据 `columnRleData[columnIndex]` 为 `[flag, type0,count0, type1,count1, ...]`：
+   * 首字节 [0] 是行类型标志，正式段从下标 2 起。逐段累加 count（负字节 +256 还原为
+   * 无符号），直到累计长度覆盖 cellIndex+1，返回命中段的 type 字节下标。
+   * 与原版一致，段访问异常（越界等）向上抛，由两个调用方各自的 try/catch 承接
+   * （返回值不同：查询=1、清除=false），故 try/catch 不并入本 helper。
+   * CFR b.java:85-95（a_IIZ）/ 344-354（c_II）逐字重复段。
+   * @param columnIndex 列索引（调用方已保证 columnRleData[columnIndex] 非空且 [0]!==0）
+   * @param cellIndex   列内单元格索引（横向）
+   * @returns 命中段的 type 字节下标（原版 `n4 -= 2` 后的游标值）
+   */
+  private rleScanToCell(columnIndex: number, cellIndex: number): number {
+    let runLength = 0;
+    let segCursor = 2;
+    do {
+      runLength += this.columnRleData[columnIndex]![segCursor + 1];
+      if (this.columnRleData[columnIndex]![segCursor + 1] < 0) {
+        runLength += 256;
+      }
+      segCursor += 2;
+    } while (runLength < cellIndex + 1);
+    return segCursor - 2;
   }
 
   protected resolveTileIndex(pixelX: number, pixelY: number): number {
@@ -445,16 +461,7 @@ export class TileMap {
       return false;
     }
     try {
-      let runLength = 0;
-      let segCursor = 2;
-      do {
-        runLength += this.columnRleData[columnIndex]![segCursor + 1];
-        if (this.columnRleData[columnIndex]![segCursor + 1] < 0) {
-          runLength += 256;
-        }
-        segCursor += 2;
-      } while (runLength < cellIndex + 1);
-      this.columnRleData[columnIndex]![(segCursor -= 2)] = 0;
+      this.columnRleData[columnIndex]![this.rleScanToCell(columnIndex, cellIndex)] = 0;
       return true;
     } catch (exception) {
       return false;
