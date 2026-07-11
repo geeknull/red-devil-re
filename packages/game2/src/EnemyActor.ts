@@ -519,23 +519,23 @@ export class EnemyActor extends ActorBase {
    * 命中方需带碰撞标志位 2、本帧为新接触、且本敌人未死亡(reserved≠7)，否则返回 false。
    * 按命中方 typeId 受理：type0（玩家）仅在其挥刀动作组 24 时受近战伤害；
    * type10/12（玩家子弹/爆炸）受伤并返回 true（吃掉该投射物）。
-   * @param h2 命中本敌人的 Actor
+   * @param source 命中本敌人的 Actor
    * @returns 是否消费此次命中（true=投射物应销毁）
    */
   // a(tjge.h) → a_Th
-  public onHitBy(h2: ActorBase): boolean {
-    if (!h2.hasCollisionFlag(2) || !this.isNewContact(h2) || this.reserved === 7) {
+  public onHitBy(source: ActorBase): boolean {
+    if (!source.hasCollisionFlag(2) || !this.isNewContact(source) || this.reserved === 7) {
       return false;
     }
-    switch (h2.typeId) {
+    switch (source.typeId) {
       case ActorType.Player: {
-        if (h2.frameGroupIndex !== 24) break;
-        this.applyDamage(h2.getDamage(), h2.actionHighByte);
+        if (source.frameGroupIndex !== 24) break;
+        this.applyDamage(source.getDamage(), source.actionHighByte);
         break;
       }
       case ActorType.DirectBullet:
       case ActorType.ExplosionDebris: {
-        this.applyDamage(h2.getDamage(), h2.actionHighByte);
+        this.applyDamage(source.getDamage(), source.actionHighByte);
         return true;
       }
     }
@@ -547,22 +547,22 @@ export class EnemyActor extends ActorBase {
    * 扣血 hp、停水平速度、备份当前子状态到 preHitSubState(U) 以便受击后恢复，
    * 再按 typeId 切受击子状态 reserved=6：type1/3 据来袭方向选正/背面受击帧；
    * type2/5 切对应受击帧；type4 在血量耗尽时先生成两处爆炸(type12)再进受击。
-   * @param n 伤害值（≤0 直接返回，不结算）
-   * @param n2 来袭方向高字节（与本敌人朝向比较以选受击帧）
+   * @param damage 伤害值（≤0 直接返回，不结算）
+   * @param sourceFacing 来袭方向高字节（与本敌人朝向比较以选受击帧）
    */
   // b(int,int) → b_II
-  private applyDamage(n: number, n2: number): void {
-    if (n <= 0) {
+  private applyDamage(damage: number, sourceFacing: number): void {
+    if (damage <= 0) {
       return;
     }
-    this.hp -= n;
+    this.hp -= damage;
     this.targetVelX = 0;
     this.preHitSubState = this.reserved;
     switch (this.typeId) {
       case ActorType.RiflemanGrunt:
       case ActorType.GrenadierGrunt: {
         this.reserved = 6;
-        if (n2 === this.actionHighByte) {
+        if (sourceFacing === this.actionHighByte) {
           this.setAction(6 | this.actionHighByte);
           return;
         }
@@ -593,33 +593,33 @@ export class EnemyActor extends ActorBase {
    * 为已生成的投掷物（手雷）设置抛物线初速（对应 CFR f.java a(tjge.k) → 契约名 a_Tk）。
    * 据本敌人与玩家的水平距离反算竖直初速/重力，使手雷大致落在玩家处：
    * 水平速度固定 facingSign*5120，竖直初速 -n、加速度 accelY=n2、限速 maxVelY、飞行计时 timer。
-   * @param k2 已由 ProjectileActor.spawnProjectile 生成的手雷（null 直接返回）
+   * @param projectile 已由 ProjectileActor.spawnProjectile 生成的手雷（null 直接返回）
    */
   // a(tjge.k) → a_Tk
-  launchProjectile(k2: ProjectileActor | null): void {
-    if (k2 == null) {
+  launchProjectile(projectile: ProjectileActor | null): void {
+    if (projectile == null) {
       return;
     }
-    let n: number = 0;
-    let n2: number = 0;
-    let n3: number = Math.abs(this.player.posX - k2.posX);
-    n3 = Math.max(px(40), n3);
-    const n4: number = (n3 / px(5)) | 0;
-    const n5: number = n4 >>> 1;
-    let n6: number = 0;
-    while (n6 < n5) {
-      n2 += n6;
-      ++n6;
+    let vy: number = 0;
+    let accel: number = 0;
+    let dist: number = Math.abs(this.player.posX - projectile.posX);
+    dist = Math.max(px(40), dist);
+    const frames: number = (dist / px(5)) | 0;
+    const halfFrames: number = frames >>> 1;
+    let i: number = 0;
+    while (i < halfFrames) {
+      accel += i;
+      ++i;
     }
-    n3 = (n3 >>> 2) * 3;
-    n2 = ((n3 >>> 1) / n2) | 0;
-    n = (n5 - 1) * n2;
-    n = Math.min(px(15), n);
-    k2.targetVelX = this.facingSign * px(5);
-    k2.targetVelY = -n;
-    k2.accelY = n2;
-    k2.maxVelY = n;
-    k2.timer = n4;
+    dist = (dist >>> 2) * 3;
+    accel = ((dist >>> 1) / accel) | 0;
+    vy = (halfFrames - 1) * accel;
+    vy = Math.min(px(15), vy);
+    projectile.targetVelX = this.facingSign * px(5);
+    projectile.targetVelY = -vy;
+    projectile.accelY = accel;
+    projectile.maxVelY = vy;
+    projectile.timer = frames;
   }
 
   /**
