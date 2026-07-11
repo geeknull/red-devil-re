@@ -198,300 +198,323 @@ export class BossActor extends ActorBase {
    */
   // b() → b_
   update(): void {
+    // 纯分派器：按 typeId 转对应 update<Type> helper（switch 是方法末块，故各 case 顶层 break==return→helper return）。
     switch (this.typeId) {
-      case ActorType.MobileGunEmplacement: {
-        if (this.pendingFire) {
-          let spawnY: number;
-          let facingSign: number;
-          let spawnX: number;
-          let frameParam: number;
-          let bullet: ProjectileActor | null;
-          this.pendingFire = false;
-          this.fireable = false;
-          let paramRow = 0;
-          if (this.frameGroupIndex >= 2) {
-            paramRow = 1;
-          }
-          if ((bullet = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (frameParam = BossActor.BULLET_PARAMS_T11[paramRow][2]), (spawnX = this.posX + (BossActor.BULLET_PARAMS_T11[paramRow][0] << 10) * (facingSign = this.actionHighByte === 0 ? 1 : -1)), (spawnY = this.posY + (BossActor.BULLET_PARAMS_T11[paramRow][1] << 10)), 1, null)) != null) {
-            if (paramRow === 1) {
-              bullet.targetVelX = (BossActor.BULLET_PARAMS_T11[paramRow][4] << 10) * facingSign;
-              bullet.targetVelY = BossActor.BULLET_PARAMS_T11[paramRow][5] << 10;
-            } else {
-              this.aimProjectile(bullet);
-            }
-          }
-          this.setAction(BossActor.BULLET_PARAMS_T11[paramRow][3] | this.actionHighByte);
-        } else if (this.isAnimationDone()) {
-          if (this.frameGroupIndex === 1) {
-            this.setAction(0 | this.actionHighByte);
-          } else if (this.frameGroupIndex === 3) {
-            this.setAction(2 | this.actionHighByte);
-          }
-          this.fireable = true;
+      case ActorType.MobileGunEmplacement:
+        this.updateMobileGun();
+        break;
+      case ActorType.PatrolLauncher:
+        this.updatePatrolLauncher();
+        break;
+      case ActorType.DestructibleConsole:
+        this.updateDestructibleConsole();
+        break;
+      case ActorType.FinalBoss:
+        this.updateFinalBoss();
+        break;
+      case ActorType.HelicopterBoss:
+        this.updateHelicopter();
+        break;
+    }
+  }
+
+  // update case type11（MobileGunEmplacement，固定炮台）：按节奏发弹（近距用 aimProjectile 抛物）、击退归位、碰撞玩家。
+  private updateMobileGun(): void {
+    if (this.pendingFire) {
+      let spawnY: number;
+      let facingSign: number;
+      let spawnX: number;
+      let frameParam: number;
+      let bullet: ProjectileActor | null;
+      this.pendingFire = false;
+      this.fireable = false;
+      let paramRow = 0;
+      if (this.frameGroupIndex >= 2) {
+        paramRow = 1;
+      }
+      if ((bullet = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (frameParam = BossActor.BULLET_PARAMS_T11[paramRow][2]), (spawnX = this.posX + (BossActor.BULLET_PARAMS_T11[paramRow][0] << 10) * (facingSign = this.actionHighByte === 0 ? 1 : -1)), (spawnY = this.posY + (BossActor.BULLET_PARAMS_T11[paramRow][1] << 10)), 1, null)) != null) {
+        if (paramRow === 1) {
+          bullet.targetVelX = (BossActor.BULLET_PARAMS_T11[paramRow][4] << 10) * facingSign;
+          bullet.targetVelY = BossActor.BULLET_PARAMS_T11[paramRow][5] << 10;
+        } else {
+          this.aimProjectile(bullet);
         }
-        if (this.knockedBack) {
-          if (this.posX === this.cN) {
-            this.posX += px(2);
-          } else {
-            this.posX = this.cN;
-            this.knockedBack = false;
-          }
-        }
+      }
+      this.setAction(BossActor.BULLET_PARAMS_T11[paramRow][3] | this.actionHighByte);
+    } else if (this.isAnimationDone()) {
+      if (this.frameGroupIndex === 1) {
+        this.setAction(0 | this.actionHighByte);
+      } else if (this.frameGroupIndex === 3) {
+        this.setAction(2 | this.actionHighByte);
+      }
+      this.fireable = true;
+    }
+    if (this.knockedBack) {
+      if (this.posX === this.cN) {
+        this.posX += px(2);
+      } else {
+        this.posX = this.cN;
+        this.knockedBack = false;
+      }
+    }
+    if (this.health <= 0) {
+      this.killAndMarkSpawned();
+      return;
+    }
+    if (!this.collidesWith(this.canvas.player)) return;
+    this.canvas.player.onCollide(this);
+  }
+
+  // update case type17（PatrolLauncher，巡逻发射器）：沿轴巡逻、按 cP 节奏发弹、按帧组切动作、死亡爆炸。
+  private updatePatrolLauncher(): void {
+    let spawnY: number;
+    let facingSign: number;
+    let spawnX: number;
+    let paramRow: number;
+    let frameParam: number;
+    let bullet: ProjectileActor | null;
+    if (this.axisOrPhase === 0) {
+      if (this.posX < this.rangeMin) {
+        this.targetVelX = px(2);
+      } else if (this.posX > this.rangeMax) {
+        this.targetVelX = px(-2);
+      }
+    } else if (this.axisOrPhase === 1) {
+      if (this.posY < this.rangeMin) {
+        this.targetVelY = px(2);
+      } else if (this.posY > this.rangeMax) {
+        this.targetVelY = px(-2);
+      }
+    }
+    if (this.cP-- < 0 && (bullet = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (frameParam = BossActor.BULLET_PARAMS_T17[(paramRow = (this.frameGroupIndex / 3) | 0)][2] | (this.actionHighByte ^ MIRROR_FLAG)), (spawnX = this.posX + this.targetVelX + (BossActor.BULLET_PARAMS_T17[paramRow][0] << 10) * (facingSign = this.actionHighByte === 0 ? 1 : -1)), (spawnY = this.posY + this.targetVelY + (BossActor.BULLET_PARAMS_T17[paramRow][1] << 10)), 1, null)) != null) {
+      bullet.targetVelX = (BossActor.BULLET_PARAMS_T17[paramRow][4] << 10) * facingSign;
+      bullet.targetVelY = BossActor.BULLET_PARAMS_T17[paramRow][5] << 10;
+      this.setAction(BossActor.BULLET_PARAMS_T17[paramRow][3] | this.actionHighByte);
+      this.cP = this.cO;
+    }
+    if (this.frameGroupIndex === BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][6]) {
+      if (this.isAnimationDone()) {
+        this.knockedBack = false;
+        this.setAction((BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][6] - 2) | this.actionHighByte);
+      }
+    } else if (this.knockedBack) {
+      this.setAction(BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][6] | this.actionHighByte);
+    } else if (this.frameGroupIndex === BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][3] && this.isAnimationDone()) {
+      this.setAction((BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][3] - 1) | this.actionHighByte);
+    }
+    if (this.health > 0) return;
+    this.killAndMarkSpawned();
+  }
+
+  // update case type13（DestructibleConsole，可破坏机关）：按 frameGroupIndex 阶段推进破坏动画+触发标志，碰撞玩家。
+  private updateDestructibleConsole(): void {
+    switch (this.frameGroupIndex) {
+      case 1: {
         if (this.health <= 0) {
-          this.killAndMarkSpawned();
-          return;
+          this.canvas.startShake(2);
+          this.setAction(3 | this.actionHighByte);
+          this.canvas.scene.triggerHitFlags[this.slotIndex] = true;
+        } else if (this.health < 2) {
+          this.setAction(2 | this.actionHighByte);
         }
         if (!this.collidesWith(this.canvas.player)) break;
         this.canvas.player.onCollide(this);
-        return;
+        break;
       }
-      case ActorType.PatrolLauncher: {
-        let spawnY: number;
-        let facingSign: number;
-        let spawnX: number;
-        let paramRow: number;
-        let frameParam: number;
-        let bullet: ProjectileActor | null;
-        if (this.axisOrPhase === 0) {
-          if (this.posX < this.rangeMin) {
-            this.targetVelX = px(2);
-          } else if (this.posX > this.rangeMax) {
-            this.targetVelX = px(-2);
-          }
-        } else if (this.axisOrPhase === 1) {
-          if (this.posY < this.rangeMin) {
-            this.targetVelY = px(2);
-          } else if (this.posY > this.rangeMax) {
-            this.targetVelY = px(-2);
-          }
+      case 2: {
+        if (this.health <= 0) {
+          this.canvas.startShake(2);
+          this.setAction(3 | this.actionHighByte);
+          this.canvas.scene.triggerHitFlags[this.slotIndex] = true;
         }
-        if (this.cP-- < 0 && (bullet = ProjectileActor.spawnProjectile(ActorType.DirectBullet, (frameParam = BossActor.BULLET_PARAMS_T17[(paramRow = (this.frameGroupIndex / 3) | 0)][2] | (this.actionHighByte ^ MIRROR_FLAG)), (spawnX = this.posX + this.targetVelX + (BossActor.BULLET_PARAMS_T17[paramRow][0] << 10) * (facingSign = this.actionHighByte === 0 ? 1 : -1)), (spawnY = this.posY + this.targetVelY + (BossActor.BULLET_PARAMS_T17[paramRow][1] << 10)), 1, null)) != null) {
-          bullet.targetVelX = (BossActor.BULLET_PARAMS_T17[paramRow][4] << 10) * facingSign;
-          bullet.targetVelY = BossActor.BULLET_PARAMS_T17[paramRow][5] << 10;
-          this.setAction(BossActor.BULLET_PARAMS_T17[paramRow][3] | this.actionHighByte);
-          this.cP = this.cO;
-        }
-        if (this.frameGroupIndex === BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][6]) {
-          if (this.isAnimationDone()) {
-            this.knockedBack = false;
-            this.setAction((BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][6] - 2) | this.actionHighByte);
-          }
-        } else if (this.knockedBack) {
-          this.setAction(BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][6] | this.actionHighByte);
-        } else if (this.frameGroupIndex === BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][3] && this.isAnimationDone()) {
-          this.setAction((BossActor.BULLET_PARAMS_T17[(this.frameGroupIndex / 3) | 0][3] - 1) | this.actionHighByte);
-        }
-        if (this.health > 0) break;
-        this.killAndMarkSpawned();
-        return;
+        if (!this.collidesWith(this.canvas.player)) break;
+        this.canvas.player.onCollide(this);
+        break;
       }
-      case ActorType.DestructibleConsole: {
-        switch (this.frameGroupIndex) {
-          case 1: {
-            if (this.health <= 0) {
-              this.canvas.startShake(2);
-              this.setAction(3 | this.actionHighByte);
-              this.canvas.scene.triggerHitFlags[this.slotIndex] = true;
-            } else if (this.health < 2) {
-              this.setAction(2 | this.actionHighByte);
-            }
-            if (!this.collidesWith(this.canvas.player)) break;
-            this.canvas.player.onCollide(this);
-            break;
-          }
-          case 2: {
-            if (this.health <= 0) {
-              this.canvas.startShake(2);
-              this.setAction(3 | this.actionHighByte);
-              this.canvas.scene.triggerHitFlags[this.slotIndex] = true;
-            }
-            if (!this.collidesWith(this.canvas.player)) break;
-            this.canvas.player.onCollide(this);
-            break;
-          }
-          case 3: {
-            if (!this.isAnimationDone()) break;
-            this.setAction(4 | this.actionHighByte);
-            break;
-          }
-          case 4: {
-            this.layer = 10;
-          }
-        }
-        return;
+      case 3: {
+        if (!this.isAnimationDone()) break;
+        this.setAction(4 | this.actionHighByte);
+        break;
       }
-      case ActorType.FinalBoss: {
-        if (this.cP === 0) {
-          if (this.collidesWith(this.canvas.player)) {
-            if (this.attachedEntity == null) {
-              this.attachedEntity = this.canvas.scene.spawnActor(ActorType.GrappleMarker, -1);
-              this.attachedEntity!.setAction(5);
-              this.attachedEntity!.posX = this.posX;
-              this.attachedEntity!.posY = this.posY + ((this.boxTop - 10) << 10);
-            }
-            this.canvas.player.actionLocked = true;
-            if (this.canvas.heldAction !== 16) break;
-            this.health = 0;
-            this.canvas.player.levelCleared = true;
-            return;
-          }
-          this.canvas.player.actionLocked = false;
-          if (this.attachedEntity == null) break;
-          this.attachedEntity.kill();
-          this.attachedEntity = null;
-          return;
-        }
-        if (this.knockedBack) {
-          if (this.posX === this.cN) {
-            this.posX += px(1);
-          } else {
-            this.posX = this.cN;
-            this.knockedBack = false;
-          }
-        }
-        if (this.health > 0) break;
-        this.killAndMarkSpawned();
-        return;
-      }
-      case ActorType.HelicopterBoss: {
-        // n / n10 是跨「击退坠落」与「开火」两互斥分支复用的多角色 scratch（n：碎片循环计数 / 手雷生成 Y；
-        // n10：碎片生成 Y / 手雷生成 X），单一语义名会误导，故沿用反编译名（同 LevelScene.loadLevel 的处理）。
-        let n: number;
-        let n10: number;
-        if (this.dormant) {
-          return;
-        }
-        if (this.frameGroupIndex === 0) {
-          let moving = false;
-          switch (this.phaseIndex) {
-            case 0: {
-              if (this.patrolCountdown-- >= 0) break;
-              this.canvas.scene.spawnWave();
-              this.setAction(this.frameGroupIndex | (this.actionHighByte ^= MIRROR_FLAG));
-              this.axisOrPhase ^= 1;
-              this.phaseIndex = 1;
-              break;
-            }
-            case 1: {
-              if (this.canvas.scene.waveSpawnCount > 0) break;
-              this.cP = 32;
-              moving = true;
-              this.cO = 6;
-              this.phaseIndex = 2;
-              break;
-            }
-            case 2: {
-              if (this.cP === 26) {
-                if (this.cO-- >= 0) break;
-                moving = true;
-                this.cN = 0;
-                this.phaseIndex = 3;
-                break;
-              }
-              moving = true;
-              break;
-            }
-            case 3: {
-              let bomb: ProjectileActor | null;
-              if (this.cN % 4 < 2 && (this.cP > 7 || this.cP < 3) && (bomb = ProjectileActor.spawnProjectile(ActorType.DirectBullet, 12, this.posX, this.posY, 1, null)) != null) {
-                bomb.targetVelX = 0;
-                bomb.targetVelY = px(8);
-                bomb.accelY = px(1);
-                bomb.maxVelY = px(10);
-              }
-              if (this.posY < this.canvas.cameraY - px(5)) {
-                this.posX = this.axisOrPhase > 0 ? this.canvas.cameraX - px(30) : this.canvas.cameraX + this.canvas.viewportWidth + px(30);
-                this.patrolCountdown = 20;
-                this.phaseIndex = 0;
-              } else {
-                moving = true;
-              }
-              ++this.cN;
-              this.cN %= 4;
-            }
-          }
-          if (moving) {
-            this.targetVelX = this.axisOrPhase > 0 ? px(-6) : px(6);
-            this.targetVelY = (this.cP - 16) * 512;
-            --this.cP;
-          } else {
-            this.targetVelX = 0;
-            this.targetVelY = 0;
-          }
-          if (!this.knockedBack) break;
-          this.targetVelY = 0;
-          this.targetVelX = 0;
-          this.dormant = true;
-          LevelScene.cutsceneState[1] = 4;
-          LevelScene.cutsceneState[2] = 1;
-          this.canvas.scene.setSubState(LevelSubState.BossScript);
-          return;
-        }
-        this.pendingFire = false;
-        if (this.knockedBack) {
-          if (this.frameGroupIndex !== 5) {
-            this.setAction(5 | this.actionHighByte);
-          }
-          if (this.isAnimationDone()) {
-            this.canvas.scene.cameraTargetCacheX = this.canvas.cameraX;
-            this.canvas.scene.cameraTargetCacheY = this.canvas.cameraY;
-            LevelScene.cutsceneState[1] = 1;
-            LevelScene.cutsceneState[2] = 1;
-            this.canvas.scene.setSubState(LevelSubState.BossScript);
-            this.killAndMarkSpawned();
-          } else {
-            n10 = this.posY - ((2 + GameMIDlet.randomBelow(Math.abs(this.boxTop))) << 10);
-            n = 0;
-            while (n < 2) {
-              const debrisX = this.posX + ((this.boxRight - GameMIDlet.randomBelow(this.boxRight * 2)) << 10);
-              ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, debrisX, n10, 0, null);
-              ++n;
-            }
-          }
-          this.targetVelX = 0;
-          if (this.cN === 1) {
-            this.pendingFire = true;
-          }
-          ++this.cN;
-        } else {
-          if (this.isAnimationDone()) {
-            this.setAction(1 | this.actionHighByte);
-          }
-          if (this.cP-- < 0) {
-            this.pendingFire = true;
-          }
-          if (this.posX < this.rangeMin) {
-            this.targetVelX = 0;
-            this.posX = this.rangeMin;
-          } else if (this.posX > this.rangeMax) {
-            this.targetVelX = 0;
-            this.posX = this.rangeMax;
-          }
-          if (this.randomMoveTimer++ > 5) {
-            this.randomMoveTimer = 0;
-            const n12 = (this.targetVelX = GameMIDlet.randomBelow(2) > 0 ? px(4) : px(-4));
-            void n12;
-          }
-        }
-        if (!this.pendingFire) break;
-        const grenadeOffsetX: number[] = [-12, -28, -42];
-        n10 = this.posX + (grenadeOffsetX[this.phaseIndex] << 10);
-        n = this.posY - px(35);
-        this.targetVelX = 0;
-        this.setAction((2 + this.phaseIndex) | this.actionHighByte);
-        const grenade = ProjectileActor.spawnProjectile(ActorType.GuidedGrenade, 0, n10, n, 1, null);
-        if (this.knockedBack) {
-          grenade!.isSpecialGrenade = true;
-        }
-        ++this.phaseIndex;
-        this.phaseIndex %= 3;
-        if (this.phaseIndex === 0) {
-          this.cP = this.cO * 4;
-          return;
-        }
-        this.cP = this.cO;
+      case 4: {
+        this.layer = 10;
       }
     }
+  }
+
+  // update case type21（FinalBoss，关底被抱触发器）：cP===0 时贴靠玩家、按动作16 清关，否则击退归位+死亡。
+  private updateFinalBoss(): void {
+    if (this.cP === 0) {
+      if (this.collidesWith(this.canvas.player)) {
+        if (this.attachedEntity == null) {
+          this.attachedEntity = this.canvas.scene.spawnActor(ActorType.GrappleMarker, -1);
+          this.attachedEntity!.setAction(5);
+          this.attachedEntity!.posX = this.posX;
+          this.attachedEntity!.posY = this.posY + ((this.boxTop - 10) << 10);
+        }
+        this.canvas.player.actionLocked = true;
+        if (this.canvas.heldAction !== 16) return;
+        this.health = 0;
+        this.canvas.player.levelCleared = true;
+        return;
+      }
+      this.canvas.player.actionLocked = false;
+      if (this.attachedEntity == null) return;
+      this.attachedEntity.kill();
+      this.attachedEntity = null;
+      return;
+    }
+    if (this.knockedBack) {
+      if (this.posX === this.cN) {
+        this.posX += px(1);
+      } else {
+        this.posX = this.cN;
+        this.knockedBack = false;
+      }
+    }
+    if (this.health > 0) return;
+    this.killAndMarkSpawned();
+  }
+
+  // update case type19（HelicopterBoss，关底直升机 Boss）：frameGroupIndex===0 走 phaseIndex 阶段机（巡航/生成波次/俯冲），
+  // 否则走击退坠落/常规飞行 + 按节奏投手雷。休眠时直接跳过。
+  private updateHelicopter(): void {
+    // n / n10 是跨「击退坠落」与「开火」两互斥分支复用的多角色 scratch（n：碎片循环计数 / 手雷生成 Y；
+    // n10：碎片生成 Y / 手雷生成 X），单一语义名会误导，故沿用反编译名（同 LevelScene.loadLevel 的处理）。
+    let n: number;
+    let n10: number;
+    if (this.dormant) {
+      return;
+    }
+    if (this.frameGroupIndex === 0) {
+      let moving = false;
+      switch (this.phaseIndex) {
+        case 0: {
+          if (this.patrolCountdown-- >= 0) break;
+          this.canvas.scene.spawnWave();
+          this.setAction(this.frameGroupIndex | (this.actionHighByte ^= MIRROR_FLAG));
+          this.axisOrPhase ^= 1;
+          this.phaseIndex = 1;
+          break;
+        }
+        case 1: {
+          if (this.canvas.scene.waveSpawnCount > 0) break;
+          this.cP = 32;
+          moving = true;
+          this.cO = 6;
+          this.phaseIndex = 2;
+          break;
+        }
+        case 2: {
+          if (this.cP === 26) {
+            if (this.cO-- >= 0) break;
+            moving = true;
+            this.cN = 0;
+            this.phaseIndex = 3;
+            break;
+          }
+          moving = true;
+          break;
+        }
+        case 3: {
+          let bomb: ProjectileActor | null;
+          if (this.cN % 4 < 2 && (this.cP > 7 || this.cP < 3) && (bomb = ProjectileActor.spawnProjectile(ActorType.DirectBullet, 12, this.posX, this.posY, 1, null)) != null) {
+            bomb.targetVelX = 0;
+            bomb.targetVelY = px(8);
+            bomb.accelY = px(1);
+            bomb.maxVelY = px(10);
+          }
+          if (this.posY < this.canvas.cameraY - px(5)) {
+            this.posX = this.axisOrPhase > 0 ? this.canvas.cameraX - px(30) : this.canvas.cameraX + this.canvas.viewportWidth + px(30);
+            this.patrolCountdown = 20;
+            this.phaseIndex = 0;
+          } else {
+            moving = true;
+          }
+          ++this.cN;
+          this.cN %= 4;
+        }
+      }
+      if (moving) {
+        this.targetVelX = this.axisOrPhase > 0 ? px(-6) : px(6);
+        this.targetVelY = (this.cP - 16) * 512;
+        --this.cP;
+      } else {
+        this.targetVelX = 0;
+        this.targetVelY = 0;
+      }
+      if (!this.knockedBack) return;
+      this.targetVelY = 0;
+      this.targetVelX = 0;
+      this.dormant = true;
+      LevelScene.cutsceneState[1] = 4;
+      LevelScene.cutsceneState[2] = 1;
+      this.canvas.scene.setSubState(LevelSubState.BossScript);
+      return;
+    }
+    this.pendingFire = false;
+    if (this.knockedBack) {
+      if (this.frameGroupIndex !== 5) {
+        this.setAction(5 | this.actionHighByte);
+      }
+      if (this.isAnimationDone()) {
+        this.canvas.scene.cameraTargetCacheX = this.canvas.cameraX;
+        this.canvas.scene.cameraTargetCacheY = this.canvas.cameraY;
+        LevelScene.cutsceneState[1] = 1;
+        LevelScene.cutsceneState[2] = 1;
+        this.canvas.scene.setSubState(LevelSubState.BossScript);
+        this.killAndMarkSpawned();
+      } else {
+        n10 = this.posY - ((2 + GameMIDlet.randomBelow(Math.abs(this.boxTop))) << 10);
+        n = 0;
+        while (n < 2) {
+          const debrisX = this.posX + ((this.boxRight - GameMIDlet.randomBelow(this.boxRight * 2)) << 10);
+          ProjectileActor.spawnProjectile(ActorType.ExplosionDebris, 0, debrisX, n10, 0, null);
+          ++n;
+        }
+      }
+      this.targetVelX = 0;
+      if (this.cN === 1) {
+        this.pendingFire = true;
+      }
+      ++this.cN;
+    } else {
+      if (this.isAnimationDone()) {
+        this.setAction(1 | this.actionHighByte);
+      }
+      if (this.cP-- < 0) {
+        this.pendingFire = true;
+      }
+      if (this.posX < this.rangeMin) {
+        this.targetVelX = 0;
+        this.posX = this.rangeMin;
+      } else if (this.posX > this.rangeMax) {
+        this.targetVelX = 0;
+        this.posX = this.rangeMax;
+      }
+      if (this.randomMoveTimer++ > 5) {
+        this.randomMoveTimer = 0;
+        const n12 = (this.targetVelX = GameMIDlet.randomBelow(2) > 0 ? px(4) : px(-4));
+        void n12;
+      }
+    }
+    if (!this.pendingFire) return;
+    const grenadeOffsetX: number[] = [-12, -28, -42];
+    n10 = this.posX + (grenadeOffsetX[this.phaseIndex] << 10);
+    n = this.posY - px(35);
+    this.targetVelX = 0;
+    this.setAction((2 + this.phaseIndex) | this.actionHighByte);
+    const grenade = ProjectileActor.spawnProjectile(ActorType.GuidedGrenade, 0, n10, n, 1, null);
+    if (this.knockedBack) {
+      grenade!.isSpecialGrenade = true;
+    }
+    ++this.phaseIndex;
+    this.phaseIndex %= 3;
+    if (this.phaseIndex === 0) {
+      this.cP = this.cO * 4;
+      return;
+    }
+    this.cP = this.cO;
   }
 
   /**
