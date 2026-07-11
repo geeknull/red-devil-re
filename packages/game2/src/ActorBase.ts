@@ -98,22 +98,22 @@ export class ActorBase {
    */
   // public boolean a(byte[]) → a_AY
   spawnFromBytes(byArray: Int8Array): boolean {
-    let bl = false;
+    let isRespawnConsole = false;
     if (this.slotIndex < this.canvas.scene.residentActorSlots && this.canvas.scene.triggerHitFlags[this.slotIndex]) {
       if (this.typeId === ActorType.DestructibleConsole) {
-        bl = true;
+        isRespawnConsole = true;
       } else {
         return false;
       }
     }
-    const n = bl ? 4 : byArray[5] & 0x7f;
-    const n2 = (byArray[5] & 0x80) << 24;
-    const n3 = (byArray[5] & 0x40) << 24;
-    this.setAction(n | n2 | n3);
-    const n4 = GameMIDlet.readIntLE(byArray, 1, 2);
-    const n5 = GameMIDlet.readIntLE(byArray, 3, 2);
-    this.posX = n4 << 10;
-    this.posY = n5 << 10;
+    const action = isRespawnConsole ? 4 : byArray[5] & 0x7f;
+    const mirrorBit = (byArray[5] & 0x80) << 24;
+    const flipBit = (byArray[5] & 0x40) << 24;
+    this.setAction(action | mirrorBit | flipBit);
+    const spawnX = GameMIDlet.readIntLE(byArray, 1, 2);
+    const spawnY = GameMIDlet.readIntLE(byArray, 3, 2);
+    this.posX = spawnX << 10;
+    this.posY = spawnY << 10;
     this.palette = byArray[6];
     this.drawAlpha = 0;
     this.velY = 0;
@@ -158,31 +158,31 @@ export class ActorBase {
    * 按朝向位（MIRROR_FLAG）镜像左右碰撞盒 boxLeft/boxRight、按垂直翻转位（FLIP_VERTICAL_BIT）
    * 翻转上下碰撞盒 boxTop/boxBottom，再取该动作组帧数并复位帧序与 animDone，最后自增 uniqueId
    * （用于 isNewContact 的同帧防重判定）。动作码越界时仅记录不更新盒/帧。
-   * @param n 完整动作码（含动作 ID 与朝向/翻转标志位）
+   * @param action 完整动作码（含动作 ID 与朝向/翻转标志位；下面 `action &= SEQUENCE_MASK` 后原地变为帧组索引）
    */
   // public final void a(int) → a_I
-  setAction(n: number): void {
-    this.actionCode = n;
-    this.actionHighByte = n & FACING_MASK;
-    this.frameGroupIndex = n &= SEQUENCE_MASK;
-    if (n < 0 || n > this.spriteDef.getActionCount()) {
+  setAction(action: number): void {
+    this.actionCode = action;
+    this.actionHighByte = action & FACING_MASK;
+    this.frameGroupIndex = action &= SEQUENCE_MASK;
+    if (action < 0 || action > this.spriteDef.getActionCount()) {
       return;
     }
     if ((this.actionCode & MIRROR_FLAG) === 0) { // Integer.MIN_VALUE
-      this.boxLeft = this.spriteDef.actionParamA[n];
-      this.boxRight = this.spriteDef.actionParamB[n];
+      this.boxLeft = this.spriteDef.actionParamA[action];
+      this.boxRight = this.spriteDef.actionParamB[action];
     } else {
-      this.boxLeft = -this.spriteDef.actionParamB[n];
-      this.boxRight = -this.spriteDef.actionParamA[n];
+      this.boxLeft = -this.spriteDef.actionParamB[action];
+      this.boxRight = -this.spriteDef.actionParamA[action];
     }
     if ((this.actionCode & FLIP_VERTICAL_BIT) === 0) {
-      this.boxTop = this.spriteDef.actionParamC[n];
-      this.boxBottom = this.spriteDef.actionParamD[n];
+      this.boxTop = this.spriteDef.actionParamC[action];
+      this.boxBottom = this.spriteDef.actionParamD[action];
     } else {
-      this.boxTop = -this.spriteDef.actionParamD[n];
-      this.boxBottom = -this.spriteDef.actionParamC[n];
+      this.boxTop = -this.spriteDef.actionParamD[action];
+      this.boxBottom = -this.spriteDef.actionParamC[action];
     }
-    this.frameCount = this.spriteDef.getFrameCount(n);
+    this.frameCount = this.spriteDef.getFrameCount(action);
     this.frameIndex = 0;
     this.animDone = false;
     ++this.uniqueId;
@@ -251,45 +251,45 @@ export class ActorBase {
    * 将定点世界坐标转屏幕坐标（减去摄像机偏移 n/n2），据朝向/翻转位计算精灵包围范围并做视锥剔除
    * （屏外不绘），最后委托 spriteDef.drawFrame 用当前帧/调色板/透明度绘制。
    * @param graphics 目标画布
-   * @param n 摄像机 X 偏移（像素）
-   * @param n2 摄像机 Y 偏移（像素）
+   * @param cameraX 摄像机 X 偏移（像素）
+   * @param cameraY 摄像机 Y 偏移（像素）
    */
   // public void a(Graphics, int, int) → a_GII
-  paint(graphics: Graphics, n: number, n2: number): void {
+  paint(graphics: Graphics, cameraX: number, cameraY: number): void {
     if (!this.drawThisFrame) {
       this.drawThisFrame = true;
       return;
     }
     if (this.hitFlashTimer === 0 || (--this.hitFlashTimer > 0 && (this.hitFlashTimer & 1) !== 0)) {
-      let s: number; // short
-      let s2: number; // short
-      let s3: number; // short
-      let s4: number; // short
-      const n3 = (this.posX >> 10) - n;
-      const n4 = (this.posY >> 10) - n2;
-      const n5 = this.actionCode & MIRROR_FLAG; // Integer.MIN_VALUE
-      const n6 = this.actionCode & FLIP_VERTICAL_BIT;
-      if (n5 !== 0) {
-        s4 = ((-this.spriteDef.paramK) << 16) >> 16; // (short)(-k)：Java short 取负带 i2s 截断
-        s3 = ((-this.spriteDef.paramJ) << 16) >> 16;
+      let topBound: number; // short
+      let bottomBound: number; // short
+      let leftBound: number; // short
+      let rightBound: number; // short
+      const screenX = (this.posX >> 10) - cameraX;
+      const screenY = (this.posY >> 10) - cameraY;
+      const mirrorFlag = this.actionCode & MIRROR_FLAG; // Integer.MIN_VALUE
+      const flipFlag = this.actionCode & FLIP_VERTICAL_BIT;
+      if (mirrorFlag !== 0) {
+        rightBound = ((-this.spriteDef.paramK) << 16) >> 16; // (short)(-k)：Java short 取负带 i2s 截断
+        leftBound = ((-this.spriteDef.paramJ) << 16) >> 16;
       } else {
-        s4 = this.spriteDef.paramJ;
-        s3 = this.spriteDef.paramK;
+        rightBound = this.spriteDef.paramJ;
+        leftBound = this.spriteDef.paramK;
       }
-      if (n3 + s3 < 0 || n3 + s4 > 176) {
+      if (screenX + leftBound < 0 || screenX + rightBound > 176) {
         return;
       }
-      if (n6 !== 0) {
-        s2 = ((-this.spriteDef.paramM) << 16) >> 16; // (short)(-m)
-        s = ((-this.spriteDef.paramL) << 16) >> 16;
+      if (flipFlag !== 0) {
+        bottomBound = ((-this.spriteDef.paramM) << 16) >> 16; // (short)(-m)
+        topBound = ((-this.spriteDef.paramL) << 16) >> 16;
       } else {
-        s2 = this.spriteDef.paramL;
-        s = this.spriteDef.paramM;
+        bottomBound = this.spriteDef.paramL;
+        topBound = this.spriteDef.paramM;
       }
-      if (n4 + s < 0 || n4 + s2 > 172) {
+      if (screenY + topBound < 0 || screenY + bottomBound > 172) {
         return;
       }
-      this.spriteDef.drawFrame(graphics, n3, n4, this.actionCode, this.frameIndex, this.palette, this.drawAlpha);
+      this.spriteDef.drawFrame(graphics, screenX, screenY, this.actionCode, this.frameIndex, this.palette, this.drawAlpha);
     }
   }
 
