@@ -86,11 +86,11 @@ export class PlayerActor extends ActorBase {
 
   /**
    * 构造玩家 Actor：调用父类构造（类型 id n + 精灵定义 d2），并将阵营/碰撞掩码位设为 2。
-   * @param n 类型 id（玩家为 0）
-   * @param d2 动作/动画定义（SpriteDef，来自 a.bin）
+   * @param typeId 类型 id（玩家为 0）
+   * @param spriteDef 动作/动画定义（SpriteDef，来自 a.bin）
    */
-  public constructor(n: number, d2: SpriteDef) {
-    super(n, d2);
+  public constructor(typeId: number, spriteDef: SpriteDef) {
+    super(typeId, spriteDef);
     this.collisionTypeMask = 2;
   }
 
@@ -100,8 +100,8 @@ export class PlayerActor extends ActorBase {
    * 附加入场伴随特效（{@link spawnEntryEffect}）还是直接进入站立态（reserved=1）。
    */
   // a(byte[]) → a_AY
-  public spawnFromBytes(byArray: Int8Array): boolean {
-    super.spawnFromBytes(byArray);
+  public spawnFromBytes(spawnBytes: Int8Array): boolean {
+    super.spawnFromBytes(spawnBytes);
     this.resetVaultState();
     this.publicFlagA = false;
     this.levelCleared = false;
@@ -122,7 +122,7 @@ export class PlayerActor extends ActorBase {
       this.companionEffect.alive = false;
       this.companionEffect = null;
     }
-    if (byArray[7] > 0) {
+    if (spawnBytes[7] > 0) {
       this.spawnEntryEffect();
     } else {
       this.companionEffect = null;
@@ -153,6 +153,8 @@ export class PlayerActor extends ActorBase {
    */
   // i() → i_
   public step(): void {
+    // n/n2/n3（及夹取段的 n4）为 CFR 多角色 scratch：天花板/地面探测段作瓦片 列/行/瓦片值，
+    // 相机夹取段作像素 左/右边缘/边界。纯改名下无单一语义名，保留原名待后续活跃区间拆分。
     let n: number;
     let n2: number;
     let n3: number;
@@ -325,7 +327,7 @@ export class PlayerActor extends ActorBase {
    */
   // r() → r_
   private runActionStateMachine(): void {
-    const n: number = this.actionHighByte == 0 ? 1 : -1;
+    const dir: number = this.actionHighByte == 0 ? 1 : -1;
     switch (this.frameGroupIndex) {
       case 24: {
         if (this.frameIndex > 3) {
@@ -349,7 +351,7 @@ export class PlayerActor extends ActorBase {
       }
       case 12:
       case 13: {
-        let n2: number;
+        let spawnY: number;
         if (this.isAnimationDone()) {
           if (this.frameGroupIndex == 13) {
             this.setAction(2 | this.actionHighByte);
@@ -359,17 +361,17 @@ export class PlayerActor extends ActorBase {
           return;
         }
         if (this.frameIndex != 2) break;
-        const n3: number = this.frameGroupIndex == 12 ? 0 : 1;
-        const bl: boolean = false;
-        const n4: number = 6 | this.actionHighByte;
-        const n5: number = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, n3, 0);
-        const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, n4, n5, n2 = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, n3, 1), 26, null);
-        if (k2 == null) break;
+        const grenadeSlot: number = this.frameGroupIndex == 12 ? 0 : 1;
+        const unusedDead: boolean = false;
+        const fireAction: number = 6 | this.actionHighByte;
+        const spawnX: number = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, grenadeSlot, 0);
+        const grenade: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, fireAction, spawnX, spawnY = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, grenadeSlot, 1), 26, null);
+        if (grenade == null) break;
         PlayerActor.ammoCurrent[2] = PlayerActor.ammoCurrent[2] - 1;
-        k2.targetVelX = this.actionHighByte == 0 ? px(8) : px(-8);
-        k2.targetVelY = -6656;
-        k2.accelY = 1128;
-        k2.maxVelY = px(15);
+        grenade.targetVelX = this.actionHighByte == 0 ? px(8) : px(-8);
+        grenade.targetVelY = -6656;
+        grenade.accelY = 1128;
+        grenade.maxVelY = px(15);
         return;
       }
       case 9:
@@ -383,17 +385,17 @@ export class PlayerActor extends ActorBase {
       case 25: {
         if ((this.reserved & 1) != 0) {
           this.actionSubTimer = 0;
-          this.targetVelX = px(8) * n;
+          this.targetVelX = px(8) * dir;
           this.setAction(0x17 | this.actionHighByte);
           return;
         }
         if ((this.reserved & 4) != 0) break;
-        this.targetVelX = px(8) * n;
+        this.targetVelX = px(8) * dir;
         return;
       }
       case 26: {
         if ((this.reserved & 4) == 0) {
-          this.targetVelX = px(8) * n;
+          this.targetVelX = px(8) * dir;
         }
         if (!this.isAnimationDone()) break;
         this.setAction(0x19 | this.actionHighByte);
@@ -422,7 +424,7 @@ export class PlayerActor extends ActorBase {
           return;
         }
         if (this.airborneJumping) {
-          this.targetVelX = (this.canJump ? PlayerActor.jumpVelocityX[this.vaultType] : px(5)) * n;
+          this.targetVelX = (this.canJump ? PlayerActor.jumpVelocityX[this.vaultType] : px(5)) * dir;
         } else if (--this.knockbackTimer < 0) {
           this.targetVelX = 0;
         }
@@ -452,7 +454,7 @@ export class PlayerActor extends ActorBase {
         if (this.actionSubTimer++ > 2) {
           this.setAction(0x10 | this.actionHighByte);
         }
-        this.targetVelX = (this.canJump ? px(8) : px(5)) * n;
+        this.targetVelX = (this.canJump ? px(8) : px(5)) * dir;
         return;
       }
       case 23: {
@@ -494,26 +496,26 @@ export class PlayerActor extends ActorBase {
    */
   // p() → p_
   public stepThrowQueue(): number {
-    let n: number = 0;
-    while (n < PlayerActor.throwCooldownQueue.length) {
-      if (PlayerActor.throwCooldownQueue[n][0] > 0) {
-        const nArray: Int32Array = PlayerActor.throwCooldownQueue[n];
-        const n2: number = nArray[1];
-        nArray[1] = n2 - 1;
-        if (n2 > 0) {
-          this.handleInput(PlayerActor.throwCooldownQueue[n][0]);
+    let slot: number = 0;
+    while (slot < PlayerActor.throwCooldownQueue.length) {
+      if (PlayerActor.throwCooldownQueue[slot][0] > 0) {
+        const cooldownRow: Int32Array = PlayerActor.throwCooldownQueue[slot];
+        const countdown: number = cooldownRow[1];
+        cooldownRow[1] = countdown - 1;
+        if (countdown > 0) {
+          this.handleInput(PlayerActor.throwCooldownQueue[slot][0]);
           break;
         }
-        const nArray2: Int32Array = PlayerActor.throwCooldownQueue[n];
-        nArray2[2] = nArray2[2] - 1;
-        if (nArray2[2] < 0) {
-          PlayerActor.throwCooldownQueue[n][0] = 0;
-          return n;
+        const repeatRow: Int32Array = PlayerActor.throwCooldownQueue[slot];
+        repeatRow[2] = repeatRow[2] - 1;
+        if (repeatRow[2] < 0) {
+          PlayerActor.throwCooldownQueue[slot][0] = 0;
+          return slot;
         }
         this.handleInput(0);
         break;
       }
-      ++n;
+      ++slot;
     }
     return -1;
   }
@@ -523,13 +525,13 @@ export class PlayerActor extends ActorBase {
    * 1024=手雷/2048=换弹/4096=切武器/其他=松开）结合当前 reserved 相位与动作组，驱动
    * 朝向翻转、移动速度、跳跃翻越({@link probeVault})、攀爬吸附({@link snapToLedge})、
    * 发射子弹/手雷({@link computeSpawnCoord}+ProjectileActor.spawnProjectile)、换弹与切武器等。
-   * @param n 输入动作位标志（GameCanvas.inputAction）
+   * @param action 输入动作位标志（GameCanvas.inputAction）
    */
   // c(int) → c_I
-  private handleInput(n: number): void {
+  private handleInput(action: number): void {
     ++this.inputCounter;
-    const n2: number = this.actionHighByte == 0 ? 1 : -1;
-    switch (n) {
+    const dir: number = this.actionHighByte == 0 ? 1 : -1;
+    switch (action) {
       case 1: {
         if ((this.reserved & 1) != 0) {
           if (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) {
@@ -646,7 +648,7 @@ export class PlayerActor extends ActorBase {
             this.posY -= px(5);
             this.setAction(0xE | this.actionHighByte);
           }
-          this.targetVelX = PlayerActor.jumpVelocityX[this.vaultType] * n2;
+          this.targetVelX = PlayerActor.jumpVelocityX[this.vaultType] * dir;
           this.targetVelY = PlayerActor.jumpVelocityY[this.vaultType];
           this.airborneJumping = true;
           this.accelY = px(4);
@@ -669,7 +671,7 @@ export class PlayerActor extends ActorBase {
         if ((this.reserved & 1) != 0) {
           if (this.frameGroupIndex == 2) {
             this.actionSubTimer = 0;
-            this.targetVelX = px(8) * n2;
+            this.targetVelX = px(8) * dir;
             this.setAction(0x17 | this.actionHighByte);
             return;
           }
@@ -723,22 +725,22 @@ export class PlayerActor extends ActorBase {
         }
       }
       case 16: {
-        let n3: number;
-        let n4: number;
+        let fireAction: number;
+        let fireSlot: number;
         if (this.actionLocked) {
           return;
         }
         if (this.canvas.inputAction == 32 && (this.reserved & 1) != 0) {
           this.targetVelX = 0;
-          n4 = 0;
+          fireSlot = 0;
         } else if (this.frameGroupIndex == 0) {
           this.targetVelX = 0;
-          n4 = 1;
+          fireSlot = 1;
         } else if (this.frameGroupIndex == 2) {
           this.targetVelX = 0;
-          n4 = 2;
+          fireSlot = 2;
         } else if (this.frameGroupIndex == 25) {
-          n4 = 3;
+          fireSlot = 3;
         } else {
           return;
         }
@@ -747,46 +749,46 @@ export class PlayerActor extends ActorBase {
             return;
           }
           this.currentWeaponIndex = 0;
-          n3 = -2147483637;
+          fireAction = -2147483637;
           this.inputCounter = 0;
         } else {
           if (PlayerActor.ammoCurrent[this.currentWeaponIndex] <= 0) {
-            this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][n4][2] | this.actionHighByte);
+            this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][2] | this.actionHighByte);
             return;
           }
-          n3 = PlayerActor.fireActionTable[this.currentWeaponIndex][n4][0] | this.actionHighByte;
+          fireAction = PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][0] | this.actionHighByte;
         }
-        const bl: boolean = false;
-        const n5: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, n4, 0);
-        const n6: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, n4, 1);
-        const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, n3, n5, n6, 26, null);
-        if (k2 == null) break;
-        if (!k2.hitWall) {
-          switch (n4) {
+        const unusedDead: boolean = false;
+        const spawnX: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, fireSlot, 0);
+        const spawnY: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, fireSlot, 1);
+        const bullet: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, fireAction, spawnX, spawnY, 26, null);
+        if (bullet == null) break;
+        if (!bullet.hitWall) {
+          switch (fireSlot) {
             case 0: {
-              k2.targetVelY = px(-12);
+              bullet.targetVelY = px(-12);
               break;
             }
             case 1:
             case 2: {
-              k2.targetVelX = px(12) * n2;
+              bullet.targetVelX = px(12) * dir;
               break;
             }
             case 3: {
-              k2.targetVelX = px(12) * n2;
-              k2.targetVelY = px(12);
+              bullet.targetVelX = px(12) * dir;
+              bullet.targetVelY = px(12);
             }
           }
         }
-        this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][n4][1] | this.actionHighByte);
+        this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][1] | this.actionHighByte);
         if (this.canvas.scene.isVerticalScrollLevel) {
-          k2.targetVelX = px(4);
-          k2.targetVelY = px(6);
-          k2.accelY = px(2);
-          k2.isSpecialGrenade = true;
+          bullet.targetVelX = px(4);
+          bullet.targetVelY = px(6);
+          bullet.accelY = px(2);
+          bullet.isSpecialGrenade = true;
         } else {
-          const n7: number = this.currentWeaponIndex;
-          PlayerActor.ammoCurrent[n7] = PlayerActor.ammoCurrent[n7] - 1;
+          const weapon: number = this.currentWeaponIndex;
+          PlayerActor.ammoCurrent[weapon] = PlayerActor.ammoCurrent[weapon] - 1;
         }
         this.canvas.inputAction = 0;
         return;
@@ -812,9 +814,9 @@ export class PlayerActor extends ActorBase {
         return;
       }
       case 4096: {
-        let n8: number;
-        if ((this.reserved & 1) != 0 && (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) && PlayerActor.ammoCurrent[n8 = (this.currentWeaponIndex + 1) % 2] + PlayerActor.ammoReserve[n8] > 0) {
-          this.currentWeaponIndex = n8;
+        let newWeapon: number;
+        if ((this.reserved & 1) != 0 && (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) && PlayerActor.ammoCurrent[newWeapon = (this.currentWeaponIndex + 1) % 2] + PlayerActor.ammoReserve[newWeapon] > 0) {
+          this.currentWeaponIndex = newWeapon;
           this.reloadCurrentWeapon();
           this.setAction((this.frameGroupIndex == 0 ? 30 : 31) | this.actionHighByte);
         }
@@ -837,17 +839,17 @@ export class PlayerActor extends ActorBase {
   // s() → s_
   private reloadCurrentWeapon(): boolean {
     if (PlayerActor.ammoCurrent[this.currentWeaponIndex] < PlayerActor.ammoInitTable[this.currentWeaponIndex] && PlayerActor.ammoReserve[this.currentWeaponIndex] > 0) {
-      const n: number = PlayerActor.ammoInitTable[this.currentWeaponIndex] - PlayerActor.ammoCurrent[this.currentWeaponIndex];
-      if (PlayerActor.ammoReserve[this.currentWeaponIndex] >= n) {
+      const deficit: number = PlayerActor.ammoInitTable[this.currentWeaponIndex] - PlayerActor.ammoCurrent[this.currentWeaponIndex];
+      if (PlayerActor.ammoReserve[this.currentWeaponIndex] >= deficit) {
         if (this.currentWeaponIndex != 0) {
-          const n2: number = this.currentWeaponIndex;
-          PlayerActor.ammoReserve[n2] = PlayerActor.ammoReserve[n2] - n;
+          const weapon: number = this.currentWeaponIndex;
+          PlayerActor.ammoReserve[weapon] = PlayerActor.ammoReserve[weapon] - deficit;
         }
-        const n3: number = this.currentWeaponIndex;
-        PlayerActor.ammoCurrent[n3] = PlayerActor.ammoCurrent[n3] + n;
+        const weapon: number = this.currentWeaponIndex;
+        PlayerActor.ammoCurrent[weapon] = PlayerActor.ammoCurrent[weapon] + deficit;
       } else {
-        const n4: number = this.currentWeaponIndex;
-        PlayerActor.ammoCurrent[n4] = PlayerActor.ammoCurrent[n4] + PlayerActor.ammoReserve[this.currentWeaponIndex];
+        const weapon: number = this.currentWeaponIndex;
+        PlayerActor.ammoCurrent[weapon] = PlayerActor.ammoCurrent[weapon] + PlayerActor.ammoReserve[this.currentWeaponIndex];
         PlayerActor.ammoReserve[this.currentWeaponIndex] = 0;
       }
       return true;
@@ -861,33 +863,33 @@ export class PlayerActor extends ActorBase {
    * 4 号造成固定 3 点伤害。返回是否消耗本次命中。
    */
   // a(tjge.h) → a_Th
-  public onHitBy(h2: ActorBase): boolean {
-    if (!h2.hasCollisionFlag(1) || this.frameGroupIndex == 23 || !this.isNewContact(h2)) {
+  public onHitBy(other: ActorBase): boolean {
+    if (!other.hasCollisionFlag(1) || this.frameGroupIndex == 23 || !this.isNewContact(other)) {
       return false;
     }
-    switch (h2.typeId) {
+    switch (other.typeId) {
       case ActorType.GuidedGrenade:
       case ActorType.DirectBullet:
       case ActorType.ExplosionDebris: {
-        this.takeDamage(h2.getDamage(), h2.actionHighByte);
+        this.takeDamage(other.getDamage(), other.actionHighByte);
         return true;
       }
       case ActorType.RiflemanGrunt:
       case ActorType.GrenadierGrunt: {
-        if (h2.frameGroupIndex != 7) break;
+        if (other.frameGroupIndex != 7) break;
         this.velX = 0;
-        if (h2.actionHighByte == 0) {
+        if (other.actionHighByte == 0) {
           if (!this.collideRight()) {
             this.posX += px(8);
           }
         } else if (!this.collideLeft()) {
           this.posX -= px(8);
         }
-        this.takeDamage(h2.getDamage(), h2.actionHighByte);
+        this.takeDamage(other.getDamage(), other.actionHighByte);
         break;
       }
       case ActorType.SentryGrunt: {
-        this.takeDamage(3, h2.actionHighByte);
+        this.takeDamage(3, other.actionHighByte);
       }
     }
     return false;
@@ -898,8 +900,8 @@ export class PlayerActor extends ActorBase {
    * （同朝向的实体障碍）把玩家位置贴靠对齐到对方包围盒边缘。
    */
   // c(tjge.h) → c_Th
-  public onCollide(h2: ActorBase): void {
-    switch (h2.typeId) {
+  public onCollide(other: ActorBase): void {
+    switch (other.typeId) {
       case ActorType.RiflemanGrunt:
       case ActorType.VehicleGunner:
       case ActorType.GrenadierGrunt:
@@ -912,13 +914,13 @@ export class PlayerActor extends ActorBase {
       }
       case ActorType.MobileGunEmplacement:
       case ActorType.DestructibleConsole: {
-        const n: number = h2.actionHighByte == 0 ? h2.posX + (h2.boxLeft << 10) : h2.posX + (h2.boxRight << 10);
-        if (this.actionHighByte != h2.actionHighByte) break;
+        const edge: number = other.actionHighByte == 0 ? other.posX + (other.boxLeft << 10) : other.posX + (other.boxRight << 10);
+        if (this.actionHighByte != other.actionHighByte) break;
         if (this.actionHighByte == 0) {
-          this.posX = n - (this.boxRight << 10);
+          this.posX = edge - (this.boxRight << 10);
           return;
         }
-        this.posX = n - (this.boxLeft << 10);
+        this.posX = edge - (this.boxLeft << 10);
       }
     }
   }
@@ -926,22 +928,22 @@ export class PlayerActor extends ActorBase {
   /**
    * 扣血并触发受击反应：仅在 Normal/BattleWave 相位生效，按当前态（站立/攀爬/空中/入场）
    * 切换受击、格挡或死亡动作并施加击退；Boss 战相位坠落致死则置 publicFlagC 并切过场相位。
-   * @param n 伤害值
-   * @param n2 攻击来源朝向（与自身朝向比较以决定正/背面受击动作）
+   * @param damage 伤害值
+   * @param sourceFacing 攻击来源朝向（与自身朝向比较以决定正/背面受击动作）
    */
   // c(int,int) → c_II
-  private takeDamage(n: number, n2: number): void {
-    if (this.health <= 0 || n <= 0) {
+  private takeDamage(damage: number, sourceFacing: number): void {
+    if (this.health <= 0 || damage <= 0) {
       return;
     }
     if (this.canvas.scene.subState != LevelSubState.Normal && this.canvas.scene.subState != LevelSubState.BattleWave) {
       return;
     }
-    this.health -= n;
+    this.health -= damage;
     this.targetVelX = 0;
     if ((this.reserved & 1) != 0) {
       if (this.isFootOnGround()) {
-        if (n2 == this.actionHighByte) {
+        if (sourceFacing == this.actionHighByte) {
           this.setAction(6 | this.actionHighByte);
         } else {
           this.setAction(5 | this.actionHighByte);
@@ -981,30 +983,30 @@ export class PlayerActor extends ActorBase {
    */
   // t() → t_
   private probeVault(): number {
-    let n: number;
-    let n2: number;
-    let n3: number;
+    let stepDir: number;
+    let farOffset: number;
+    let nearOffset: number;
     if (this.actionHighByte == 0) {
-      n3 = this.boxRight;
-      n2 = this.boxRight + 10;
-      n = 1;
+      nearOffset = this.boxRight;
+      farOffset = this.boxRight + 10;
+      stepDir = 1;
     } else {
-      n3 = this.boxLeft;
-      n2 = this.boxLeft - 10;
-      n = -1;
+      nearOffset = this.boxLeft;
+      farOffset = this.boxLeft - 10;
+      stepDir = -1;
     }
-    const n4: number = (this.posX >> 10) + n3 >> 3;
-    const n5: number = (this.posX + this.velX >> 10) + n2 >> 3;
-    const n6: number = (this.posY + this.velY >> 10) - 2 >> 3;
-    const n7: number = n6 - 7;
-    let n8: number = n4;
-    while (n8 != n5 + n) {
-      let n9: number = n7;
-      while (n9 <= n6) {
-        const n10: number = this.tileAt(n8, n9);
-        if ((n10 & 3) != 0) {
-          const n11: number = n9 - n7;
-          switch (n11) {
+    const colStart: number = (this.posX >> 10) + nearOffset >> 3;
+    const colEnd: number = (this.posX + this.velX >> 10) + farOffset >> 3;
+    const rowBottom: number = (this.posY + this.velY >> 10) - 2 >> 3;
+    const rowTop: number = rowBottom - 7;
+    let col: number = colStart;
+    while (col != colEnd + stepDir) {
+      let row: number = rowTop;
+      while (row <= rowBottom) {
+        const tile: number = this.tileAt(col, row);
+        if ((tile & 3) != 0) {
+          const hitHeight: number = row - rowTop;
+          switch (hitHeight) {
             case 0: {
               return 5;
             }
@@ -1016,16 +1018,16 @@ export class PlayerActor extends ActorBase {
             }
             case 3:
             case 4: {
-              const n12: number = this.tileAt(n8 - n, n9);
-              const n13: number = this.tileAt(n8, n9 - 1);
-              if (n12 == 0 && n13 == 0) {
-                this.vaultTargetX = n > 0 ? n8 << 13 : (n8 << 3) + 8 << 10;
+              const behindTile: number = this.tileAt(col - stepDir, row);
+              const aboveTile: number = this.tileAt(col, row - 1);
+              if (behindTile == 0 && aboveTile == 0) {
+                this.vaultTargetX = stepDir > 0 ? col << 13 : (col << 3) + 8 << 10;
                 this.vaultTargetX += this.actionHighByte == 0 ? px(-10) : px(10);
-                this.vaultTargetY = (n9 << 13) + px(40);
-                if (n11 < 3) {
+                this.vaultTargetY = (row << 13) + px(40);
+                if (hitHeight < 3) {
                   return 4;
                 }
-                if (n11 < 4) {
+                if (hitHeight < 4) {
                   return 3;
                 }
                 return 2;
@@ -1038,9 +1040,9 @@ export class PlayerActor extends ActorBase {
             }
           }
         }
-        ++n9;
+        ++row;
       }
-      n8 += n;
+      col += stepDir;
     }
     return 0;
   }
@@ -1083,14 +1085,14 @@ export class PlayerActor extends ActorBase {
   }
 
   // d(int) → d_I
-  private snapToLedge(n: number): boolean {
-    let n2: number = this.posX + this.velX >> 13;
-    const n3: number = n == 0 ? this.boxTop : 10;
-    const n4: number = (this.posY >> 10) + n3 >> 3;
-    if (this.tileAt(n2, n4) == 4) {
-      while (this.tileAt(--n2, n4) == 4) {
+  private snapToLedge(mode: number): boolean {
+    let col: number = this.posX + this.velX >> 13;
+    const probeTop: number = mode == 0 ? this.boxTop : 10;
+    const row: number = (this.posY >> 10) + probeTop >> 3;
+    if (this.tileAt(col, row) == 4) {
+      while (this.tileAt(--col, row) == 4) {
       }
-      this.posX = (n2 << 3) + 16 << 10;
+      this.posX = (col << 3) + 16 << 10;
       this.targetVelX = 0;
       this.velX = 0;
       return true;
@@ -1107,18 +1109,18 @@ export class PlayerActor extends ActorBase {
     if (this.velY > 0) {
       return false;
     }
-    const n: number = (this.posY >> 10) + this.boxTop >> 3;
-    const n2: number = (this.posY + this.velY >> 10) + this.boxTop >> 3;
-    const n3: number = this.posX + this.velX >> 13;
-    let n4: number = n;
-    while (n4 >= n2) {
-      const n5: number = this.tileAt(n3, n4);
-      if ((n5 & 3) != 0) {
+    const topRow: number = (this.posY >> 10) + this.boxTop >> 3;
+    const nextTopRow: number = (this.posY + this.velY >> 10) + this.boxTop >> 3;
+    const col: number = this.posX + this.velX >> 13;
+    let row: number = topRow;
+    while (row >= nextTopRow) {
+      const tile: number = this.tileAt(col, row);
+      if ((tile & 3) != 0) {
         this.targetVelY = 0;
-        this.velY = ((n4 << 3) + 9 << 10) - (this.posY + (this.boxTop << 10));
+        this.velY = ((row << 3) + 9 << 10) - (this.posY + (this.boxTop << 10));
         return true;
       }
-      --n4;
+      --row;
     }
     this.accelY = px(4);
     return false;
@@ -1133,24 +1135,24 @@ export class PlayerActor extends ActorBase {
     if (this.velY < 0) {
       return false;
     }
-    const n: number = (this.posY >> 10) + this.boxBottom >> 3;
-    const n2: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
-    let n3: number = n;
-    while (n3 <= n2) {
-      const n4: number = (this.posX + this.velX >> 10) - 3 >> 3;
-      const n5: number = this.posX + this.velX >> 10 >> 3;
-      const n6: number = (this.posX + this.velX >> 10) + 3 >> 3;
-      let n7: number = this.tileAt(n5, n3);
-      if ((n7 & 3) != 0) {
-        n7 = this.tileAt(n4, n3);
-        const n8: number = this.tileAt(n6, n3);
-        if ((n7 & 3) != 0 && (n8 & 3) != 0) {
+    const bottomRow: number = (this.posY >> 10) + this.boxBottom >> 3;
+    const nextBottomRow: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
+    let row: number = bottomRow;
+    while (row <= nextBottomRow) {
+      const leftCol: number = (this.posX + this.velX >> 10) - 3 >> 3;
+      const centerCol: number = this.posX + this.velX >> 10 >> 3;
+      const rightCol: number = (this.posX + this.velX >> 10) + 3 >> 3;
+      let tile: number = this.tileAt(centerCol, row);
+      if ((tile & 3) != 0) {
+        tile = this.tileAt(leftCol, row);
+        const rightTile: number = this.tileAt(rightCol, row);
+        if ((tile & 3) != 0 && (rightTile & 3) != 0) {
           this.targetVelY = 0;
-          this.velY = (n3 << 13) - (this.posY + (this.boxBottom << 10));
+          this.velY = (row << 13) - (this.posY + (this.boxBottom << 10));
           return true;
         }
       }
-      ++n3;
+      ++row;
     }
     this.accelY = px(4);
     return false;
@@ -1165,24 +1167,24 @@ export class PlayerActor extends ActorBase {
     if (this.velX > 0) {
       return false;
     }
-    const n: number = (this.posX + this.velX >> 10) + this.boxLeft >> 3;
-    const n2: number = (this.posX >> 10) + this.boxLeft >> 3;
-    const n3: number = (this.posY >> 10) + this.boxTop + 2 >> 3;
-    const n4: number = (this.posY >> 10) + this.boxBottom - 4 >> 3;
-    let n5: number = n3;
-    while (n5 <= n4) {
-      let n6: number = n2;
-      while (n6 >= n) {
-        const n7: number = this.tileAt(n6, n5);
-        if ((n7 & 3) != 0) {
+    const destCol: number = (this.posX + this.velX >> 10) + this.boxLeft >> 3;
+    const startCol: number = (this.posX >> 10) + this.boxLeft >> 3;
+    const topRow: number = (this.posY >> 10) + this.boxTop + 2 >> 3;
+    const bottomRow: number = (this.posY >> 10) + this.boxBottom - 4 >> 3;
+    let row: number = topRow;
+    while (row <= bottomRow) {
+      let col: number = startCol;
+      while (col >= destCol) {
+        const tile: number = this.tileAt(col, row);
+        if ((tile & 3) != 0) {
           this.targetVelX = 0;
           this.posX &= 0xFFFFFC00;
-          this.velX = ((n6 << 3) + 8 << 10) - (this.posX + (this.boxLeft << 10));
+          this.velX = ((col << 3) + 8 << 10) - (this.posX + (this.boxLeft << 10));
           return true;
         }
-        --n6;
+        --col;
       }
-      ++n5;
+      ++row;
     }
     return false;
   }
@@ -1196,24 +1198,24 @@ export class PlayerActor extends ActorBase {
     if (this.velX < 0) {
       return false;
     }
-    const n: number = (this.posX >> 10) + this.boxRight >> 3;
-    const n2: number = (this.posX + this.velX >> 10) + this.boxRight >> 3;
-    const n3: number = (this.posY >> 10) + this.boxTop + 2 >> 3;
-    const n4: number = (this.posY >> 10) + this.boxBottom - 4 >> 3;
-    let n5: number = n3;
-    while (n5 <= n4) {
-      let n6: number = n;
-      while (n6 <= n2) {
-        const n7: number = this.tileAt(n6, n5);
-        if ((n7 & 3) != 0) {
+    const startCol: number = (this.posX >> 10) + this.boxRight >> 3;
+    const destCol: number = (this.posX + this.velX >> 10) + this.boxRight >> 3;
+    const topRow: number = (this.posY >> 10) + this.boxTop + 2 >> 3;
+    const bottomRow: number = (this.posY >> 10) + this.boxBottom - 4 >> 3;
+    let row: number = topRow;
+    while (row <= bottomRow) {
+      let col: number = startCol;
+      while (col <= destCol) {
+        const tile: number = this.tileAt(col, row);
+        if ((tile & 3) != 0) {
           this.targetVelX = 0;
           this.posX &= 0xFFFFFC00;
-          this.velX = ((n6 << 3) - 1 << 10) - (this.posX + (this.boxRight << 10));
+          this.velX = ((col << 3) - 1 << 10) - (this.posX + (this.boxRight << 10));
           return true;
         }
-        ++n6;
+        ++col;
       }
-      ++n5;
+      ++row;
     }
     return false;
   }
@@ -1224,20 +1226,20 @@ export class PlayerActor extends ActorBase {
   }
 
   // a(int[][],int,int) → a_AAIII
-  private computeSpawnCoord(nArray: number[][], n: number, n2: number): number {
-    let n3: number = 1;
+  private computeSpawnCoord(offsetTable: number[][], slot: number, axis: number): number {
+    let dir: number = 1;
     if (this.actionHighByte != 0) {
-      n3 = -1;
+      dir = -1;
     }
-    let n4: number = 0;
-    if (n2 == 0) {
-      n4 = (nArray[n][n2] << 10) * n3;
-      n4 += this.posX;
+    let coord: number = 0;
+    if (axis == 0) {
+      coord = (offsetTable[slot][axis] << 10) * dir;
+      coord += this.posX;
     } else {
-      n4 = nArray[n][n2] << 10;
-      n4 += this.posY;
+      coord = offsetTable[slot][axis] << 10;
+      coord += this.posY;
     }
-    return n4;
+    return coord;
   }
 
   /**
@@ -1255,28 +1257,28 @@ export class PlayerActor extends ActorBase {
 
   // w() → w_
   private isFootOnGround(): boolean {
-    const n: number = this.posX >> 13;
-    const n2: number = (this.posY >> 10) + this.boxTop >> 3;
-    let n3: number = 2;
-    while (n3 >= 0) {
-      const n4: number = this.tileAt(n, n2 - n3);
-      if ((n4 & 3) != 0) break;
-      --n3;
+    const col: number = this.posX >> 13;
+    const topRow: number = (this.posY >> 10) + this.boxTop >> 3;
+    let offset: number = 2;
+    while (offset >= 0) {
+      const tile: number = this.tileAt(col, topRow - offset);
+      if ((tile & 3) != 0) break;
+      --offset;
     }
-    return n3 < 0;
+    return offset < 0;
   }
 
   // x() → x_
   private isVaultBlocked(): boolean {
-    const n: number = this.posX >> 13;
-    const n2: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
-    let n3: number = 0;
-    while (n3 < 2) {
-      const n4: number = this.tileAt(n, n2 + n3);
-      if ((n4 & 3) != 0) break;
-      ++n3;
+    const col: number = this.posX >> 13;
+    const bottomRow: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
+    let offset: number = 0;
+    while (offset < 2) {
+      const tile: number = this.tileAt(col, bottomRow + offset);
+      if ((tile & 3) != 0) break;
+      ++offset;
     }
-    return n3 < 2;
+    return offset < 2;
   }
 
   /**
@@ -1284,8 +1286,8 @@ export class PlayerActor extends ActorBase {
    * 则切入通关动作并通知场景进入过场出场相位（TransitionOut），返回是否完成触发。
    */
   // a(boolean) → a_Z
-  public triggerSwitch(bl: boolean): boolean {
-    if (bl) {
+  public triggerSwitch(mark: boolean): boolean {
+    if (mark) {
       this.switchPending = true;
     } else if (this.switchPending && (this.reserved & 1) != 0) {
       this.targetVelX = 0;
@@ -1297,12 +1299,12 @@ export class PlayerActor extends ActorBase {
   }
 
   /**
-   * 按瓦片坐标 (n,n2) 设置玩家定点世界位置（<<14），切回站立动作并重置相机已绘边界。
+   * 按瓦片坐标 (tileX,tileY) 设置玩家定点世界位置（<<14），切回站立动作并重置相机已绘边界。
    */
   // b(int,int) → b_II
-  public setTilePosition(n: number, n2: number): void {
-    this.posX = n << 14;
-    this.posY = n2 << 14;
+  public setTilePosition(tileX: number, tileY: number): void {
+    this.posX = tileX << 14;
+    this.posY = tileY << 14;
     this.setAction(0 | this.actionHighByte);
     LevelScene.camera.resetDrawnBounds();
   }
@@ -1322,20 +1324,20 @@ export class PlayerActor extends ActorBase {
    * 并夹取上限（备用弹药≤99、手雷≤3、血量≤10）。
    */
   // a(tjge.e) → a_Te
-  public applyPickup(e2: ItemActor): void {
-    switch (e2.frameGroupIndex) {
+  public applyPickup(item: ItemActor): void {
+    switch (item.frameGroupIndex) {
       case 0: {
-        PlayerActor.ammoReserve[1] = PlayerActor.ammoReserve[1] + e2.counter;
+        PlayerActor.ammoReserve[1] = PlayerActor.ammoReserve[1] + item.counter;
         PlayerActor.ammoReserve[1] = Math.min(99, PlayerActor.ammoReserve[1]);
         return;
       }
       case 1: {
-        PlayerActor.ammoCurrent[2] = PlayerActor.ammoCurrent[2] + e2.counter;
+        PlayerActor.ammoCurrent[2] = PlayerActor.ammoCurrent[2] + item.counter;
         PlayerActor.ammoCurrent[2] = Math.min(3, PlayerActor.ammoCurrent[2]);
         return;
       }
       case 2: {
-        this.health += e2.counter;
+        this.health += item.counter;
         this.health = Math.min(10, this.health);
       }
     }
