@@ -63,118 +63,118 @@ export class TileSheet {
   }
 
   /**
-   * i.a(Graphics,int,int,int,int,int)：绘制第 n3 张 cell。
-   * n/n2=目标 x/y；n3=cell 索引（高位带翻转/旋转请求位 a/b 与 0x3000 旋转码）；
-   * n4=图像数组索引（换色帧）；n5（未直接用，方法签名第 5 个 int 参数）。
+   * i.a(Graphics,int,int,int,int,int)：绘制第 cellIndex 张 cell。
+   * x/y=目标坐标；cellIndex=cell 索引（高位带翻转/旋转请求位 a/b 与 0x3000 旋转码）；
+   * imageFrame=图像数组索引（换色帧）；_n5（未直接用，方法签名第 5 个 int 参数）。
    */
-  drawCell(graphics: Graphics, n: number, n2: number, n3: number, n4: number, _n5: number): void {
-    let n6 = 0;
-    let n7 = 0;
-    if ((((n3 >> 31) & 1) ^ ((n3 >> 15) & 1)) !== 0) {
-      n7 = 1;
+  drawCell(graphics: Graphics, x: number, y: number, cellIndex: number, imageFrame: number, _n5: number): void {
+    let transform = 0;
+    let flipCode = 0;
+    if ((((cellIndex >> 31) & 1) ^ ((cellIndex >> 15) & 1)) !== 0) {
+      flipCode = 1;
     }
-    if ((((n3 >> 30) & 1) ^ ((n3 >> 14) & 1)) !== 0) {
-      n7 = n7 > 0 ? 3 : 2;
+    if ((((cellIndex >> 30) & 1) ^ ((cellIndex >> 14) & 1)) !== 0) {
+      flipCode = flipCode > 0 ? 3 : 2;
     }
-    const n8 = n3;
-    n3 &= 0xfff;
-    let s: number = this.cellWidth[n3];
-    let s2: number = this.cellHeight[n3];
-    switch (n8 & 0x3000) {
+    const rawCell = cellIndex;
+    cellIndex &= 0xfff;
+    let cellW: number = this.cellWidth[cellIndex];
+    let cellH: number = this.cellHeight[cellIndex];
+    switch (rawCell & 0x3000) {
       case 4096: {
-        s = this.cellHeight[n3];
-        s2 = this.cellWidth[n3];
-        n6 = TileSheet.transformTable[3][n7];
+        cellW = this.cellHeight[cellIndex];
+        cellH = this.cellWidth[cellIndex];
+        transform = TileSheet.transformTable[3][flipCode];
         break;
       }
       case 8192: {
-        n6 = TileSheet.transformTable[2][n7];
+        transform = TileSheet.transformTable[2][flipCode];
         break;
       }
       case 12288: {
-        s = this.cellHeight[n3];
-        s2 = this.cellWidth[n3];
-        n6 = TileSheet.transformTable[1][n7];
+        cellW = this.cellHeight[cellIndex];
+        cellH = this.cellWidth[cellIndex];
+        transform = TileSheet.transformTable[1][flipCode];
         break;
       }
       default: {
-        n6 = TileSheet.transformTable[0][n7];
+        transform = TileSheet.transformTable[0][flipCode];
       }
     }
-    if ((n8 & TileSheet.flipHorizontalBit) !== 0) {
-      n -= s;
+    if ((rawCell & TileSheet.flipHorizontalBit) !== 0) {
+      x -= cellW;
     }
-    if ((n8 & TileSheet.flipVerticalBit) !== 0) {
-      n2 -= s2;
+    if ((rawCell & TileSheet.flipVerticalBit) !== 0) {
+      y -= cellH;
     }
-    graphics.setClip(n, n2, s, s2);
-    this.currentImage = this.imageFrames[n4]!;
-    graphics.drawRegion(this.currentImage, this.cellSrcX[n3], this.cellSrcY[n3], this.cellWidth[n3], this.cellHeight[n3], n6, n, n2, 20);
+    graphics.setClip(x, y, cellW, cellH);
+    this.currentImage = this.imageFrames[imageFrame]!;
+    graphics.drawRegion(this.currentImage, this.cellSrcX[cellIndex], this.cellSrcY[cellIndex], this.cellWidth[cellIndex], this.cellHeight[cellIndex], transform, x, y, 20);
   }
 
   /**
-   * i.a(int)：从 /res/t.bin 第 n 条目解析 cell 切片表 + 加载 actorPng 主图。
+   * i.a(int)：从 /res/t.bin 第 entryIndex 条目解析 cell 切片表 + 加载 actorPng 主图。
    * 解析失败（异常）返回 null（保持原版语义）。
    */
-  static loadFromBin(n: number): TileSheet | null {
-    const i2 = new TileSheet();
-    i2.resIndex = n; // 偏差：记录资源索引以便取预解码缓存
+  static loadFromBin(entryIndex: number): TileSheet | null {
+    const sheet = new TileSheet();
+    sheet.resIndex = entryIndex; // 偏差：记录资源索引以便取预解码缓存
     try {
-      const inputStream: InputStream = GameMIDlet.openEntryStream("/res/t.bin", n)!;
+      const inputStream: InputStream = GameMIDlet.openEntryStream("/res/t.bin", entryIndex)!;
       GameMIDlet.readShortLE(inputStream);
-      i2.cellCount = GameMIDlet.readShortLE(inputStream);
-      i2.cellSrcX = new Int16Array(i2.cellCount);
-      i2.cellSrcY = new Int16Array(i2.cellCount);
-      i2.cellWidth = new Int16Array(i2.cellCount);
-      i2.cellHeight = new Int16Array(i2.cellCount);
-      let n2 = 0;
-      while (n2 < i2.cellCount) {
-        i2.cellSrcX[n2] = GameMIDlet.readShortLE(inputStream);
-        i2.cellSrcY[n2] = GameMIDlet.readShortLE(inputStream);
-        i2.cellWidth[n2] = GameMIDlet.readByte(inputStream);
-        if (i2.cellWidth[n2] < 0) {
-          const n3 = n2;
-          i2.cellWidth[n3] = ((i2.cellWidth[n3] + 256) << 16) >> 16; // (short)
+      sheet.cellCount = GameMIDlet.readShortLE(inputStream);
+      sheet.cellSrcX = new Int16Array(sheet.cellCount);
+      sheet.cellSrcY = new Int16Array(sheet.cellCount);
+      sheet.cellWidth = new Int16Array(sheet.cellCount);
+      sheet.cellHeight = new Int16Array(sheet.cellCount);
+      let i = 0;
+      while (i < sheet.cellCount) {
+        sheet.cellSrcX[i] = GameMIDlet.readShortLE(inputStream);
+        sheet.cellSrcY[i] = GameMIDlet.readShortLE(inputStream);
+        sheet.cellWidth[i] = GameMIDlet.readByte(inputStream);
+        if (sheet.cellWidth[i] < 0) {
+          const idx = i;
+          sheet.cellWidth[idx] = ((sheet.cellWidth[idx] + 256) << 16) >> 16; // (short)
         }
-        i2.cellHeight[n2] = GameMIDlet.readByte(inputStream);
-        if (i2.cellHeight[n2] < 0) {
-          const n4 = n2;
-          i2.cellHeight[n4] = ((i2.cellHeight[n4] + 256) << 16) >> 16; // (short)
+        sheet.cellHeight[i] = GameMIDlet.readByte(inputStream);
+        if (sheet.cellHeight[i] < 0) {
+          const idx = i;
+          sheet.cellHeight[idx] = ((sheet.cellHeight[idx] + 256) << 16) >> 16; // (short)
         }
-        ++n2;
+        ++i;
       }
-      const n5 = GameMIDlet.readByte(inputStream);
-      let s = 0; // short
-      let s2 = 0; // short
-      let byArray: Int8Array | null = null;
-      i2.imageFrames = new Array<Image | null>(n5).fill(null);
-      if (n5 > 1) {
-        s = GameMIDlet.readShortLE(inputStream);
-        s2 = GameMIDlet.readShortLE(inputStream);
+      const imageCount = GameMIDlet.readByte(inputStream);
+      let patchOffset = 0; // short
+      let patchLen = 0; // short
+      let patchBuf: Int8Array | null = null;
+      sheet.imageFrames = new Array<Image | null>(imageCount).fill(null);
+      if (imageCount > 1) {
+        patchOffset = GameMIDlet.readShortLE(inputStream);
+        patchLen = GameMIDlet.readShortLE(inputStream);
       }
-      const byArray2: Int8Array = GameMIDlet.readEntryBytes("/res/actorPng.bin", n)!;
-      let n6 = 0;
-      while (n6 < n5) {
-        if (n6 > 0) {
-          if (byArray == null) {
-            byArray = new Int8Array(s2);
+      const pngBytes: Int8Array = GameMIDlet.readEntryBytes("/res/actorPng.bin", entryIndex)!;
+      let frame = 0;
+      while (frame < imageCount) {
+        if (frame > 0) {
+          if (patchBuf == null) {
+            patchBuf = new Int8Array(patchLen);
           }
-          inputStream.read(byArray);
-          // System.arraycopy(byArray, 0, byArray2, s, s2)
-          byArray2.set(byArray.subarray(0, s2), s);
+          inputStream.read(patchBuf);
+          // System.arraycopy(patchBuf, 0, pngBytes, patchOffset, patchLen)
+          pngBytes.set(patchBuf.subarray(0, patchLen), patchOffset);
         }
-        // 原版：i2.d[n6] = Image.createImage(byArray2, 0, byArray2.length);
+        // 原版：sheet.d[frame] = Image.createImage(pngBytes, 0, pngBytes.length);
         //   偏差：兼容层无运行时同步 PNG 解码，按 (归档,索引,帧) 取预解码缓存（见类头偏差说明）。
-        //   第 0 张为 actorPng.bin[n] 原字节；n6>0 的换色帧由预加载阶段 a_PaletteFrames() 离线解码
-        //   补丁后 PNG 并按 (归档,索引,n6) 登记，此处直接取回，配色与原版一致。
-        i2.imageFrames[n6] = getCachedImage<Image>(TileSheet.ACTOR_PNG, n, n6);
-        ++n6;
+        //   第 0 张为 actorPng.bin[entryIndex] 原字节；frame>0 的换色帧由预加载阶段 a_PaletteFrames() 离线解码
+        //   补丁后 PNG 并按 (归档,索引,frame) 登记，此处直接取回，配色与原版一致。
+        sheet.imageFrames[frame] = getCachedImage<Image>(TileSheet.ACTOR_PNG, entryIndex, frame);
+        ++frame;
       }
       inputStream.close();
     } catch (exception) {
       return null;
     }
-    return i2;
+    return sheet;
   }
 
   /**
