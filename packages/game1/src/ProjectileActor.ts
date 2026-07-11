@@ -13,6 +13,7 @@ import { Graphics } from "@red-devil/j2me-shim";
 import { GameScreen } from "./GameScreen.ts";
 import { SpriteDef } from "./SpriteDef.ts";
 import { EffectActor } from "./EffectActor.ts";
+import { PlayerActor } from "./PlayerActor.ts";
 import { ActorBase } from "./ActorBase.ts";
 import { MIRROR_FLAG, ActorType, SEQUENCE_MASK, px } from "./constants.ts";
 
@@ -59,89 +60,108 @@ export class ProjectileActor extends ActorBase {
     }
     const actionId = this.frameIndex & SEQUENCE_MASK;
     const player = this.world.player;
+    // 按 typeId 分派 update<Type> helper（switch 是方法末块，顶层 break→return；内层 switch(actionId) break 保留）。
     switch (this.typeId) {
       case ActorType.GrenadeProjectile:
-      case ActorType.GuidedMissileProjectile: {
-        switch (actionId) {
-          case 0: {
-            if (this.world.levelIndex !== 4) {
-              if (this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap)) {
-                if (this.typeId === ActorType.GuidedMissileProjectile) {
-                  this.posX += this.velX;
-                  this.setFrame(1);
-                } else {
-                  this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
-                  this.deactivate();
-                  GameScreen.playSound(5, 1, 220);
-                }
-              } else if ((this.targetVelX > 0 && this.posX - this.launchOriginX > px(200)) || (this.targetVelX < 0 && this.launchOriginX - this.posX > px(200))) {
-                this.deactivate();
-              }
-            }
-            if (this.posX >= this.world.cameraX && this.posX <= this.world.cameraX + GameScreen.viewWidthFx) break;
-            this.deactivate();
-            break;
-          }
-          case 1: {
-            if (!this.isAnimationDone()) break;
-            this.deactivate();
-          }
-        }
-        return;
-      }
-      case ActorType.PlayerBounceShot: {
-        if (this.mode === 2) {
-          if (this.armingDelay-- > 0) {
-            return;
-          }
-          if (this.intersectsActor(this.world.player)) {
-            this.world.player.takeDamage(2);
-          }
-        }
-        switch (actionId) {
-          case 1: {
-            if (this.frameCounter-- >= 0) break;
-            if (this.subType === 1) {
-              this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
-              break;
-            }
-            this.setFrame(0);
-            break;
-          }
-          case 0: {
-            if (!this.isAnimationDone()) break;
-            if (this.mode === 2) {
-              this.frameCounter = this.loopFrames;
+      case ActorType.GuidedMissileProjectile:
+        this.updateGrenadeOrMissile(actionId);
+        break;
+      case ActorType.PlayerBounceShot:
+        this.updateBounceShot(actionId);
+        break;
+      case ActorType.FallingBombProjectile:
+        this.updateFallingBomb(player);
+        break;
+      case ActorType.ExplosionEffect:
+        this.updateExplosion();
+        break;
+    }
+  }
+
+  // update case type15/21（GrenadeProjectile/GuidedMissileProjectile 共享，靠 this.typeId 区分）：
+  // 帧0 撞墙则导弹推进改帧、榴弹爆炸销毁，或超射程/出屏销毁；帧1 动画播完销毁。
+  private updateGrenadeOrMissile(actionId: number): void {
+    switch (actionId) {
+      case 0: {
+        if (this.world.levelIndex !== 4) {
+          if (this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap)) {
+            if (this.typeId === ActorType.GuidedMissileProjectile) {
+              this.posX += this.velX;
               this.setFrame(1);
-              break;
+            } else {
+              this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
+              this.deactivate();
+              GameScreen.playSound(5, 1, 220);
             }
+          } else if ((this.targetVelX > 0 && this.posX - this.launchOriginX > px(200)) || (this.targetVelX < 0 && this.launchOriginX - this.posX > px(200))) {
             this.deactivate();
           }
         }
-        return;
+        if (this.posX >= this.world.cameraX && this.posX <= this.world.cameraX + GameScreen.viewWidthFx) break;
+        this.deactivate();
+        break;
       }
-      case ActorType.FallingBombProjectile: {
-        if (this.mode === 1 && --this.lifeTimer < 0) {
-          const n3 = (this.targetVelX = this.world.levelIndex === 4 ? this.world.cameraVelX : 0); // n3 为反编译产生的死值，保留赋值链
-          void n3;
-        }
-        if (
-          (this.world.levelIndex !== 4 && (this.collideGround(this.world.tileMap) || this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap))) ||
-          (this.world.levelIndex === 4 && this.posY >= player.posY + px(30))
-        ) {
-          this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
-          this.deactivate();
-          GameScreen.playSound(5, 1, 220);
-          return;
-        }
-        ++this.frameCounter;
-        return;
-      }
-      case ActorType.ExplosionEffect: {
+      case 1: {
         if (!this.isAnimationDone()) break;
         this.deactivate();
       }
     }
+  }
+
+  // update case type10（PlayerBounceShot，弹反/地雷弹）：mode2 起爆延迟+接触伤害；帧1 循环计时改帧、帧0 播完循环或销毁。
+  private updateBounceShot(actionId: number): void {
+    if (this.mode === 2) {
+      if (this.armingDelay-- > 0) {
+        return;
+      }
+      if (this.intersectsActor(this.world.player)) {
+        this.world.player.takeDamage(2);
+      }
+    }
+    switch (actionId) {
+      case 1: {
+        if (this.frameCounter-- >= 0) break;
+        if (this.subType === 1) {
+          this.setFrame(MIRROR_FLAG); // Integer.MIN_VALUE
+          break;
+        }
+        this.setFrame(0);
+        break;
+      }
+      case 0: {
+        if (!this.isAnimationDone()) break;
+        if (this.mode === 2) {
+          this.frameCounter = this.loopFrames;
+          this.setFrame(1);
+          break;
+        }
+        this.deactivate();
+      }
+    }
+  }
+
+  // update case type20（FallingBombProjectile，落弹）：mode1 生命耗尽设水平速度；撞地/墙或到玩家高度则爆炸销毁，否则计帧。
+  private updateFallingBomb(player: PlayerActor): void {
+    if (this.mode === 1 && --this.lifeTimer < 0) {
+      const n3 = (this.targetVelX = this.world.levelIndex === 4 ? this.world.cameraVelX : 0); // n3 为反编译产生的死值，保留赋值链
+      void n3;
+    }
+    if (
+      (this.world.levelIndex !== 4 && (this.collideGround(this.world.tileMap) || this.collideLeftWall(this.world.tileMap) || this.collideRightWall(this.world.tileMap))) ||
+      (this.world.levelIndex === 4 && this.posY >= player.posY + px(30))
+    ) {
+      this.world.spawnProjectile(ActorType.ExplosionEffect, 0, 0, this.posX, this.posY, this.mode); // 原 a(int×6) 子弹/特效工厂(契约 a_IIIIII)
+      this.deactivate();
+      GameScreen.playSound(5, 1, 220);
+      return;
+    }
+    ++this.frameCounter;
+  }
+
+  // update case type16（ExplosionEffect，爆炸特效）：动画播完即销毁。
+  private updateExplosion(): void {
+    if (!this.isAnimationDone()) return;
+    this.deactivate();
   }
 
   /**
