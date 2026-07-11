@@ -126,15 +126,15 @@ export class GameCanvas extends Canvas {
    *   0→PlayerActor（玩家，并缓存到 this.player）；1-5→EnemyActor（普通敌人）；
    *   11/13/17/19/21→BossActor（Boss）；6/7/14/15/18/20/22→ItemActor（道具/机关）；
    *   9/10/12/16→ProjectileActor（弹丸）；其余 ID→ActorBase（基类）。
-   * @param n actor 类型 ID
-   * @param d2 该类型的动作定义（SpriteDef，提供帧/动作数据）
+   * @param actorType actor 类型 ID
+   * @param spriteDef 该类型的动作定义（SpriteDef，提供帧/动作数据）
    * @returns 新建的 actor 实例
    */
   // a(int,tjge.d) → a_ITd（精灵/场景对象工厂）
-  createActor(n: number, d2: SpriteDef): ActorBase {
-    switch (n) {
+  createActor(actorType: number, spriteDef: SpriteDef): ActorBase {
+    switch (actorType) {
       case ActorType.Player: {
-        this.player = new PlayerActor(n, d2);
+        this.player = new PlayerActor(actorType, spriteDef);
         return this.player;
       }
       case ActorType.RiflemanGrunt:
@@ -142,14 +142,14 @@ export class GameCanvas extends Canvas {
       case ActorType.GrenadierGrunt:
       case ActorType.SentryGrunt:
       case ActorType.TurretEmplacement: {
-        return new EnemyActor(n, d2);
+        return new EnemyActor(actorType, spriteDef);
       }
       case ActorType.MobileGunEmplacement:
       case ActorType.DestructibleConsole:
       case ActorType.PatrolLauncher:
       case ActorType.HelicopterBoss:
       case ActorType.FinalBoss: {
-        return new BossActor(n, d2);
+        return new BossActor(actorType, spriteDef);
       }
       case ActorType.NavalOfficerNpc:
       case ActorType.ItemPickup:
@@ -158,16 +158,16 @@ export class GameCanvas extends Canvas {
       case ActorType.PlayerAttachedEffect:
       case ActorType.SplashEffect:
       case ActorType.GrappleMarker: {
-        return new ItemActor(n, d2);
+        return new ItemActor(actorType, spriteDef);
       }
       case ActorType.GuidedGrenade:
       case ActorType.DirectBullet:
       case ActorType.ExplosionDebris:
       case ActorType.ArcCannonShell: {
-        return new ProjectileActor(n, d2);
+        return new ProjectileActor(actorType, spriteDef);
       }
     }
-    return new ActorBase(n, d2);
+    return new ActorBase(actorType, spriteDef);
   }
 
   /**
@@ -269,15 +269,15 @@ export class GameCanvas extends Canvas {
           graphics.fillRect(0, 0, 176, 204);
           graphics.drawImage(this.logoImageMain!, 0, 0, 20);
           graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 2, 20);
-          let n = this.menuStartItem;
-          while (n < 7) {
-            graphics.setColor(this.menuSelection === n && this.underlineDir === 1 ? 0xffffff : 65280);
-            if (n === 3) {
-              graphics.drawString(GameMIDlet.menuTexts[GameMIDlet.saveRecord[2] === 0 ? 7 : 3], 88, 60 + n * 20, 17);
+          let menuItem = this.menuStartItem;
+          while (menuItem < 7) {
+            graphics.setColor(this.menuSelection === menuItem && this.underlineDir === 1 ? 0xffffff : 65280);
+            if (menuItem === 3) {
+              graphics.drawString(GameMIDlet.menuTexts[GameMIDlet.saveRecord[2] === 0 ? 7 : 3], 88, 60 + menuItem * 20, 17);
             } else {
-              graphics.drawString(GameMIDlet.menuTexts[n], 88, 60 + n * 20, 17);
+              graphics.drawString(GameMIDlet.menuTexts[menuItem], 88, 60 + menuItem * 20, 17);
             }
-            ++n;
+            ++menuItem;
           }
           graphics.setColor(65280);
           this.drawUnderline(graphics, 88, 80 + this.menuSelection * 20);
@@ -315,9 +315,9 @@ export class GameCanvas extends Canvas {
                 this.transitionProgress = 0;
                 this.subState = 0;
                 this.levelIndex = GameMIDlet.saveRecord[3];
-                const by = GameMIDlet.saveRecord[1];
-                GameMIDlet.saveRecord[1] = (by + 1) << 24 >> 24; // (byte) 截断
-                if (by > 99) {
+                const continueCount = GameMIDlet.saveRecord[1];
+                GameMIDlet.saveRecord[1] = (continueCount + 1) << 24 >> 24; // (byte) 截断
+                if (continueCount > 99) {
                   GameMIDlet.saveRecord[1] = 99;
                 }
                 PlayerActor.ammoReserve[1] = GameMIDlet.saveRecord[4];
@@ -412,14 +412,14 @@ export class GameCanvas extends Canvas {
           graphics.drawString(GameMIDlet.missionTexts[this.levelIndex], 88, 47, 17);
           LevelScene.hudFont.drawCell(graphics, 158, 157, 39, 0, 0);
           LevelScene.hudFont.drawCell(graphics, 23, 95, 29, 0, 0);
-          const nArray = Int32Array.from([5, 19, 44, 58, 81, 99, 124]);
-          const nArray2 = Int32Array.from([90, 100, 89, 101, 101, 93, 91]);
-          let n = 0;
-          while (n < 7) {
-            if (n <= this.levelIndex && (n !== this.levelIndex || this.globalFrame % 4 <= 1)) {
-              LevelScene.hudFont.drawCell(graphics, 24 + nArray[n], 24 + nArray2[n], 28, 0, 0);
+          const stageMarkX = Int32Array.from([5, 19, 44, 58, 81, 99, 124]);
+          const stageMarkY = Int32Array.from([90, 100, 89, 101, 101, 93, 91]);
+          let stageIndex = 0;
+          while (stageIndex < 7) {
+            if (stageIndex <= this.levelIndex && (stageIndex !== this.levelIndex || this.globalFrame % 4 <= 1)) {
+              LevelScene.hudFont.drawCell(graphics, 24 + stageMarkX[stageIndex], 24 + stageMarkY[stageIndex], 28, 0, 0);
             }
-            ++n;
+            ++stageIndex;
           }
           if (this.subState === 0 && this.inputAction === 32768) {
             this.subState = 1;
@@ -446,18 +446,18 @@ export class GameCanvas extends Canvas {
           graphics.drawString(GameMIDlet.interludeTexts[7], 36, 90, 20);
           graphics.drawString(String(GameMIDlet.saveRecord[1] & 0xff), 140, 90, 24);
           graphics.drawString(GameMIDlet.interludeTexts[6], 36, 116, 20);
-          const n = ((this.elapsedSeconds / 60) | 0);
-          const n2 = (this.elapsedSeconds % 60);
-          let string = String(n);
-          let string2 = String(n2);
-          if (n < 10) {
-            string = "0" + string;
+          const minutes = ((this.elapsedSeconds / 60) | 0);
+          const seconds = (this.elapsedSeconds % 60);
+          let minStr = String(minutes);
+          let secStr = String(seconds);
+          if (minutes < 10) {
+            minStr = "0" + minStr;
           }
-          if (n2 < 10) {
-            string2 = "0" + string2;
+          if (seconds < 10) {
+            secStr = "0" + secStr;
           }
-          const string3 = string + ":" + string2;
-          graphics.drawString(string3, 140, 116, 24);
+          const timeStr = minStr + ":" + secStr;
+          graphics.drawString(timeStr, 140, 116, 24);
           LevelScene.actorDefs[0]!.drawFrame(graphics, 48, 170, 4, 0, 0, 0);
           graphics.setClip(0, 0, 176, 204);
           if (this.inputAction === 4) {
@@ -474,9 +474,9 @@ export class GameCanvas extends Canvas {
             this.inputAction = 0;
           } else if (this.inputAction === 16) {
             if (this.menuSelection === 0) {
-              const by = GameMIDlet.saveRecord[1];
-              GameMIDlet.saveRecord[1] = (by + 1) << 24 >> 24; // (byte) 截断
-              if (by > 99) {
+              const continueCount = GameMIDlet.saveRecord[1];
+              GameMIDlet.saveRecord[1] = (continueCount + 1) << 24 >> 24; // (byte) 截断
+              if (continueCount > 99) {
                 GameMIDlet.saveRecord[1] = 99;
               }
               this.uiState = UiState.LevelIntroLoading;
@@ -487,15 +487,15 @@ export class GameCanvas extends Canvas {
             }
             this.inputAction = 0;
           }
-          let n3 = 0;
-          while (n3 < 2) {
-            graphics.setColor(n3 === this.menuSelection && this.underlineDir === 1 ? 0xffffff : 65280);
-            if (n3 === 0) {
+          let optionIndex = 0;
+          while (optionIndex < 2) {
+            graphics.setColor(optionIndex === this.menuSelection && this.underlineDir === 1 ? 0xffffff : 65280);
+            if (optionIndex === 0) {
               graphics.drawString(GameMIDlet.interludeTexts[0], 120, 150, 17);
             } else {
               graphics.drawString(GameMIDlet.interludeTexts[9], 120, 170, 17);
             }
-            ++n3;
+            ++optionIndex;
           }
           graphics.setColor(65280);
           this.drawUnderline(graphics, 120, 169 + this.menuSelection * 20);
@@ -516,18 +516,18 @@ export class GameCanvas extends Canvas {
           graphics.drawString(GameMIDlet.interludeTexts[7], 36, 86, 20);
           graphics.drawString(String(GameMIDlet.saveRecord[1] & 0xff), 140, 86, 24);
           graphics.drawString(GameMIDlet.interludeTexts[6], 36, 108, 20);
-          const n = ((this.elapsedSeconds / 60) | 0);
-          const n4 = (this.elapsedSeconds % 60);
-          let string = String(n);
-          let string4 = String(n4);
-          if (n < 10) {
-            string = "0" + string;
+          const minutes = ((this.elapsedSeconds / 60) | 0);
+          const seconds = (this.elapsedSeconds % 60);
+          let minStr = String(minutes);
+          let secStr = String(seconds);
+          if (minutes < 10) {
+            minStr = "0" + minStr;
           }
-          if (n4 < 10) {
-            string4 = "0" + string4;
+          if (seconds < 10) {
+            secStr = "0" + secStr;
           }
-          const string5 = string + ":" + string4;
-          graphics.drawString(string5, 140, 108, 24);
+          const timeStr = minStr + ":" + secStr;
+          graphics.drawString(timeStr, 140, 108, 24);
           LevelScene.hudFont.drawCell(graphics, 158, 189, 40, 0, 0);
           LevelScene.actorDefs[0]!.drawFrame(graphics, 88, 170, this.resultAnimFrame, this.resultAnimCounter, 0, 0);
           if (this.resultAnimFrame === 34) {
@@ -661,8 +661,8 @@ export class GameCanvas extends Canvas {
   private paintLevelIntro(graphics: Graphics): void {
     block17: {
       block19: {
-        let bl: boolean;
-        let bl2: boolean;
+        let textFullyDrawn: boolean;
+        let isLastParagraph: boolean;
         block18: {
           graphics.setColor(0);
           graphics.setClip(0, 0, 176, 204);
@@ -722,17 +722,17 @@ export class GameCanvas extends Canvas {
           graphics.setClip(0, 0, 176, 204);
           graphics.setColor(65280);
           graphics.drawString(GameMIDlet.interludeTexts[0], 5, 201, 36);
-          bl2 = this.selectParagraph(GameCanvas.briefingLineState[0]);
-          bl = this.drawTypesetText(graphics, GameCanvas.briefingLineState[1], GameCanvas.briefingLineState[2], GameCanvas.briefingNumberX[GameCanvas.briefingLineState[0] % 2], GameCanvas.briefingNumberY[GameCanvas.briefingLineState[0] % 2], 90, 19);
-          const bl3 = this.inputAction === 16384 || this.inputAction === 16;
-          if (bl3) break block18;
-          const n = GameCanvas.briefingLineState[3];
-          GameCanvas.briefingLineState[3] = n - 1;
-          if (n >= 0) break block19;
+          isLastParagraph = this.selectParagraph(GameCanvas.briefingLineState[0]);
+          textFullyDrawn = this.drawTypesetText(graphics, GameCanvas.briefingLineState[1], GameCanvas.briefingLineState[2], GameCanvas.briefingNumberX[GameCanvas.briefingLineState[0] % 2], GameCanvas.briefingNumberY[GameCanvas.briefingLineState[0] % 2], 90, 19);
+          const advanceInput = this.inputAction === 16384 || this.inputAction === 16;
+          if (advanceInput) break block18;
+          const lineDelay = GameCanvas.briefingLineState[3];
+          GameCanvas.briefingLineState[3] = lineDelay - 1;
+          if (lineDelay >= 0) break block19;
         }
-        if (bl2) {
+        if (isLastParagraph) {
           ++this.transitionProgress;
-        } else if (bl) {
+        } else if (textFullyDrawn) {
           GameCanvas.briefingLineState[0] = GameCanvas.briefingLineState[0] + 1;
           GameCanvas.briefingLineState[1] = 0;
           GameCanvas.briefingLineState[3] = 60;
@@ -758,10 +758,10 @@ export class GameCanvas extends Canvas {
     this.viewportHeight = px(172);
     this.sceneWidth = this.scene.mapWidth << 10;
     this.sceneHeight = this.scene.mapHeight << 10;
-    const n = GameMIDlet.readIntLE(this.scene.actorInstanceTable[0]!, 1, 2);
-    const n2 = GameMIDlet.readIntLE(this.scene.actorInstanceTable[0]!, 3, 2);
-    this.player.posX = n << 10;
-    this.player.posY = n2 << 10;
+    const spawnX = GameMIDlet.readIntLE(this.scene.actorInstanceTable[0]!, 1, 2);
+    const spawnY = GameMIDlet.readIntLE(this.scene.actorInstanceTable[0]!, 3, 2);
+    this.player.posX = spawnX << 10;
+    this.player.posY = spawnY << 10;
     this.cameraX = this.player.posX - (((this.viewportWidth * 1) / 4) | 0);
     this.cameraY = this.player.posY - (((this.viewportHeight * 7) / 10) | 0);
     if (this.cameraX > this.sceneWidth - this.viewportWidth) {
@@ -776,47 +776,47 @@ export class GameCanvas extends Canvas {
     if (this.cameraY < 0) {
       this.cameraY = 0;
     }
-    const n3 = this.cameraX >> 10;
-    const n4 = this.cameraY >> 10;
-    this.scene.loadCell(n3, n4);
+    const cameraCellX = this.cameraX >> 10;
+    const cameraCellY = this.cameraY >> 10;
+    this.scene.loadCell(cameraCellX, cameraCellY);
   }
 
   /**
    * 镜头平滑跟随（CFR a.java:698-748；原 `a(int,int)` → 契约名 a_II）。
-   * 每帧由场景调用，把相机朝目标 (n,n2) 做差值步进（X/Y 各自计算 cameraVelX/cameraVelY，
+   * 每帧由场景调用，把相机朝目标 (targetX,targetY) 做差值步进（X/Y 各自计算 cameraVelX/cameraVelY，
    * 超过阈值用玩家速度叠加偏移、否则直接吸附），叠加震屏抖动（shaking 时按帧奇偶 ±2048 并递减
    * shakeCounter），最后按场景边界钳制相机坐标。
-   * @param n 目标相机 X（定点）
-   * @param n2 目标相机 Y（定点）
+   * @param targetX 目标相机 X（定点）
+   * @param targetY 目标相机 Y（定点）
    */
-  // a(int,int) → a_II（镜头跟随玩家平滑滚动到 (n,n2)）
-  followCamera(n: number, n2: number): void {
+  // a(int,int) → a_II（镜头跟随玩家平滑滚动到 (targetX,targetY)）
+  followCamera(targetX: number, targetY: number): void {
     this.cameraVelX = 0;
     this.cameraVelY = 0;
-    if (this.cameraX < n) {
-      if (n - this.cameraX > px(16)) {
+    if (this.cameraX < targetX) {
+      if (targetX - this.cameraX > px(16)) {
         this.cameraVelX = this.player.targetVelX + px(16);
       } else {
-        this.cameraX = n;
+        this.cameraX = targetX;
       }
-    } else if (this.cameraX > n) {
-      if (this.cameraX - n > px(16)) {
+    } else if (this.cameraX > targetX) {
+      if (this.cameraX - targetX > px(16)) {
         this.cameraVelX = this.player.targetVelX - px(16);
       } else {
-        this.cameraX = n;
+        this.cameraX = targetX;
       }
     }
-    if (this.cameraY < n2) {
-      if (n2 - this.cameraY > px(10)) {
+    if (this.cameraY < targetY) {
+      if (targetY - this.cameraY > px(10)) {
         this.cameraVelY = Math.min(this.player.targetVelY + px(10), px(15));
       } else {
-        this.cameraY = n2;
+        this.cameraY = targetY;
       }
-    } else if (this.cameraY > n2) {
-      if (this.cameraY - n2 > px(10)) {
+    } else if (this.cameraY > targetY) {
+      if (this.cameraY - targetY > px(10)) {
         this.cameraVelY = Math.max(this.player.targetVelY - px(10), px(-15));
       } else {
-        this.cameraY = n2;
+        this.cameraY = targetY;
       }
     }
     this.cameraX += this.cameraVelX;
@@ -847,14 +847,14 @@ export class GameCanvas extends Canvas {
    *   step0=若有旧场景且关卡号变了则 dispose 卸载；step1=按需 LevelScene.loadLevel 建新场景；
    *   step2=initCamera 对焦并置 loadComplete=true。
    * 由 paint 的 LevelIntroLoading 分支反复调用直到 loadComplete。
-   * @param n 目标关卡号（0~6）
+   * @param targetLevel 目标关卡号（0~6）
    */
   // a(int) → a_I（关卡载入状态机：卸载旧场景→创建新场景→定位镜头）
-  loadLevel(n: number): void {
+  loadLevel(targetLevel: number): void {
     this.loadComplete = false;
     switch (this.subState) {
       case 0: {
-        if (this.scene != null && LevelScene.currentLevel !== n) {
+        if (this.scene != null && LevelScene.currentLevel !== targetLevel) {
           this.scene.dispose();
           this.scene = null as unknown as LevelScene;
         }
@@ -862,8 +862,8 @@ export class GameCanvas extends Canvas {
         return;
       }
       case 1: {
-        if (n !== LevelScene.currentLevel) {
-          this.scene = LevelScene.loadLevel(this, n)!;
+        if (targetLevel !== LevelScene.currentLevel) {
+          this.scene = LevelScene.loadLevel(this, targetLevel)!;
         }
         this.subState = 2;
         return;
@@ -884,18 +884,18 @@ export class GameCanvas extends Canvas {
   // run()：原 while(w!=null){...; Thread.sleep(...)} → async + await（控制流逐帧一致）
   async run(): Promise<void> {
     try {
-      let l = Date.now(); // System.currentTimeMillis()
+      let lastFrameMs = Date.now(); // System.currentTimeMillis()
       while (this.mainThread != null) {
         if (!this.running || this.painting) {
           await Thread.sleep(0); // 让出执行权，等价于 continue 忙等的协作式空转
           continue;
         }
-        const l2 = Date.now() - l; // System.currentTimeMillis()
-        if (l2 < 80) {
-          await Thread.sleep(80 - l2);
+        const elapsedMs = Date.now() - lastFrameMs; // System.currentTimeMillis()
+        if (elapsedMs < 80) {
+          await Thread.sleep(80 - elapsedMs);
         }
         this.repaint();
-        l = Date.now(); // System.currentTimeMillis()
+        lastFrameMs = Date.now(); // System.currentTimeMillis()
       }
       return;
     } catch (exception) {
@@ -904,77 +904,77 @@ export class GameCanvas extends Canvas {
   }
 
   // d(int) → d_I（键码 → 游戏动作位）
-  private keyToAction(n: number): number {
-    let n2 = 0;
+  private keyToAction(keyCode: number): number {
+    let action = 0;
     this.heldAction = 0;
-    switch (n) {
+    switch (keyCode) {
       case -1:
       case 1:
       case 50: {
         if (this.uiState === UiState.InGame) {
-          n2 = 32;
+          action = 32;
           break;
         }
-        n2 = 4;
+        action = 4;
         break;
       }
       case -6:
       case 6:
       case 56: {
-        n2 = 8;
+        action = 8;
         break;
       }
       case -2:
       case 2:
       case 52: {
-        n2 = 1;
+        action = 1;
         break;
       }
       case -5:
       case 5:
       case 54: {
-        n2 = 2;
+        action = 2;
         break;
       }
       case -20:
       case 20:
       case 53: {
-        n2 = 16;
+        action = 16;
         this.heldAction = 16;
         break;
       }
       case 55: {
-        n2 = 2048;
+        action = 2048;
         break;
       }
       case 35:
       case 57: {
-        n2 = 1024;
+        action = 1024;
         break;
       }
       case 42: {
-        n2 = 4096;
+        action = 4096;
         break;
       }
       case 49: {
-        n2 = 64;
+        action = 64;
         break;
       }
       case 51: {
-        n2 = 128;
+        action = 128;
         break;
       }
       case -21:
       case 21: {
-        n2 = 16384;
+        action = 16384;
         break;
       }
       case -22:
       case 22: {
-        n2 = this.uiState === UiState.MainMenu ? 16 : 32768;
+        action = this.uiState === UiState.MainMenu ? 16 : 32768;
       }
     }
-    return n2;
+    return action;
   }
 
   /**
@@ -982,11 +982,11 @@ export class GameCanvas extends Canvas {
    * 先处理软键直切状态：左软键(21/-21) 在游戏中/简报页时回主菜单；右软键(22/-22) 在游戏中且场景常规态时进任务简报。
    * 其余按键经 keyToAction 译成动作位掩码写入 inputAction，供 paint 各分支读取。
    * 各键的实际效果以 keyToAction 为准（另见 memory「按键动作映射」）。
-   * @param n J2ME 键码（含方向键/小键盘/软键负码）
+   * @param keyCode J2ME 键码（含方向键/小键盘/软键负码）
    */
-  keyPressed(n: number): void {
-    let n2: number;
-    if (n === 21 || n === -21) {
+  keyPressed(keyCode: number): void {
+    let action: number;
+    if (keyCode === 21 || keyCode === -21) {
       if (this.uiState === UiState.InGame || this.uiState === UiState.MissionBrief) {
         this.uiState = UiState.MainMenu;
         this.menuStartItem = 0;
@@ -994,18 +994,18 @@ export class GameCanvas extends Canvas {
         this.inputAction = 0;
         return;
       }
-    } else if ((n === 22 || n === -22) && this.uiState === UiState.InGame && this.scene.subState === 0) {
+    } else if ((keyCode === 22 || keyCode === -22) && this.uiState === UiState.InGame && this.scene.subState === 0) {
       this.transitionProgress = 0;
       this.uiState = UiState.MissionBrief;
     }
-    this.inputAction = n2 = this.keyToAction(n);
+    this.inputAction = action = this.keyToAction(keyCode);
   }
 
   /**
    * 按键松开回调（CFR a.java:883-887）—— 清空当前输入动作 inputAction=0，并置 heldAction=-1（解除持续按住标志）。
-   * @param n J2ME 键码（此实现不区分具体键，统一清状态）
+   * @param keyCode J2ME 键码（此实现不区分具体键，统一清状态）
    */
-  keyReleased(n: number): void {
+  keyReleased(keyCode: number): void {
     this.inputAction = 0;
     this.heldAction = -1;
   }
@@ -1013,174 +1013,174 @@ export class GameCanvas extends Canvas {
   /**
    * 触发震屏（CFR a.java:888-894；原 `b(int)` → 契约名 b_I）。
    * 若当前未在震屏，则置 shaking=true、shakeCounter=n，后续由 followCamera 每帧抖动相机直到计数耗尽。
-   * @param n 震屏持续帧数
+   * @param durationFrames 震屏持续帧数
    */
-  // b(int) → b_I（触发震屏，持续 n 帧）
-  startShake(n: number): void {
+  // b(int) → b_I（触发震屏，持续 durationFrames 帧）
+  startShake(durationFrames: number): void {
     if (!this.shaking) {
       this.shaking = true;
-      this.shakeCounter = n;
+      this.shakeCounter = durationFrames;
     }
   }
 
   /**
    * 展开/收缩描边框绘制原语（CFR a.java:895-922；原 9 参 `a(Graphics,...)` → 契约名 a_GIIIIIIIIZ）。
-   * 过场/任务简报/结算页对话框边框的动画基元：把矩形从 (n,n2) 朝 (n3,n4) 按进度 n6/n5 比例收缩，
-   * 用颜色 n7 描边、n8≥0 时填充内部；bl=true 再叠加内层黑+绿双描边。进度 n6≤0 时不绘制。
+   * 过场/任务简报/结算页对话框边框的动画基元：把矩形从 (x0,y0) 朝 (x1,y1) 按进度 progress/fullProgress 比例收缩，
+   * 用颜色 strokeColor 描边、fillColor≥0 时填充内部；doubleBorder=true 再叠加内层黑+绿双描边。进度 progress≤0 时不绘制。
    * @param graphics 目标图形上下文
-   * @param n 起点 X
-   * @param n2 起点 Y
-   * @param n3 终点 X
-   * @param n4 终点 Y
-   * @param n5 进度分母（满进度）
-   * @param n6 当前进度（0..n5）
-   * @param n7 描边颜色
-   * @param n8 填充颜色（<0 表示不填充）
-   * @param bl 是否叠加双层内描边
+   * @param x0 起点 X
+   * @param y0 起点 Y
+   * @param x1 终点 X
+   * @param y1 终点 Y
+   * @param fullProgress 进度分母（满进度）
+   * @param progress 当前进度（0..fullProgress）
+   * @param strokeColor 描边颜色
+   * @param fillColor 填充颜色（<0 表示不填充）
+   * @param doubleBorder 是否叠加双层内描边
    */
   // a(Graphics,int,int,int,int,int,int,int,int,boolean) → a_GIIIIIIIIZ
-  // 由 (n,n2)→(n3,n4) 按进度 n6/n5 收缩绘制的双层描边框（过场展开动画原语）
+  // 由 (x0,y0)→(x1,y1) 按进度 progress/fullProgress 收缩绘制的双层描边框（过场展开动画原语）
   static drawExpandingFrame(
     graphics: Graphics,
-    n: number,
-    n2: number,
-    n3: number,
-    n4: number,
-    n5: number,
-    n6: number,
-    n7: number,
-    n8: number,
-    bl: boolean
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    fullProgress: number,
+    progress: number,
+    strokeColor: number,
+    fillColor: number,
+    doubleBorder: boolean
   ): void {
-    if (n6 <= 0) {
+    if (progress <= 0) {
       return;
     }
-    let n9 = Math.abs(n - n3);
-    let n10 = Math.abs(n2 - n4);
-    n9 = ((n9 * n6) / n5) | 0;
-    n10 = ((n10 * n6) / n5) | 0;
-    if (n > n3) {
-      n -= n9;
+    let width = Math.abs(x0 - x1);
+    let height = Math.abs(y0 - y1);
+    width = ((width * progress) / fullProgress) | 0;
+    height = ((height * progress) / fullProgress) | 0;
+    if (x0 > x1) {
+      x0 -= width;
     }
-    if (n2 > n4) {
-      n2 -= n10;
+    if (y0 > y1) {
+      y0 -= height;
     }
-    graphics.setColor(n7);
-    graphics.drawRect(n, n2, n9, n10);
-    if (n8 >= 0) {
-      graphics.setColor(n8);
-      graphics.fillRect(n + 1, n2 + 1, n9 - 1, n10 - 1);
+    graphics.setColor(strokeColor);
+    graphics.drawRect(x0, y0, width, height);
+    if (fillColor >= 0) {
+      graphics.setColor(fillColor);
+      graphics.fillRect(x0 + 1, y0 + 1, width - 1, height - 1);
     }
-    if (bl) {
+    if (doubleBorder) {
       graphics.setColor(0);
-      graphics.drawRect(n + 1, n2 + 1, n9 - 2, n10 - 2);
+      graphics.drawRect(x0 + 1, y0 + 1, width - 2, height - 2);
       graphics.setColor(65280);
-      graphics.drawRect(n + 2, n2 + 2, n9 - 4, n10 - 4);
+      graphics.drawRect(x0 + 2, y0 + 2, width - 4, height - 4);
     }
   }
 
   /**
    * 按 \r(回车,char 13) 分行绘制多行文本（CFR a.java:923-942；原 `a(Graphics,String,...)` → 契约名 a_GSIIIII）。
-   * 帮助/关于页用：跳过前 n4 行，从第 n4 行起、以 (n,n2) 为左上、行高 n3 连续绘制至多 n5 行。
+   * 帮助/关于页用：跳过前 skipLines 行，从第 skipLines 行起、以 (x,y) 为左上、行高 lineHeight 连续绘制至多 maxLines 行。
    * @param graphics 目标图形上下文
-   * @param string 含 \r 分隔的多行原文
-   * @param n 起始 X
-   * @param n2 起始 Y
-   * @param n3 行高
-   * @param n4 起始行号（跳过的行数）
-   * @param n5 最多绘制的行数
+   * @param text 含 \r 分隔的多行原文
+   * @param x 起始 X
+   * @param y 起始 Y
+   * @param lineHeight 行高
+   * @param skipLines 起始行号（跳过的行数）
+   * @param maxLines 最多绘制的行数
    */
-  // a(Graphics,String,int,int,int,int,int) → a_GSIIIII（按 \r 分行绘制字符串，从第 n4 行起绘 n5 行）
-  drawWrappedLines(graphics: Graphics, string: string, n: number, n2: number, n3: number, n4: number, n5: number): void {
-    let n6 = 0;
-    let n7 = 0;
-    let n8 = 0;
+  // a(Graphics,String,int,int,int,int,int) → a_GSIIIII（按 \r 分行绘制字符串，从第 skipLines 行起绘 maxLines 行）
+  drawWrappedLines(graphics: Graphics, text: string, x: number, y: number, lineHeight: number, skipLines: number, maxLines: number): void {
+    let cursor = 0;
+    let breakPos = 0;
+    let lineNo = 0;
     do {
-      n7 = string.indexOf("\r", n6); // indexOf(13,...)：char 13 = '\r'
-      if (n8 >= n4) {
-        if (n7 === -1) {
-          graphics.drawString(string.substring(n6), n, n2, 20);
+      breakPos = text.indexOf("\r", cursor); // indexOf(13,...)：char 13 = '\r'
+      if (lineNo >= skipLines) {
+        if (breakPos === -1) {
+          graphics.drawString(text.substring(cursor), x, y, 20);
         } else {
-          graphics.drawString(string.substring(n6, n7), n, n2, 20);
+          graphics.drawString(text.substring(cursor, breakPos), x, y, 20);
         }
-        n2 += n3;
-        --n5;
+        y += lineHeight;
+        --maxLines;
       }
-      n6 = n7 + 2;
-      ++n8;
-    } while (n7 >= 0 && n5 > 0);
+      cursor = breakPos + 2;
+      ++lineNo;
+    } while (breakPos >= 0 && maxLines > 0);
   }
 
   /**
    * 选取任务简报正文的第 n 段（CFR a.java:943-958；原 `c(int)` → 契约名 c_I）。
-   * 在 GameMIDlet.tempText1 中按 \r(char 13) 跳过前 n 段，把第 n 段子串存入 GameMIDlet.tempText2，
+   * 在 GameMIDlet.tempText1 中按 \r(char 13) 跳过前 paragraphIndex 段，把第 paragraphIndex 段子串存入 GameMIDlet.tempText2，
    * 供 drawTypesetText 逐字折行绘制。任务简报逐段推进时由 paintLevelIntro 调用。
-   * @param n 目标段落游标（从 0 起）
+   * @param paragraphIndex 目标段落游标（从 0 起）
    * @returns 是否已到最后一段（无更多 \r）
    */
-  // c(int) → c_I（取 GameMIDlet.l 的第 n 段（\r 分隔）存入 GameMIDlet.m，返回是否为最后一段）
-  selectParagraph(n: number): boolean {
-    let n2 = 0;
-    let n3 = 0;
-    let n4 = 0;
-    while (n4 < n) {
-      if ((n2 = GameMIDlet.tempText1.indexOf("\r", n2)) === -1) {
+  // c(int) → c_I（取 GameMIDlet.l 的第 paragraphIndex 段（\r 分隔）存入 GameMIDlet.m，返回是否为最后一段）
+  selectParagraph(paragraphIndex: number): boolean {
+    let searchPos = 0;
+    let breakPos = 0;
+    let counter = 0;
+    while (counter < paragraphIndex) {
+      if ((searchPos = GameMIDlet.tempText1.indexOf("\r", searchPos)) === -1) {
         // indexOf(13,...)：char 13 = '\r'
         return true;
       }
-      n2 += 2;
-      ++n4;
+      searchPos += 2;
+      ++counter;
     }
-    n3 = GameMIDlet.tempText1.indexOf("\r", n2); // indexOf(13,...)
-    GameMIDlet.tempText2 = n3 === -1 ? GameMIDlet.tempText1.substring(n2) : GameMIDlet.tempText1.substring(n2, n3);
-    return n3 < 0;
+    breakPos = GameMIDlet.tempText1.indexOf("\r", searchPos); // indexOf(13,...)
+    GameMIDlet.tempText2 = breakPos === -1 ? GameMIDlet.tempText1.substring(searchPos) : GameMIDlet.tempText1.substring(searchPos, breakPos);
+    return breakPos < 0;
   }
 
   /**
    * 按字宽自动折行绘制任务简报正文（CFR a.java:959-979；原 6 参 `a(Graphics,...)` → 契约名 a_GIIIIII）。
-   * 对 GameMIDlet.tempText2 逐字测宽断行：跳过前 n 行，从第 n 行起、左上 (n3,n4)、行宽 n5、行高 n6
-   * 连续绘制至多 n2 行。shim 无 Font，故用底层 ctx.measureText 近似测宽、drawString 近似绘子串
+   * 对 GameMIDlet.tempText2 逐字测宽断行：跳过前 skipLines 行，从第 skipLines 行起、左上 (x,y)、行宽 wrapWidth、行高 lineHeight
+   * 连续绘制至多 maxLines 行。shim 无 Font，故用底层 ctx.measureText 近似测宽、drawString 近似绘子串
    * （控制流逐行与 CFR 一致，见类级 JSDoc 偏差说明）。
    * @param graphics 目标图形上下文
-   * @param n 起始行号（跳过的行数）
-   * @param n2 最多绘制的行数
-   * @param n3 起始 X（左边界）
-   * @param n4 起始 Y
-   * @param n5 折行宽度
-   * @param n6 行高
+   * @param skipLines 起始行号（跳过的行数）
+   * @param maxLines 最多绘制的行数
+   * @param x 起始 X（左边界）
+   * @param y 起始 Y
+   * @param wrapWidth 折行宽度
+   * @param lineHeight 行高
    * @returns 文本是否已全部绘完
    */
-  // a(Graphics,int,int,int,int,int,int) → a_GIIIIII（对 GameMIDlet.m 按宽度逐字换行绘制，从第 n 行起绘 n2 行）
-  drawTypesetText(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): boolean {
-    let n7 = 0;
-    let n8 = 0;
-    const n9 = GameMIDlet.tempText2.length;
-    while (n7 < n9 && n2 > 0) {
-      let n10 = n3;
-      let n11 = n7 + 1;
-      while (n10 < n3 + n5 && n11 < n9) {
-        n10 = n3 + graphics.getFont().substringWidth(GameMIDlet.tempText2, n7, n11 - n7);
-        ++n11;
+  // a(Graphics,int,int,int,int,int,int) → a_GIIIIII（对 GameMIDlet.m 按宽度逐字换行绘制，从第 skipLines 行起绘 maxLines 行）
+  drawTypesetText(graphics: Graphics, skipLines: number, maxLines: number, x: number, y: number, wrapWidth: number, lineHeight: number): boolean {
+    let charCursor = 0;
+    let lineNo = 0;
+    const textLen = GameMIDlet.tempText2.length;
+    while (charCursor < textLen && maxLines > 0) {
+      let penX = x;
+      let charEnd = charCursor + 1;
+      while (penX < x + wrapWidth && charEnd < textLen) {
+        penX = x + graphics.getFont().substringWidth(GameMIDlet.tempText2, charCursor, charEnd - charCursor);
+        ++charEnd;
       }
-      if (++n8 > n) {
-        graphics.drawSubstring(GameMIDlet.tempText2, n7, n11 - n7, n3, n4, 20);
-        n4 += n6;
-        --n2;
+      if (++lineNo > skipLines) {
+        graphics.drawSubstring(GameMIDlet.tempText2, charCursor, charEnd - charCursor, x, y, 20);
+        y += lineHeight;
+        --maxLines;
       }
-      n7 = n11;
+      charCursor = charEnd;
     }
-    return n7 >= n9;
+    return charCursor >= textLen;
   }
 
-  // e(int) → e_I（启动菜单下划线伸缩动画，目标宽 n）
-  private startUnderline(n: number): void {
-    this.underlineTargetWidth = n;
+  // e(int) → e_I（启动菜单下划线伸缩动画，目标宽 targetWidth）
+  private startUnderline(targetWidth: number): void {
+    this.underlineTargetWidth = targetWidth;
     this.underlineWidth = 48;
     this.underlineDir = 1;
   }
 
-  // a(Graphics,int,int) → a_GII（绘制并推进菜单选中项下划线，以 (n,n2) 为中心横线）
-  private drawUnderline(graphics: Graphics, n: number, n2: number): void {
+  // a(Graphics,int,int) → a_GII（绘制并推进菜单选中项下划线，以 (centerX,centerY) 为中心横线）
+  private drawUnderline(graphics: Graphics, centerX: number, centerY: number): void {
     if (this.underlineDir === 1) {
       this.underlineWidth += 10;
       if (this.underlineWidth > this.underlineTargetWidth) {
@@ -1192,7 +1192,7 @@ export class GameCanvas extends Canvas {
         this.underlineDir = 1;
       }
     }
-    const n3 = this.underlineWidth >>> 1;
-    graphics.drawLine(n - n3, n2, n + n3, n2);
+    const halfWidth = this.underlineWidth >>> 1;
+    graphics.drawLine(centerX - halfWidth, centerY, centerX + halfWidth, centerY);
   }
 }
