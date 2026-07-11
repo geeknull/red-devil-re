@@ -129,9 +129,7 @@ export class PickupActor extends ActorBase {
             this.screen.player.grenadeCount = 3;
           }
         }
-        this.pickupFlashTimer = 10;
-        this.pickedUp = true;
-        this.screen.levelLoader.actorSpawned[this.extra] = true;
+        this.markPickedUp();
         return;
       }
       case ActorType.HealthPickup: {
@@ -141,9 +139,7 @@ export class PickupActor extends ActorBase {
         if (this.screen.player.health > 10) {
           this.screen.player.health = 10;
         }
-        this.pickupFlashTimer = 10;
-        this.pickedUp = true;
-        this.screen.levelLoader.actorSpawned[this.extra] = true;
+        this.markPickedUp();
         return;
       }
       case ActorType.LevelExitGate: {
@@ -151,9 +147,7 @@ export class PickupActor extends ActorBase {
           this.screen.flagE = true;
         }
         if (!this.screen.flagE || this.pickedUp || (this.screen.player.stateFlags & 1) === 0) break;
-        this.pickedUp = true;
-        this.pickupFlashTimer = 10;
-        this.screen.levelLoader.actorSpawned[this.extra] = true;
+        this.markPickedUp();
         this.screen.player.targetVelX = 0;
         this.screen.cameraVelX = 0;
         this.screen.state = GameState.LevelScroll;
@@ -162,6 +156,20 @@ export class PickupActor extends ActorBase {
         GameScreen.playSound(1, 1, 255);
       }
     }
+  }
+
+  /**
+   * 标记本道具已被拾取/触发——三处拾取分支（typeId 3/11/13）的共用尾三连：
+   * 进入 10 帧闪烁冷却（pickupFlashTimer=10）、置已拾取标志（pickedUp=true）、
+   * 并在 levelLoader.actorSpawned[extra] 标记该屏块物件已消费（extra=屏块→actor 索引，
+   * 供换屏刷怪去重）。CFR k.java case3(78-80)/case11(90-92)/case13(100-102) 的重复三连。
+   * 注：case13 原版前两句为 `e=true; c=10`（与 case3/11 的 `c=10; e=true` 顺序相反）——
+   * 二者是对无别名的独立标量字段赋值、其间无观测，重排为统一顺序行为等价（不改任何结果）。
+   */
+  private markPickedUp(): void {
+    this.pickupFlashTimer = 10;
+    this.pickedUp = true;
+    this.screen.levelLoader.actorSpawned[this.extra] = true;
   }
 
   /**
