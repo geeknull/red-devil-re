@@ -62,12 +62,12 @@ export class ItemActor extends ActorBase {
     }
     switch (this.typeId) {
       case ActorType.PatrolFlyer: {
-        const n: number = byArray[7] & 0xff;
+        const spanX: number = byArray[7] & 0xff;
         this.patrolMinX = this.patrolMaxX = this.posX;
         if (this.actionHighByte === 0) {
-          this.patrolMaxX = this.posX + (n << 10);
+          this.patrolMaxX = this.posX + (spanX << 10);
         } else {
-          this.patrolMinX = this.posX - (n << 10);
+          this.patrolMinX = this.posX - (spanX << 10);
         }
         this.patrolMinY = this.posY - px(10);
         this.patrolMaxY = this.posY + px(10);
@@ -97,9 +97,9 @@ export class ItemActor extends ActorBase {
   update(): void {
     switch (this.typeId) {
       case ActorType.PatrolFlyer: {
-        const n: number = this.actionHighByte === 0 ? 1 : -1;
-        this.targetVelX = px(1) * n;
-        if ((n > 0 && this.posX > this.patrolMaxX) || (n < 0 && this.posX < this.patrolMinX)) {
+        const dir: number = this.actionHighByte === 0 ? 1 : -1;
+        this.targetVelX = px(1) * dir;
+        if ((dir > 0 && this.posX > this.patrolMaxX) || (dir < 0 && this.posX < this.patrolMinX)) {
           this.targetVelX = 0;
           this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
           this.setAction(0 | this.actionHighByte);
@@ -110,9 +110,9 @@ export class ItemActor extends ActorBase {
           this.targetVelY = px(1);
         }
         if (this.counter-- >= 0) break;
-        const n2: number = GameMIDlet.randomBelow(2);
-        this.counter = 1 + n2;
-        this.targetVelY = n2 > 0 ? px(-1) : px(1);
+        const flip: number = GameMIDlet.randomBelow(2);
+        this.counter = 1 + flip;
+        this.targetVelY = flip > 0 ? px(-1) : px(1);
         return;
       }
       case ActorType.PlayerAttachedEffect: {
@@ -159,16 +159,16 @@ export class ItemActor extends ActorBase {
    *   - n==0：吸附到玩家坐标正上方（posX=玩家 X，posY=玩家 Y-12288）。
    *   - n==1：按当前朝向 actionHighByte 触发动作 1。
    * 对应 CFR e.java:112-119（友好名 applyCommand）。
-   * @param n 命令码（0=吸附定位 / 1=触发动作）。
+   * @param command 命令码（0=吸附定位 / 1=触发动作）。
    */
   // c(int) → c_I
-  applyCommand(n: number): void {
-    if (n === 0) {
+  applyCommand(command: number): void {
+    if (command === 0) {
       this.posX = this.canvas.player.posX;
       this.posY = this.canvas.player.posY - px(12);
       return;
     }
-    if (n === 1) {
+    if (command === 1) {
       this.setAction(1 | this.actionHighByte);
     }
   }
@@ -179,16 +179,16 @@ export class ItemActor extends ActorBase {
    * 在道具头顶用 LevelScene.drawNumber 弹出拾取数量 counter（高度随 hitFlashTimer 上浮）。
    * 对应 CFR e.java:121-128（友好名 paint）。
    * @param graphics 目标画布。
-   * @param n  绘制基准 X（屏幕坐标，由场景传入）。
-   * @param n2 绘制基准 Y（屏幕坐标，由场景传入）。
+   * @param screenX  绘制基准 X（屏幕坐标，由场景传入）。
+   * @param screenY 绘制基准 Y（屏幕坐标，由场景传入）。
    */
   // a(Graphics,int,int) → a_GII
-  paint(graphics: Graphics, n: number, n2: number): void {
-    super.paint(graphics, n, n2);
+  paint(graphics: Graphics, screenX: number, screenY: number): void {
+    super.paint(graphics, screenX, screenY);
     if (this.hitFlashTimer > 0 && this.typeId === ActorType.ItemPickup) {
-      const n3: number = (this.posX - this.canvas.cameraX) >> 10;
-      const n4: number = ((this.posY - this.canvas.cameraY) >> 10) + this.boxTop;
-      LevelScene.drawNumber(graphics, n3, n4 - (40 - 4 * this.hitFlashTimer), this.counter, true, false);
+      const numberX: number = (this.posX - this.canvas.cameraX) >> 10;
+      const numberY: number = ((this.posY - this.canvas.cameraY) >> 10) + this.boxTop;
+      LevelScene.drawNumber(graphics, numberX, numberY - (40 - 4 * this.hitFlashTimer), this.counter, true, false);
     }
   }
 }
