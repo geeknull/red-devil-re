@@ -222,134 +222,165 @@ export class EnemyActor extends ActorBase {
     } else {
       this.isAiming = false;
     }
+    // 按 AI 子状态 reserved 分派到 stepWalker<State> helper（switch 后仍有 type4 接触伤害 postamble，
+    // 故各 helper 顶层 break→return：return 回本方法继续跑下方 postamble，与原 break 跳出 switch 等价）。
     switch (this.reserved) {
-      case 0: {
-        if (this.isAiming) {
-          if (this.needTurn) {
-            this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
-          }
-          this.aimAndFire();
-          break;
-        }
-        if (this.timer-- < 0 && this.patrolRange > 0) {
-          this.reserved = 4;
-        }
-        if (this.frameGroupIndex === 0) break;
-        this.setAction(0 | (this.patrolRange > 0 ? this.actionHighByte : this.initialFacing));
+      case 0:
+        this.stepWalkerIdle();
         break;
-      }
-      case 1: {
-        if (this.isAnimationDone()) {
-          this.reserved = 0;
-          this.timer = 8;
-          if (this.typeId === ActorType.GrenadierGrunt) {
-            this.timer = 16;
-          }
-          this.attackRhythm = this.timer;
-          this.setAction((this.frameGroupIndex === 8 ? 0 : 4) | this.actionHighByte);
-        } else if (this.typeId === ActorType.GrenadierGrunt && this.frameIndex === 2) {
-          const n: number = this.frameGroupIndex === 8 ? 0 : 1;
-          const n2: number = 6 | this.actionHighByte;
-          const n3: number = this.posX + (EnemyActor.throwOffsetTable[n][0] << 10) * this.facingSign;
-          const n4: number = this.posY + (EnemyActor.throwOffsetTable[n][1] << 10);
-          this.launchProjectile(ProjectileActor.spawnProjectile(ActorType.DirectBullet, n2, n3, n4, 25, null)); // this.a(tjge.k)：传入投射物 → a_Tk
-        }
-        this.hasFired = false;
+      case 1:
+        this.stepWalkerAttackAnim();
         break;
-      }
-      case 2: {
-        if (this.timer-- >= 0) break;
-        this.reserved = 4;
-        this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
-        this.setAction(0 | this.actionHighByte);
+      case 2:
+        this.stepWalkerTurnPause();
         break;
-      }
       case 4:
-      case 8: {
-        this.targetVelX = px(4) * this.facingSign;
-        this.hasFired = false;
-        if ((this.facingSign > 0 && this.posX > this.patrolRightBound) || (this.facingSign < 0 && this.posX < this.patrolLeftBound)) {
-          if (this.reserved === 8) {
-            this.patrolLeftBound = this.canvas.cameraX + px(20);
-            this.patrolRightBound = this.canvas.cameraX + this.canvas.viewportWidth - px(20);
-            this.preHitSubState = 0;
-            this.reserved = 4;
-          } else {
-            this.reserved = 2;
-            this.targetVelX = 0;
-            this.timer = 15;
-          }
-          this.setAction(0 | this.actionHighByte);
-          break;
-        }
-        if (this.frameGroupIndex === 3) break;
-        this.setAction(3 | this.actionHighByte);
+      case 8:
+        this.stepWalkerPatrol(); // case 4/8 共享；helper 内读 this.reserved 区分横扫重锚(8) vs 转身(4)
         break;
-      }
-      case 5: {
-        this.attackRhythm = 8;
-        if (this.frameGroupIndex === 7) {
-          this.hasFired = true;
-          if (this.collidesWith(this.player)) {
-            this.player.onHitBy(this);
-          }
-          if (!this.isAnimationDone()) break;
-          this.reserved = this.preHitSubState === 8 ? this.preHitSubState : 0;
-          this.setAction(0 | this.actionHighByte);
-          break;
-        }
-        if (this.typeId === ActorType.RiflemanGrunt) {
-          const n: number = this.frameGroupIndex - 8;
-          const n5: number = EnemyActor.fireOffsetTable[n][4] | this.actionHighByte;
-          const n6: number = this.posX + (EnemyActor.fireOffsetTable[n][0] << 10) * this.facingSign;
-          const n7: number = this.posY + (EnemyActor.fireOffsetTable[n][1] << 10);
-          const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, n5, n6, n7, 25, null);
-          if (k2 == null) break;
-          if (!k2.hitWall) {
-            k2.targetVelX = (EnemyActor.fireOffsetTable[n][2] << 10) * this.facingSign;
-            k2.targetVelY = EnemyActor.fireOffsetTable[n][3] << 10;
-          }
-          this.reserved = 1;
-          this.setAction(this.frameGroupIndex | this.actionHighByte);
-          break;
-        }
-        if (this.typeId !== ActorType.GrenadierGrunt) break;
-        this.setAction((this.frameGroupIndex === 0 ? 8 : 9) | this.actionHighByte);
-        this.reserved = 1;
-        this.attackRhythm = this.timer = 16;
+      case 5:
+        this.stepWalkerFire();
         break;
-      }
-      case 6: {
-        if (!this.isAnimationDone()) break;
-        if (this.hp > 0) {
-          this.hasFired = false;
-          this.reserved = this.preHitSubState === 8 ? this.preHitSubState : 0;
-          this.setAction(0 | this.actionHighByte);
-          break;
-        }
-        this.reserved = 7;
-        this.setAction(1 | this.actionHighByte);
-        this.hitFlashTimer = 10;
+      case 6:
+        this.stepWalkerHurt();
         break;
-      }
-      case 7: {
-        if (!this.isAnimationDone()) break;
-        if (this.frameGroupIndex === 1) {
-          this.setAction(2 | this.actionHighByte);
-          break;
-        }
-        if (this.frameGroupIndex !== 2 || this.hitFlashTimer > 1) break;
-        if (this.slotIndex >= this.canvas.scene.residentActorSlots) {
-          --this.canvas.scene.waveSpawnCount;
-        }
-        ++this.canvas.scene.reservedD;
-        this.killAndMarkSpawned();
-      }
+      case 7:
+        this.stepWalkerDeath();
+        break;
     }
     if (this.typeId === ActorType.SentryGrunt && this.reserved !== 6 && this.reserved !== 7 && this.player.health > 0 && this.collidesWith(this.player)) {
       this.applyDamage(10, 0);
       this.player.onHitBy(this);
     }
+  }
+
+  // reserved 0：待命/瞄准开火（瞄准则转向后 aimAndFire，否则按巡逻倒计时切追击 4 或回待机帧）。
+  private stepWalkerIdle(): void {
+    if (this.isAiming) {
+      if (this.needTurn) {
+        this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
+      }
+      this.aimAndFire();
+      return;
+    }
+    if (this.timer-- < 0 && this.patrolRange > 0) {
+      this.reserved = 4;
+    }
+    if (this.frameGroupIndex === 0) return;
+    this.setAction(0 | (this.patrolRange > 0 ? this.actionHighByte : this.initialFacing));
+  }
+
+  // reserved 1：攻击动画播放中（结束回 0；type3 在第 2 帧抛手雷 type10）。
+  private stepWalkerAttackAnim(): void {
+    if (this.isAnimationDone()) {
+      this.reserved = 0;
+      this.timer = 8;
+      if (this.typeId === ActorType.GrenadierGrunt) {
+        this.timer = 16;
+      }
+      this.attackRhythm = this.timer;
+      this.setAction((this.frameGroupIndex === 8 ? 0 : 4) | this.actionHighByte);
+    } else if (this.typeId === ActorType.GrenadierGrunt && this.frameIndex === 2) {
+      const throwRow: number = this.frameGroupIndex === 8 ? 0 : 1;
+      const action: number = 6 | this.actionHighByte;
+      const spawnX: number = this.posX + (EnemyActor.throwOffsetTable[throwRow][0] << 10) * this.facingSign;
+      const spawnY: number = this.posY + (EnemyActor.throwOffsetTable[throwRow][1] << 10);
+      this.launchProjectile(ProjectileActor.spawnProjectile(ActorType.DirectBullet, action, spawnX, spawnY, 25, null)); // this.a(tjge.k)：传入投射物 → a_Tk
+    }
+    this.hasFired = false;
+  }
+
+  // reserved 2：转身停顿（计时到切追击 4 并翻面）。
+  private stepWalkerTurnPause(): void {
+    if (this.timer-- >= 0) return;
+    this.reserved = 4;
+    this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
+    this.setAction(0 | this.actionHighByte);
+  }
+
+  // reserved 4/8：巡逻/横扫行走（设水平速度，越界后切转身 2 或重锚横扫边界）。共享体，读 this.reserved 区分。
+  private stepWalkerPatrol(): void {
+    this.targetVelX = px(4) * this.facingSign;
+    this.hasFired = false;
+    if ((this.facingSign > 0 && this.posX > this.patrolRightBound) || (this.facingSign < 0 && this.posX < this.patrolLeftBound)) {
+      if (this.reserved === 8) {
+        this.patrolLeftBound = this.canvas.cameraX + px(20);
+        this.patrolRightBound = this.canvas.cameraX + this.canvas.viewportWidth - px(20);
+        this.preHitSubState = 0;
+        this.reserved = 4;
+      } else {
+        this.reserved = 2;
+        this.targetVelX = 0;
+        this.timer = 15;
+      }
+      this.setAction(0 | this.actionHighByte);
+      return;
+    }
+    if (this.frameGroupIndex === 3) return;
+    this.setAction(3 | this.actionHighByte);
+  }
+
+  // reserved 5：开火出枪（type1 生成 type10 子弹赋初速切 1；type3 切投掷动作；frameGroup7 近战判定）。
+  private stepWalkerFire(): void {
+    this.attackRhythm = 8;
+    if (this.frameGroupIndex === 7) {
+      this.hasFired = true;
+      if (this.collidesWith(this.player)) {
+        this.player.onHitBy(this);
+      }
+      if (!this.isAnimationDone()) return;
+      this.reserved = this.preHitSubState === 8 ? this.preHitSubState : 0;
+      this.setAction(0 | this.actionHighByte);
+      return;
+    }
+    if (this.typeId === ActorType.RiflemanGrunt) {
+      const fireRow: number = this.frameGroupIndex - 8;
+      const action: number = EnemyActor.fireOffsetTable[fireRow][4] | this.actionHighByte;
+      const spawnX: number = this.posX + (EnemyActor.fireOffsetTable[fireRow][0] << 10) * this.facingSign;
+      const spawnY: number = this.posY + (EnemyActor.fireOffsetTable[fireRow][1] << 10);
+      const bullet: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, action, spawnX, spawnY, 25, null);
+      if (bullet == null) return;
+      if (!bullet.hitWall) {
+        bullet.targetVelX = (EnemyActor.fireOffsetTable[fireRow][2] << 10) * this.facingSign;
+        bullet.targetVelY = EnemyActor.fireOffsetTable[fireRow][3] << 10;
+      }
+      this.reserved = 1;
+      this.setAction(this.frameGroupIndex | this.actionHighByte);
+      return;
+    }
+    if (this.typeId !== ActorType.GrenadierGrunt) return;
+    this.setAction((this.frameGroupIndex === 0 ? 8 : 9) | this.actionHighByte);
+    this.reserved = 1;
+    this.attackRhythm = this.timer = 16;
+  }
+
+  // reserved 6：受击（动画结束后存活回 0，否则切死亡 7 起爆闪）。
+  private stepWalkerHurt(): void {
+    if (!this.isAnimationDone()) return;
+    if (this.hp > 0) {
+      this.hasFired = false;
+      this.reserved = this.preHitSubState === 8 ? this.preHitSubState : 0;
+      this.setAction(0 | this.actionHighByte);
+      return;
+    }
+    this.reserved = 7;
+    this.setAction(1 | this.actionHighByte);
+    this.hitFlashTimer = 10;
+  }
+
+  // reserved 7：死亡（动画结束后扣场景计数并 killAndMarkSpawned 回收）。
+  private stepWalkerDeath(): void {
+    if (!this.isAnimationDone()) return;
+    if (this.frameGroupIndex === 1) {
+      this.setAction(2 | this.actionHighByte);
+      return;
+    }
+    if (this.frameGroupIndex !== 2 || this.hitFlashTimer > 1) return;
+    if (this.slotIndex >= this.canvas.scene.residentActorSlots) {
+      --this.canvas.scene.waveSpawnCount;
+    }
+    ++this.canvas.scene.reservedD;
+    this.killAndMarkSpawned();
   }
 
   /**
@@ -399,12 +430,12 @@ export class EnemyActor extends ActorBase {
       }
       case 5: {
         if (this.typeId === ActorType.TurretEmplacement) {
-          const n: number = EnemyActor.turretShotParams[2] | this.actionHighByte;
-          const n2: number = this.posX + (EnemyActor.turretShotParams[0] << 10) * this.facingSign;
-          const n3: number = this.posY + (EnemyActor.turretShotParams[1] << 10);
-          const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.ArcCannonShell, n, n2, n3, 1, null);
-          if (k2 == null) break;
-          k2.targetVelX = EnemyActor.turretShotParams[3] * this.facingSign;
+          const action: number = EnemyActor.turretShotParams[2] | this.actionHighByte;
+          const spawnX: number = this.posX + (EnemyActor.turretShotParams[0] << 10) * this.facingSign;
+          const spawnY: number = this.posY + (EnemyActor.turretShotParams[1] << 10);
+          const bullet: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.ArcCannonShell, action, spawnX, spawnY, 1, null);
+          if (bullet == null) break;
+          bullet.targetVelX = EnemyActor.turretShotParams[3] * this.facingSign;
           this.reserved = 1;
           this.timer = 12;
           this.setAction(3 | this.actionHighByte);
@@ -459,26 +490,27 @@ export class EnemyActor extends ActorBase {
     if (this.reserved === 6 || this.reserved === 7 || this.reserved === 5 || this.reserved === 1 || this.player.health <= 0) {
       return 0;
     }
-    const bl: boolean = false;
-    let n: number = 0;
-    let n2: number = 0;
-    let n3: number = 0;
-    let n4: number = 0;
-    let n5: number = 2;
-    let n6: number = 2;
-    const bl2: boolean = false;
+    const bl: boolean = false; // 反编译死局部（CFR 产物，无副作用未引用），随体保留
+    let senseLeft: number = 0;
+    let senseRight: number = 0;
+    let senseUp: number = 0;
+    let senseDown: number = 0;
+    let leftWeight: number = 2;
+    let rightWeight: number = 2;
+    const bl2: boolean = false; // 反编译死局部（同上）
     if (this.actionHighByte === 0) {
-      n5 = 1;
+      leftWeight = 1;
     } else {
-      n6 = 1;
+      rightWeight = 1;
     }
-    n = (((this.canvas.viewportWidth * 9) / 10) | 0) / ((2 / n5) | 0) | 0;
-    n2 = (((this.canvas.viewportWidth * 9) / 10) | 0) / ((2 / n6) | 0) | 0;
-    n3 = px(20);
-    n4 = px(20);
+    senseLeft = (((this.canvas.viewportWidth * 9) / 10) | 0) / ((2 / leftWeight) | 0) | 0;
+    senseRight = (((this.canvas.viewportWidth * 9) / 10) | 0) / ((2 / rightWeight) | 0) | 0;
+    senseUp = px(20);
+    senseDown = px(20);
     switch (this.typeId) {
       case ActorType.RiflemanGrunt:
       case ActorType.GrenadierGrunt: {
+        // n7..n10 是多角色 scratch：先作近身检测框四角（±30/±20px），命中 4 后复用为纵向感知子范围。
         let n7: number = this.posX - px(30);
         let n8: number = this.posX + px(30);
         let n9: number = this.posY - px(20);
@@ -491,12 +523,12 @@ export class EnemyActor extends ActorBase {
         }
         if (this.enemyVariant <= 0) break;
         if (this.typeId === ActorType.GrenadierGrunt) {
-          n3 = this.canvas.viewportHeight;
-          n4 = this.canvas.viewportHeight;
+          senseUp = this.canvas.viewportHeight;
+          senseDown = this.canvas.viewportHeight;
           break;
         }
-        n7 = n >> 2;
-        n8 = n2 >> 2;
+        n7 = senseLeft >> 2;
+        n8 = senseRight >> 2;
         n9 = this.canvas.viewportHeight;
         n10 = this.canvas.viewportHeight;
         if (this.player.posX < this.posX - ((n7 / this.reactionFactor) | 0) || this.player.posX > this.posX + ((n8 / this.reactionFactor) | 0)) break;
@@ -507,7 +539,7 @@ export class EnemyActor extends ActorBase {
         return 3;
       }
     }
-    if (this.player.posX < this.posX - n || this.player.posX > this.posX + n2 || this.player.posY < this.posY - n3 || this.player.posY > this.posY + n4) {
+    if (this.player.posX < this.posX - senseLeft || this.player.posX > this.posX + senseRight || this.player.posY < this.posY - senseUp || this.player.posY > this.posY + senseDown) {
       return 0;
     }
     return 1;
@@ -518,23 +550,23 @@ export class EnemyActor extends ActorBase {
    * 命中方需带碰撞标志位 2、本帧为新接触、且本敌人未死亡(reserved≠7)，否则返回 false。
    * 按命中方 typeId 受理：type0（玩家）仅在其挥刀动作组 24 时受近战伤害；
    * type10/12（玩家子弹/爆炸）受伤并返回 true（吃掉该投射物）。
-   * @param h2 命中本敌人的 Actor
+   * @param source 命中本敌人的 Actor
    * @returns 是否消费此次命中（true=投射物应销毁）
    */
   // a(tjge.h) → a_Th
-  public onHitBy(h2: ActorBase): boolean {
-    if (!h2.hasCollisionFlag(2) || !this.isNewContact(h2) || this.reserved === 7) {
+  public onHitBy(source: ActorBase): boolean {
+    if (!source.hasCollisionFlag(2) || !this.isNewContact(source) || this.reserved === 7) {
       return false;
     }
-    switch (h2.typeId) {
+    switch (source.typeId) {
       case ActorType.Player: {
-        if (h2.frameGroupIndex !== 24) break;
-        this.applyDamage(h2.getDamage(), h2.actionHighByte);
+        if (source.frameGroupIndex !== 24) break;
+        this.applyDamage(source.getDamage(), source.actionHighByte);
         break;
       }
       case ActorType.DirectBullet:
       case ActorType.ExplosionDebris: {
-        this.applyDamage(h2.getDamage(), h2.actionHighByte);
+        this.applyDamage(source.getDamage(), source.actionHighByte);
         return true;
       }
     }
@@ -546,22 +578,22 @@ export class EnemyActor extends ActorBase {
    * 扣血 hp、停水平速度、备份当前子状态到 preHitSubState(U) 以便受击后恢复，
    * 再按 typeId 切受击子状态 reserved=6：type1/3 据来袭方向选正/背面受击帧；
    * type2/5 切对应受击帧；type4 在血量耗尽时先生成两处爆炸(type12)再进受击。
-   * @param n 伤害值（≤0 直接返回，不结算）
-   * @param n2 来袭方向高字节（与本敌人朝向比较以选受击帧）
+   * @param damage 伤害值（≤0 直接返回，不结算）
+   * @param sourceFacing 来袭方向高字节（与本敌人朝向比较以选受击帧）
    */
   // b(int,int) → b_II
-  private applyDamage(n: number, n2: number): void {
-    if (n <= 0) {
+  private applyDamage(damage: number, sourceFacing: number): void {
+    if (damage <= 0) {
       return;
     }
-    this.hp -= n;
+    this.hp -= damage;
     this.targetVelX = 0;
     this.preHitSubState = this.reserved;
     switch (this.typeId) {
       case ActorType.RiflemanGrunt:
       case ActorType.GrenadierGrunt: {
         this.reserved = 6;
-        if (n2 === this.actionHighByte) {
+        if (sourceFacing === this.actionHighByte) {
           this.setAction(6 | this.actionHighByte);
           return;
         }
@@ -592,33 +624,33 @@ export class EnemyActor extends ActorBase {
    * 为已生成的投掷物（手雷）设置抛物线初速（对应 CFR f.java a(tjge.k) → 契约名 a_Tk）。
    * 据本敌人与玩家的水平距离反算竖直初速/重力，使手雷大致落在玩家处：
    * 水平速度固定 facingSign*5120，竖直初速 -n、加速度 accelY=n2、限速 maxVelY、飞行计时 timer。
-   * @param k2 已由 ProjectileActor.spawnProjectile 生成的手雷（null 直接返回）
+   * @param projectile 已由 ProjectileActor.spawnProjectile 生成的手雷（null 直接返回）
    */
   // a(tjge.k) → a_Tk
-  launchProjectile(k2: ProjectileActor | null): void {
-    if (k2 == null) {
+  launchProjectile(projectile: ProjectileActor | null): void {
+    if (projectile == null) {
       return;
     }
-    let n: number = 0;
-    let n2: number = 0;
-    let n3: number = Math.abs(this.player.posX - k2.posX);
-    n3 = Math.max(px(40), n3);
-    const n4: number = (n3 / px(5)) | 0;
-    const n5: number = n4 >>> 1;
-    let n6: number = 0;
-    while (n6 < n5) {
-      n2 += n6;
-      ++n6;
+    let vy: number = 0;
+    let accel: number = 0;
+    let dist: number = Math.abs(this.player.posX - projectile.posX);
+    dist = Math.max(px(40), dist);
+    const frames: number = (dist / px(5)) | 0;
+    const halfFrames: number = frames >>> 1;
+    let i: number = 0;
+    while (i < halfFrames) {
+      accel += i;
+      ++i;
     }
-    n3 = (n3 >>> 2) * 3;
-    n2 = ((n3 >>> 1) / n2) | 0;
-    n = (n5 - 1) * n2;
-    n = Math.min(px(15), n);
-    k2.targetVelX = this.facingSign * px(5);
-    k2.targetVelY = -n;
-    k2.accelY = n2;
-    k2.maxVelY = n;
-    k2.timer = n4;
+    dist = (dist >>> 2) * 3;
+    accel = ((dist >>> 1) / accel) | 0;
+    vy = (halfFrames - 1) * accel;
+    vy = Math.min(px(15), vy);
+    projectile.targetVelX = this.facingSign * px(5);
+    projectile.targetVelY = -vy;
+    projectile.accelY = accel;
+    projectile.maxVelY = vy;
+    projectile.timer = frames;
   }
 
   /**
@@ -642,22 +674,22 @@ export class EnemyActor extends ActorBase {
     }
     switch (this.typeId) {
       case ActorType.RiflemanGrunt: {
-        const nArray: number[] = [9, 10, 8, 11];
+        const attackFrames: number[] = [9, 10, 8, 11];
         if (this.threatCode === 1) {
           if (this.timer === this.attackRhythm) {
             if (this.burstCount > 0) {
-              this.setAction(nArray[GameMIDlet.randomBelow(2)] | this.actionHighByte);
+              this.setAction(attackFrames[GameMIDlet.randomBelow(2)] | this.actionHighByte);
             } else {
-              this.setAction(nArray[0] | this.actionHighByte);
+              this.setAction(attackFrames[0] | this.actionHighByte);
             }
           } else {
             this.setAction(this.frameGroupIndex | this.actionHighByte);
           }
         } else {
-          this.setAction(nArray[this.threatCode] | this.actionHighByte);
+          this.setAction(attackFrames[this.threatCode] | this.actionHighByte);
         }
         if (this.player.frameGroupIndex === 24 || this.timer-- >= 0) break;
-        if (this.burstCount === 1 && this.frameGroupIndex === nArray[this.burstCount]) {
+        if (this.burstCount === 1 && this.frameGroupIndex === attackFrames[this.burstCount]) {
           this.isAiming = false;
           return;
         }
@@ -666,12 +698,12 @@ export class EnemyActor extends ActorBase {
         return;
       }
       case ActorType.GrenadierGrunt: {
-        const nArray: number[] = [0, 4];
+        const throwFrames: number[] = [0, 4];
         if (this.timer === this.attackRhythm && this.burstCount > 0) {
-          this.setAction(nArray[GameMIDlet.randomBelow(2)] | this.actionHighByte);
+          this.setAction(throwFrames[GameMIDlet.randomBelow(2)] | this.actionHighByte);
         }
         if (this.player.frameGroupIndex === 24 || this.timer-- >= 0) break;
-        if (this.burstCount === 1 && this.frameGroupIndex === nArray[this.burstCount]) {
+        if (this.burstCount === 1 && this.frameGroupIndex === throwFrames[this.burstCount]) {
           this.isAiming = false;
           return;
         }
