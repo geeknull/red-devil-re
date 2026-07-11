@@ -113,11 +113,11 @@ export class GameMIDlet extends MIDlet {
     this.notifyDestroyed();
   }
 
-  /** GameMIDlet.a(int)：随机数绝对值取模。 */
-  static randomBelow(n: number): number {
-    let n2 = GameMIDlet.random.nextInt();
-    if (n2 < 0) n2 = -n2;
-    return n2 % n;
+  /** GameMIDlet.a(int)：随机数绝对值取模，返回 [0,bound) 内的值。 */
+  static randomBelow(bound: number): number {
+    let value = GameMIDlet.random.nextInt();
+    if (value < 0) value = -value;
+    return value % bound;
   }
 
   /** GameMIDlet.a(InputStream)：读 1 字节（有符号）。 */
@@ -126,26 +126,26 @@ export class GameMIDlet extends MIDlet {
     return GameMIDlet.byteBuf1[0];
   }
 
-  /** GameMIDlet.b(InputStream)：读小端 16 位（高字节有符号，short 语义）。 */
+  /** GameMIDlet.b(InputStream)：读小端 16 位（高字节有符号，`(x<<16)>>16` 复现 Java short 截断）。 */
   static readShortLE(inputStream: InputStream): number {
     inputStream.read(GameMIDlet.byteBuf2);
-    let n = GameMIDlet.byteBuf2[1];
-    n <<= 8;
-    n |= GameMIDlet.byteBuf2[0] & 0xff;
-    return (n << 16) >> 16;
+    let value = GameMIDlet.byteBuf2[1];
+    value <<= 8;
+    value |= GameMIDlet.byteBuf2[0] & 0xff;
+    return (value << 16) >> 16;
   }
 
-  /** GameMIDlet.a(byte[],int,int)：从字节数组按小端读 n2 字节为 int（最高字节有符号）。 */
-  static readIntLE(byArray: Int8Array, n: number, n2: number): number {
-    let n3 = 0;
-    let n4 = n2 - 1;
-    while (n4 >= 0) {
-      n3 <<= 8;
-      if (n4 === n2 - 1) n3 |= byArray[n4 + n];
-      else n3 |= byArray[n4 + n] & 0xff;
-      --n4;
+  /** GameMIDlet.a(byte[],int,int)：从 bytes 偏移 offset 按小端读 byteCount 字节为 int（最高字节有符号，低字节 `&0xff` 去符号）。 */
+  static readIntLE(bytes: Int8Array, offset: number, byteCount: number): number {
+    let result = 0;
+    let i = byteCount - 1;
+    while (i >= 0) {
+      result <<= 8;
+      if (i === byteCount - 1) result |= bytes[i + offset];
+      else result |= bytes[i + offset] & 0xff;
+      --i;
     }
-    return n3 | 0;
+    return result | 0;
   }
 
   // ---- 音频（MIDI）：自带轻量 WebAudio 合成器播放 sound.bin 的标准 MIDI（设备相关，最佳努力）----
@@ -201,27 +201,30 @@ export class GameMIDlet extends MIDlet {
     }
   }
 
-  /** GameMIDlet.b(int)：RMS 存档 "REDDEVIL2"(5字节) → localStorage。 */
-  static accessSaveRecord(n: number): void {
+  /**
+   * GameMIDlet.b(int)：RMS 存档 "REDDEVIL2"(5 字节 [关/继续数/声音/进度/储备弹]) ↔ localStorage。
+   * @param mode 0=读入 saveRecord；1=写出 saveRecord；2=清头两字节（关卡/继续数归零，不落盘）
+   */
+  static accessSaveRecord(mode: number): void {
     try {
-      if (n === 2) {
+      if (mode === 2) {
         GameMIDlet.saveRecord[0] = 0;
         GameMIDlet.saveRecord[1] = 0;
         return;
       }
       const raw = typeof localStorage !== "undefined" ? localStorage.getItem("REDDEVIL2") : null;
       if (raw) {
-        if (n === 0) {
+        if (mode === 0) {
           const arr = raw.split(",").map((x) => Number(x));
           GameMIDlet.saveRecord = Int8Array.from(arr);
-        } else if (n === 1) {
+        } else if (mode === 1) {
           localStorage.setItem("REDDEVIL2", Array.from(GameMIDlet.saveRecord.slice(0, 5)).join(","));
         }
       } else {
-        if (n === 0) {
+        if (mode === 0) {
           GameMIDlet.saveRecord[0] = 0;
           GameMIDlet.saveRecord[1] = 0;
-        } else if (n === 1) {
+        } else if (mode === 1) {
           if (typeof localStorage !== "undefined") {
             localStorage.setItem("REDDEVIL2", Array.from(GameMIDlet.saveRecord.slice(0, 5)).join(","));
           }
