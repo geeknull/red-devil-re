@@ -981,30 +981,30 @@ export class PlayerActor extends ActorBase {
    */
   // t() → t_
   private probeVault(): number {
-    let n: number;
-    let n2: number;
-    let n3: number;
+    let stepDir: number;
+    let farOffset: number;
+    let nearOffset: number;
     if (this.actionHighByte == 0) {
-      n3 = this.boxRight;
-      n2 = this.boxRight + 10;
-      n = 1;
+      nearOffset = this.boxRight;
+      farOffset = this.boxRight + 10;
+      stepDir = 1;
     } else {
-      n3 = this.boxLeft;
-      n2 = this.boxLeft - 10;
-      n = -1;
+      nearOffset = this.boxLeft;
+      farOffset = this.boxLeft - 10;
+      stepDir = -1;
     }
-    const n4: number = (this.posX >> 10) + n3 >> 3;
-    const n5: number = (this.posX + this.velX >> 10) + n2 >> 3;
-    const n6: number = (this.posY + this.velY >> 10) - 2 >> 3;
-    const n7: number = n6 - 7;
-    let n8: number = n4;
-    while (n8 != n5 + n) {
-      let n9: number = n7;
-      while (n9 <= n6) {
-        const n10: number = this.tileAt(n8, n9);
-        if ((n10 & 3) != 0) {
-          const n11: number = n9 - n7;
-          switch (n11) {
+    const colStart: number = (this.posX >> 10) + nearOffset >> 3;
+    const colEnd: number = (this.posX + this.velX >> 10) + farOffset >> 3;
+    const rowBottom: number = (this.posY + this.velY >> 10) - 2 >> 3;
+    const rowTop: number = rowBottom - 7;
+    let col: number = colStart;
+    while (col != colEnd + stepDir) {
+      let row: number = rowTop;
+      while (row <= rowBottom) {
+        const tile: number = this.tileAt(col, row);
+        if ((tile & 3) != 0) {
+          const hitHeight: number = row - rowTop;
+          switch (hitHeight) {
             case 0: {
               return 5;
             }
@@ -1016,16 +1016,16 @@ export class PlayerActor extends ActorBase {
             }
             case 3:
             case 4: {
-              const n12: number = this.tileAt(n8 - n, n9);
-              const n13: number = this.tileAt(n8, n9 - 1);
-              if (n12 == 0 && n13 == 0) {
-                this.vaultTargetX = n > 0 ? n8 << 13 : (n8 << 3) + 8 << 10;
+              const behindTile: number = this.tileAt(col - stepDir, row);
+              const aboveTile: number = this.tileAt(col, row - 1);
+              if (behindTile == 0 && aboveTile == 0) {
+                this.vaultTargetX = stepDir > 0 ? col << 13 : (col << 3) + 8 << 10;
                 this.vaultTargetX += this.actionHighByte == 0 ? px(-10) : px(10);
-                this.vaultTargetY = (n9 << 13) + px(40);
-                if (n11 < 3) {
+                this.vaultTargetY = (row << 13) + px(40);
+                if (hitHeight < 3) {
                   return 4;
                 }
-                if (n11 < 4) {
+                if (hitHeight < 4) {
                   return 3;
                 }
                 return 2;
@@ -1038,9 +1038,9 @@ export class PlayerActor extends ActorBase {
             }
           }
         }
-        ++n9;
+        ++row;
       }
-      n8 += n;
+      col += stepDir;
     }
     return 0;
   }
@@ -1083,14 +1083,14 @@ export class PlayerActor extends ActorBase {
   }
 
   // d(int) → d_I
-  private snapToLedge(n: number): boolean {
-    let n2: number = this.posX + this.velX >> 13;
-    const n3: number = n == 0 ? this.boxTop : 10;
-    const n4: number = (this.posY >> 10) + n3 >> 3;
-    if (this.tileAt(n2, n4) == 4) {
-      while (this.tileAt(--n2, n4) == 4) {
+  private snapToLedge(mode: number): boolean {
+    let col: number = this.posX + this.velX >> 13;
+    const probeTop: number = mode == 0 ? this.boxTop : 10;
+    const row: number = (this.posY >> 10) + probeTop >> 3;
+    if (this.tileAt(col, row) == 4) {
+      while (this.tileAt(--col, row) == 4) {
       }
-      this.posX = (n2 << 3) + 16 << 10;
+      this.posX = (col << 3) + 16 << 10;
       this.targetVelX = 0;
       this.velX = 0;
       return true;
@@ -1107,18 +1107,18 @@ export class PlayerActor extends ActorBase {
     if (this.velY > 0) {
       return false;
     }
-    const n: number = (this.posY >> 10) + this.boxTop >> 3;
-    const n2: number = (this.posY + this.velY >> 10) + this.boxTop >> 3;
-    const n3: number = this.posX + this.velX >> 13;
-    let n4: number = n;
-    while (n4 >= n2) {
-      const n5: number = this.tileAt(n3, n4);
-      if ((n5 & 3) != 0) {
+    const topRow: number = (this.posY >> 10) + this.boxTop >> 3;
+    const nextTopRow: number = (this.posY + this.velY >> 10) + this.boxTop >> 3;
+    const col: number = this.posX + this.velX >> 13;
+    let row: number = topRow;
+    while (row >= nextTopRow) {
+      const tile: number = this.tileAt(col, row);
+      if ((tile & 3) != 0) {
         this.targetVelY = 0;
-        this.velY = ((n4 << 3) + 9 << 10) - (this.posY + (this.boxTop << 10));
+        this.velY = ((row << 3) + 9 << 10) - (this.posY + (this.boxTop << 10));
         return true;
       }
-      --n4;
+      --row;
     }
     this.accelY = px(4);
     return false;
@@ -1133,24 +1133,24 @@ export class PlayerActor extends ActorBase {
     if (this.velY < 0) {
       return false;
     }
-    const n: number = (this.posY >> 10) + this.boxBottom >> 3;
-    const n2: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
-    let n3: number = n;
-    while (n3 <= n2) {
-      const n4: number = (this.posX + this.velX >> 10) - 3 >> 3;
-      const n5: number = this.posX + this.velX >> 10 >> 3;
-      const n6: number = (this.posX + this.velX >> 10) + 3 >> 3;
-      let n7: number = this.tileAt(n5, n3);
-      if ((n7 & 3) != 0) {
-        n7 = this.tileAt(n4, n3);
-        const n8: number = this.tileAt(n6, n3);
-        if ((n7 & 3) != 0 && (n8 & 3) != 0) {
+    const bottomRow: number = (this.posY >> 10) + this.boxBottom >> 3;
+    const nextBottomRow: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
+    let row: number = bottomRow;
+    while (row <= nextBottomRow) {
+      const leftCol: number = (this.posX + this.velX >> 10) - 3 >> 3;
+      const centerCol: number = this.posX + this.velX >> 10 >> 3;
+      const rightCol: number = (this.posX + this.velX >> 10) + 3 >> 3;
+      let tile: number = this.tileAt(centerCol, row);
+      if ((tile & 3) != 0) {
+        tile = this.tileAt(leftCol, row);
+        const rightTile: number = this.tileAt(rightCol, row);
+        if ((tile & 3) != 0 && (rightTile & 3) != 0) {
           this.targetVelY = 0;
-          this.velY = (n3 << 13) - (this.posY + (this.boxBottom << 10));
+          this.velY = (row << 13) - (this.posY + (this.boxBottom << 10));
           return true;
         }
       }
-      ++n3;
+      ++row;
     }
     this.accelY = px(4);
     return false;
@@ -1165,24 +1165,24 @@ export class PlayerActor extends ActorBase {
     if (this.velX > 0) {
       return false;
     }
-    const n: number = (this.posX + this.velX >> 10) + this.boxLeft >> 3;
-    const n2: number = (this.posX >> 10) + this.boxLeft >> 3;
-    const n3: number = (this.posY >> 10) + this.boxTop + 2 >> 3;
-    const n4: number = (this.posY >> 10) + this.boxBottom - 4 >> 3;
-    let n5: number = n3;
-    while (n5 <= n4) {
-      let n6: number = n2;
-      while (n6 >= n) {
-        const n7: number = this.tileAt(n6, n5);
-        if ((n7 & 3) != 0) {
+    const destCol: number = (this.posX + this.velX >> 10) + this.boxLeft >> 3;
+    const startCol: number = (this.posX >> 10) + this.boxLeft >> 3;
+    const topRow: number = (this.posY >> 10) + this.boxTop + 2 >> 3;
+    const bottomRow: number = (this.posY >> 10) + this.boxBottom - 4 >> 3;
+    let row: number = topRow;
+    while (row <= bottomRow) {
+      let col: number = startCol;
+      while (col >= destCol) {
+        const tile: number = this.tileAt(col, row);
+        if ((tile & 3) != 0) {
           this.targetVelX = 0;
           this.posX &= 0xFFFFFC00;
-          this.velX = ((n6 << 3) + 8 << 10) - (this.posX + (this.boxLeft << 10));
+          this.velX = ((col << 3) + 8 << 10) - (this.posX + (this.boxLeft << 10));
           return true;
         }
-        --n6;
+        --col;
       }
-      ++n5;
+      ++row;
     }
     return false;
   }
@@ -1196,24 +1196,24 @@ export class PlayerActor extends ActorBase {
     if (this.velX < 0) {
       return false;
     }
-    const n: number = (this.posX >> 10) + this.boxRight >> 3;
-    const n2: number = (this.posX + this.velX >> 10) + this.boxRight >> 3;
-    const n3: number = (this.posY >> 10) + this.boxTop + 2 >> 3;
-    const n4: number = (this.posY >> 10) + this.boxBottom - 4 >> 3;
-    let n5: number = n3;
-    while (n5 <= n4) {
-      let n6: number = n;
-      while (n6 <= n2) {
-        const n7: number = this.tileAt(n6, n5);
-        if ((n7 & 3) != 0) {
+    const startCol: number = (this.posX >> 10) + this.boxRight >> 3;
+    const destCol: number = (this.posX + this.velX >> 10) + this.boxRight >> 3;
+    const topRow: number = (this.posY >> 10) + this.boxTop + 2 >> 3;
+    const bottomRow: number = (this.posY >> 10) + this.boxBottom - 4 >> 3;
+    let row: number = topRow;
+    while (row <= bottomRow) {
+      let col: number = startCol;
+      while (col <= destCol) {
+        const tile: number = this.tileAt(col, row);
+        if ((tile & 3) != 0) {
           this.targetVelX = 0;
           this.posX &= 0xFFFFFC00;
-          this.velX = ((n6 << 3) - 1 << 10) - (this.posX + (this.boxRight << 10));
+          this.velX = ((col << 3) - 1 << 10) - (this.posX + (this.boxRight << 10));
           return true;
         }
-        ++n6;
+        ++col;
       }
-      ++n5;
+      ++row;
     }
     return false;
   }
@@ -1224,20 +1224,20 @@ export class PlayerActor extends ActorBase {
   }
 
   // a(int[][],int,int) → a_AAIII
-  private computeSpawnCoord(nArray: number[][], n: number, n2: number): number {
-    let n3: number = 1;
+  private computeSpawnCoord(offsetTable: number[][], slot: number, axis: number): number {
+    let dir: number = 1;
     if (this.actionHighByte != 0) {
-      n3 = -1;
+      dir = -1;
     }
-    let n4: number = 0;
-    if (n2 == 0) {
-      n4 = (nArray[n][n2] << 10) * n3;
-      n4 += this.posX;
+    let coord: number = 0;
+    if (axis == 0) {
+      coord = (offsetTable[slot][axis] << 10) * dir;
+      coord += this.posX;
     } else {
-      n4 = nArray[n][n2] << 10;
-      n4 += this.posY;
+      coord = offsetTable[slot][axis] << 10;
+      coord += this.posY;
     }
-    return n4;
+    return coord;
   }
 
   /**
@@ -1255,28 +1255,28 @@ export class PlayerActor extends ActorBase {
 
   // w() → w_
   private isFootOnGround(): boolean {
-    const n: number = this.posX >> 13;
-    const n2: number = (this.posY >> 10) + this.boxTop >> 3;
-    let n3: number = 2;
-    while (n3 >= 0) {
-      const n4: number = this.tileAt(n, n2 - n3);
-      if ((n4 & 3) != 0) break;
-      --n3;
+    const col: number = this.posX >> 13;
+    const topRow: number = (this.posY >> 10) + this.boxTop >> 3;
+    let offset: number = 2;
+    while (offset >= 0) {
+      const tile: number = this.tileAt(col, topRow - offset);
+      if ((tile & 3) != 0) break;
+      --offset;
     }
-    return n3 < 0;
+    return offset < 0;
   }
 
   // x() → x_
   private isVaultBlocked(): boolean {
-    const n: number = this.posX >> 13;
-    const n2: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
-    let n3: number = 0;
-    while (n3 < 2) {
-      const n4: number = this.tileAt(n, n2 + n3);
-      if ((n4 & 3) != 0) break;
-      ++n3;
+    const col: number = this.posX >> 13;
+    const bottomRow: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
+    let offset: number = 0;
+    while (offset < 2) {
+      const tile: number = this.tileAt(col, bottomRow + offset);
+      if ((tile & 3) != 0) break;
+      ++offset;
     }
-    return n3 < 2;
+    return offset < 2;
   }
 
   /**
