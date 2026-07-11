@@ -77,10 +77,10 @@ export class SpriteDef {
   /**
    * 返回第 n 个动作的帧数（字段 s[n] / framesPerAction[n]）。
    * 二开推进动画帧索引时按此取该动作的帧上界（如帧循环 frame % getFrameCount(action)）。
-   * @param n 动作号（0 ≤ n < {@link getActionCount}）。
+   * @param actionId 动作号（0 ≤ actionId < {@link getActionCount}）。
    */
-  public getFrameCount(n: number): number {
-    return this.framesPerAction[n];
+  public getFrameCount(actionId: number): number {
+    return this.framesPerAction[actionId];
   }
 
   /**
@@ -93,31 +93,31 @@ export class SpriteDef {
    * (byte)(-by)（-128 取负仍为 -128，忠实复刻 Java byte 溢出），并把镜像位 OR 进 drawCell 的子图参数。
    *
    * @param graphics 目标画布。
-   * @param n  绘制锚点 x（屏幕坐标）。
-   * @param n2 绘制锚点 y（屏幕坐标）。
-   * @param n3 动作号，含高位镜像标志（见上）。
-   * @param n4 帧号（0 ≤ n4 < {@link getFrameCount}(n3 低 24 位)）。
-   * @param n5 透传给 drawCell 的参数（如调色板/分组）。
-   * @param n6 透传给 drawCell 的参数。
+   * @param x  绘制锚点 x（屏幕坐标）。
+   * @param y 绘制锚点 y（屏幕坐标）。
+   * @param action 动作号，含高位镜像标志（见上）。
+   * @param frame 帧号（0 ≤ frame < {@link getFrameCount}(action 低 24 位)）。
+   * @param drawParamA 透传给 drawCell 的参数（如调色板/分组）。
+   * @param drawParamB 透传给 drawCell 的参数。
    */
-  public drawFrame(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number, n6: number): void {
-    const n7 = n3 & MIRROR_FLAG; // Integer.MIN_VALUE = 0x80000000
-    const n8 = n3 & FLIP_VERTICAL_BIT;
-    const s = this.actionFrameGroups[(n3 &= SEQUENCE_MASK)][n4];
-    const n9 = this.tilesPerGroup[s];
-    let n10 = 0;
-    while (n10 < n9) {
-      const n11 = this.groupTileIndices[s][n10] & 0xffff;
-      let by = this.groupTileOffsetX[s][n10];
-      if (n7 !== 0) {
-        by = ((-by) << 24) >> 24; // (byte)(-by)：-128 取负仍为 -128
+  public drawFrame(graphics: Graphics, x: number, y: number, action: number, frame: number, drawParamA: number, drawParamB: number): void {
+    const mirrorFlag = action & MIRROR_FLAG; // Integer.MIN_VALUE = 0x80000000
+    const flipFlag = action & FLIP_VERTICAL_BIT;
+    const group = this.actionFrameGroups[(action &= SEQUENCE_MASK)][frame];
+    const tileCount = this.tilesPerGroup[group];
+    let i = 0;
+    while (i < tileCount) {
+      const cellIndex = this.groupTileIndices[group][i] & 0xffff;
+      let offsetX = this.groupTileOffsetX[group][i];
+      if (mirrorFlag !== 0) {
+        offsetX = ((-offsetX) << 24) >> 24; // (byte)(-offsetX)：-128 取负仍为 -128
       }
-      let by2 = this.groupTileOffsetY[s][n10];
-      if (n8 !== 0) {
-        by2 = ((-by2) << 24) >> 24; // (byte)(-by2)
+      let offsetY = this.groupTileOffsetY[group][i];
+      if (flipFlag !== 0) {
+        offsetY = ((-offsetY) << 24) >> 24; // (byte)(-offsetY)
       }
-      this.tileSheet.drawCell(graphics, n + by, n2 + by2, n11 | n7 | n8, n5, n6);
-      ++n10;
+      this.tileSheet.drawCell(graphics, x + offsetX, y + offsetY, cellIndex | mirrorFlag | flipFlag, drawParamA, drawParamB);
+      ++i;
     }
   }
 
@@ -131,81 +131,81 @@ export class SpriteDef {
    * 完成后置 loadedFlags[sheetId]=true、登记 idMap[by]=sheetId，并按需经 {@link TileSheet.loadFromBin}
    * 加载并绑定图集 tileSheet。
    *
-   * @param n a.bin 中的条目序号。
+   * @param entryIndex a.bin 中的条目序号。
    * @returns 解析成功的 SpriteDef 实例；任何异常（IO/格式）均吞掉并返回 null（与原版一致）。
    */
-  public static loadFromArchive(n: number): SpriteDef | null {
-    const d2 = new SpriteDef();
+  public static loadFromArchive(entryIndex: number): SpriteDef | null {
+    const spriteDef = new SpriteDef();
     try {
-      let n2: number;
-      const inputStream = GameMIDlet.openEntryStream("/res/a.bin", n)!;
-      const by = GameMIDlet.readByte(inputStream);
-      d2.sheetId = GameMIDlet.readByte(inputStream);
-      d2.tileGroupCount = GameMIDlet.readShortLE(inputStream);
-      d2.tilesPerGroup = new Int16Array(d2.tileGroupCount);
-      d2.groupTileIndices = new Array<Int16Array>(d2.tileGroupCount);
-      d2.groupTileOffsetX = new Array<Int8Array>(d2.tileGroupCount);
-      d2.groupTileOffsetY = new Array<Int8Array>(d2.tileGroupCount);
-      let n3 = 0;
-      while (n3 < d2.tileGroupCount) {
-        d2.tilesPerGroup[n3] = GameMIDlet.readShortLE(inputStream);
-        d2.groupTileIndices[n3] = new Int16Array(d2.tilesPerGroup[n3]);
-        d2.groupTileOffsetX[n3] = new Int8Array(d2.tilesPerGroup[n3]);
-        d2.groupTileOffsetY[n3] = new Int8Array(d2.tilesPerGroup[n3]);
-        n2 = 0;
-        while (n2 < d2.tilesPerGroup[n3]) {
-          d2.groupTileIndices[n3][n2] = GameMIDlet.readShortLE(inputStream);
-          d2.groupTileOffsetX[n3][n2] = GameMIDlet.readByte(inputStream);
-          d2.groupTileOffsetY[n3][n2] = GameMIDlet.readByte(inputStream);
-          ++n2;
+      let i: number;
+      const inputStream = GameMIDlet.openEntryStream("/res/a.bin", entryIndex)!;
+      const externalId = GameMIDlet.readByte(inputStream);
+      spriteDef.sheetId = GameMIDlet.readByte(inputStream);
+      spriteDef.tileGroupCount = GameMIDlet.readShortLE(inputStream);
+      spriteDef.tilesPerGroup = new Int16Array(spriteDef.tileGroupCount);
+      spriteDef.groupTileIndices = new Array<Int16Array>(spriteDef.tileGroupCount);
+      spriteDef.groupTileOffsetX = new Array<Int8Array>(spriteDef.tileGroupCount);
+      spriteDef.groupTileOffsetY = new Array<Int8Array>(spriteDef.tileGroupCount);
+      let groupIndex = 0;
+      while (groupIndex < spriteDef.tileGroupCount) {
+        spriteDef.tilesPerGroup[groupIndex] = GameMIDlet.readShortLE(inputStream);
+        spriteDef.groupTileIndices[groupIndex] = new Int16Array(spriteDef.tilesPerGroup[groupIndex]);
+        spriteDef.groupTileOffsetX[groupIndex] = new Int8Array(spriteDef.tilesPerGroup[groupIndex]);
+        spriteDef.groupTileOffsetY[groupIndex] = new Int8Array(spriteDef.tilesPerGroup[groupIndex]);
+        i = 0;
+        while (i < spriteDef.tilesPerGroup[groupIndex]) {
+          spriteDef.groupTileIndices[groupIndex][i] = GameMIDlet.readShortLE(inputStream);
+          spriteDef.groupTileOffsetX[groupIndex][i] = GameMIDlet.readByte(inputStream);
+          spriteDef.groupTileOffsetY[groupIndex][i] = GameMIDlet.readByte(inputStream);
+          ++i;
         }
-        ++n3;
+        ++groupIndex;
       }
       inputStream.read1();
       inputStream.read1();
       inputStream.read1();
       inputStream.read1();
-      d2.actionCount = GameMIDlet.readShortLE(inputStream);
-      d2.actionParamA = new Int8Array(d2.actionCount);
-      d2.actionParamB = new Int8Array(d2.actionCount);
-      d2.actionParamC = new Int8Array(d2.actionCount);
-      d2.actionParamD = new Int8Array(d2.actionCount);
-      d2.framesPerAction = new Int16Array(d2.actionCount);
-      d2.actionFrameGroups = new Array<Int16Array>(d2.actionCount);
-      n2 = 0;
-      while (n2 < d2.actionCount) {
-        d2.actionParamA[n2] = GameMIDlet.readByte(inputStream);
-        d2.actionParamB[n2] = GameMIDlet.readByte(inputStream);
-        d2.actionParamC[n2] = GameMIDlet.readByte(inputStream);
-        d2.actionParamD[n2] = GameMIDlet.readByte(inputStream);
-        d2.framesPerAction[n2] = GameMIDlet.readShortLE(inputStream);
-        d2.actionFrameGroups[n2] = new Int16Array(d2.framesPerAction[n2]);
-        let n4 = 0;
-        while (n4 < d2.framesPerAction[n2]) {
-          d2.actionFrameGroups[n2][n4] = GameMIDlet.readByte(inputStream);
-          if (d2.actionFrameGroups[n2][n4] < 0) {
-            const sArray = d2.actionFrameGroups[n2];
-            const n5 = n4;
-            sArray[n5] = (sArray[n5] + 256) | 0;
+      spriteDef.actionCount = GameMIDlet.readShortLE(inputStream);
+      spriteDef.actionParamA = new Int8Array(spriteDef.actionCount);
+      spriteDef.actionParamB = new Int8Array(spriteDef.actionCount);
+      spriteDef.actionParamC = new Int8Array(spriteDef.actionCount);
+      spriteDef.actionParamD = new Int8Array(spriteDef.actionCount);
+      spriteDef.framesPerAction = new Int16Array(spriteDef.actionCount);
+      spriteDef.actionFrameGroups = new Array<Int16Array>(spriteDef.actionCount);
+      i = 0;
+      while (i < spriteDef.actionCount) {
+        spriteDef.actionParamA[i] = GameMIDlet.readByte(inputStream);
+        spriteDef.actionParamB[i] = GameMIDlet.readByte(inputStream);
+        spriteDef.actionParamC[i] = GameMIDlet.readByte(inputStream);
+        spriteDef.actionParamD[i] = GameMIDlet.readByte(inputStream);
+        spriteDef.framesPerAction[i] = GameMIDlet.readShortLE(inputStream);
+        spriteDef.actionFrameGroups[i] = new Int16Array(spriteDef.framesPerAction[i]);
+        let frameIndex = 0;
+        while (frameIndex < spriteDef.framesPerAction[i]) {
+          spriteDef.actionFrameGroups[i][frameIndex] = GameMIDlet.readByte(inputStream);
+          if (spriteDef.actionFrameGroups[i][frameIndex] < 0) {
+            const frameGroups = spriteDef.actionFrameGroups[i];
+            const idx = frameIndex;
+            frameGroups[idx] = (frameGroups[idx] + 256) | 0;
           }
-          ++n4;
+          ++frameIndex;
         }
-        ++n2;
+        ++i;
       }
-      d2.paramJ = GameMIDlet.readShortLE(inputStream);
-      d2.paramK = GameMIDlet.readShortLE(inputStream);
-      d2.paramL = GameMIDlet.readShortLE(inputStream);
-      d2.paramM = GameMIDlet.readShortLE(inputStream);
+      spriteDef.paramJ = GameMIDlet.readShortLE(inputStream);
+      spriteDef.paramK = GameMIDlet.readShortLE(inputStream);
+      spriteDef.paramL = GameMIDlet.readShortLE(inputStream);
+      spriteDef.paramM = GameMIDlet.readShortLE(inputStream);
       inputStream.close();
-      SpriteDef.loadedFlags[d2.sheetId] = true;
-      SpriteDef.idMap[by] = d2.sheetId;
-      if (SpriteDef.tileSheets[d2.sheetId] == null) {
-        SpriteDef.tileSheets[d2.sheetId] = TileSheet.loadFromBin(d2.sheetId);
+      SpriteDef.loadedFlags[spriteDef.sheetId] = true;
+      SpriteDef.idMap[externalId] = spriteDef.sheetId;
+      if (SpriteDef.tileSheets[spriteDef.sheetId] == null) {
+        SpriteDef.tileSheets[spriteDef.sheetId] = TileSheet.loadFromBin(spriteDef.sheetId);
       }
-      d2.tileSheet = SpriteDef.tileSheets[d2.sheetId]!;
+      spriteDef.tileSheet = SpriteDef.tileSheets[spriteDef.sheetId]!;
     } catch (exception) {
       return null;
     }
-    return d2;
+    return spriteDef;
   }
 }
