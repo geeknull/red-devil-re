@@ -83,20 +83,20 @@ export class GameMIDlet extends MIDlet {
   }
 
   /** GameMIDlet.a(int)：取随机数绝对值后对 n 取模。 */
-  static nextRandomMod(n: number): number {
-    let n2 = GameMIDlet.random.nextInt();
-    if (n2 < 0) n2 = -n2;
-    return n2 % n;
+  static nextRandomMod(bound: number): number {
+    let value = GameMIDlet.random.nextInt();
+    if (value < 0) value = -value;
+    return value % bound;
   }
 
   /** GameMIDlet.a(InputStream)：读小端 16 位（高字节有符号，返回 short 语义）。 */
   static readU16Le(inputStream: InputStream): number {
     const byArray = new Int8Array(2);
     inputStream.read(byArray);
-    let s = byArray[0];
-    if (s < 0) s = s + 256;
-    s = s + byArray[1] * 256;
-    return (s << 16) >> 16; // (short) 截断
+    let value = byArray[0];
+    if (value < 0) value = value + 256;
+    value = value + byArray[1] * 256;
+    return (value << 16) >> 16; // (short) 截断
   }
 
   /** GameMIDlet.b(InputStream)：读 1 字节（有符号）。 */
@@ -108,31 +108,31 @@ export class GameMIDlet extends MIDlet {
 
   /** GameMIDlet.c(InputStream)：读小端 32 位整数。 */
   static readI32Le(inputStream: InputStream): number {
-    let n = 0;
+    let result = 0;
     inputStream.read(GameMIDlet.readBuffer);
-    let n2 = 3;
-    while (n2 >= 0) {
-      n <<= 8;
-      n += GameMIDlet.readBuffer[n2];
-      if (GameMIDlet.readBuffer[n2] < 0) n += 256;
-      --n2;
+    let i = 3;
+    while (i >= 0) {
+      result <<= 8;
+      result += GameMIDlet.readBuffer[i];
+      if (GameMIDlet.readBuffer[i] < 0) result += 256;
+      --i;
     }
-    return n | 0;
+    return result | 0;
   }
 
   /** GameMIDlet.a(String,int)：返回定位到归档第 n 条目起始的输入流。 */
-  static openArchiveEntryStream(string: string, n: number): InputStream | null {
-    let n2 = 0;
+  static openArchiveEntryStream(archivePath: string, entryIndex: number): InputStream | null {
+    let offset = 0;
     try {
-      const inputStream = getResourceAsStream(string)!;
-      const n3 = GameMIDlet.readI32Le(inputStream);
-      let n4 = 0;
-      while (n4 < n3) {
-        if (n4 === n) n2 = GameMIDlet.readI32Le(inputStream);
+      const inputStream = getResourceAsStream(archivePath)!;
+      const entryCount = GameMIDlet.readI32Le(inputStream);
+      let i = 0;
+      while (i < entryCount) {
+        if (i === entryIndex) offset = GameMIDlet.readI32Le(inputStream);
         else inputStream.read(GameMIDlet.readBuffer);
-        ++n4;
+        ++i;
       }
-      inputStream.skip(n2);
+      inputStream.skip(offset);
       return inputStream;
     } catch (exception) {
       return null;
