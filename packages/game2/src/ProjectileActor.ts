@@ -130,14 +130,14 @@ export class ProjectileActor extends ActorBase {
               break;
             }
             if (this.frameGroupIndex === 11 && this.isSpecialGrenade && this.posY > px(146)) {
-              const e2: ItemActor = this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor;
+              const splashEffect: ItemActor = this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor;
               (this.canvas.scene.spawnActor(ActorType.SplashEffect, -1) as ItemActor).posX = this.posX;
-              e2.posY = this.posY + px(10);
-              e2.targetVelX = 0;
-              e2.targetVelY = 0;
-              e2.accelY = 0;
-              e2.setAction(0);
-              e2.drawThisFrame = false;
+              splashEffect.posY = this.posY + px(10);
+              splashEffect.targetVelX = 0;
+              splashEffect.targetVelY = 0;
+              splashEffect.accelY = 0;
+              splashEffect.setAction(0);
+              splashEffect.drawThisFrame = false;
               this.accelY = 0;
               this.targetVelY = 0;
               this.targetVelX = 0;
@@ -202,15 +202,15 @@ export class ProjectileActor extends ActorBase {
       case ActorType.GuidedGrenade: {
         ++this.timer;
         if (this.timer === 8) {
-          const n: number = this.canvas.player.posX - this.posX;
-          const n2: number = Math.abs(this.posY - this.canvas.player.posY);
-          const n3: number = Math.abs(n);
-          if (n3 > ((((n2 * 4) | 0) / 3) | 0)) {
+          const dx: number = this.canvas.player.posX - this.posX;
+          const absDy: number = Math.abs(this.posY - this.canvas.player.posY);
+          const absDx: number = Math.abs(dx);
+          if (absDx > ((((absDy * 4) | 0) / 3) | 0)) {
             this.targetVelX = this.posX > this.canvas.player.posX ? px(-8) : px(8);
-            this.targetVelY = -((n2 / ((n3 / px(8)) | 0)) | 0);
+            this.targetVelY = -((absDy / ((absDx / px(8)) | 0)) | 0);
           } else {
             this.targetVelY = px(-10);
-            this.targetVelX = (n / ((n2 / px(10)) | 0)) | 0;
+            this.targetVelX = (dx / ((absDy / px(10)) | 0)) | 0;
           }
           this.accelY = 0;
           if (this.targetVelX < px(-4)) {
@@ -247,13 +247,13 @@ export class ProjectileActor extends ActorBase {
    *  - typeId 10：命中机关/Boss 类（11/13/17/19/21）按「撞硬物」置 hitWall=true（触发地形特效）；
    *    命中其他（玩家/敌兵）置 exploded=true（实体击中特效）。
    *  - typeId 9：任意命中置 exploded=true。
-   * @param h2 被命中的目标 Actor
+   * @param source 被命中的目标 Actor
    */
   // protected final void c(tjge.h) → c_Th
-  onCollide(h2: ActorBase): void {
+  onCollide(source: ActorBase): void {
     switch (this.typeId) {
       case ActorType.DirectBullet: {
-        if (h2.typeId === ActorType.MobileGunEmplacement || h2.typeId === ActorType.PatrolLauncher || h2.typeId === ActorType.FinalBoss || h2.typeId === ActorType.DestructibleConsole || h2.typeId === ActorType.HelicopterBoss) {
+        if (source.typeId === ActorType.MobileGunEmplacement || source.typeId === ActorType.PatrolLauncher || source.typeId === ActorType.FinalBoss || source.typeId === ActorType.DestructibleConsole || source.typeId === ActorType.HelicopterBoss) {
           this.hitWall = true;
           return;
         }
@@ -274,67 +274,67 @@ export class ProjectileActor extends ActorBase {
    *  - typeId 10：动作非 9/6 时 collisionMask=1（仅撞纯实体墙）；生成即横向扫描地形带，贴墙则立即置 hitWall 并跑一帧 update()（贴墙生成→立即命中）。
    *  - typeId 12：animLoop=false（爆炸特效播完即止）。
    *  - typeId 9：初速 targetVelY=-2048（微上抛）、timer=0、动作 0。
-   * @param n 投射物类型 ID（9/10/12/16）
-   * @param n2 初始动作 ID（传给 setAction）
-   * @param n3 生成 X 坐标（定点 <<10）
-   * @param n4 生成 Y 坐标（定点 <<10）
-   * @param n5 碰撞类型掩码（写入 collisionTypeMask，决定可命中的阵营）
+   * @param typeId 投射物类型 ID（9/10/12/16）
+   * @param action 初始动作 ID（传给 setAction）
+   * @param spawnX 生成 X 坐标（定点 <<10）
+   * @param spawnY 生成 Y 坐标（定点 <<10）
+   * @param collisionMask 碰撞类型掩码（写入 collisionTypeMask，决定可命中的阵营）
    * @param nArray 备用参数（沿用原版签名，本类未使用）
    * @returns 取得的投射物实例（池满时可能为 null）
    */
   // public static final tjge.k a(int,int,int,int,int,int[]) → a_IIIIIAI
-  static spawnProjectile(n: number, n2: number, n3: number, n4: number, n5: number, nArray: Int32Array | null): ProjectileActor {
-    const k2: ProjectileActor = GameCanvas.instance.scene.spawnActor(n, -1) as ProjectileActor;
-    if (k2 != null) {
-      k2.posX = n3;
-      k2.posY = n4;
-      k2.targetVelX = 0;
-      k2.targetVelY = 0;
-      k2.accelX = 0;
-      k2.accelY = 0;
-      k2.maxVelY = px(15);
-      k2.drawAlpha = 0;
-      k2.frameTicks = 0;
-      k2.exploded = false;
-      k2.hitWall = false;
-      k2.expired = false;
-      k2.animLoop = true;
-      k2.isSpecialGrenade = false;
-      k2.setAction(n2);
-      k2.collisionMask = 3;
-      k2.collisionTypeMask = n5;
-      switch (n) {
+  static spawnProjectile(typeId: number, action: number, spawnX: number, spawnY: number, collisionMask: number, nArray: Int32Array | null): ProjectileActor {
+    const projectile: ProjectileActor = GameCanvas.instance.scene.spawnActor(typeId, -1) as ProjectileActor;
+    if (projectile != null) {
+      projectile.posX = spawnX;
+      projectile.posY = spawnY;
+      projectile.targetVelX = 0;
+      projectile.targetVelY = 0;
+      projectile.accelX = 0;
+      projectile.accelY = 0;
+      projectile.maxVelY = px(15);
+      projectile.drawAlpha = 0;
+      projectile.frameTicks = 0;
+      projectile.exploded = false;
+      projectile.hitWall = false;
+      projectile.expired = false;
+      projectile.animLoop = true;
+      projectile.isSpecialGrenade = false;
+      projectile.setAction(action);
+      projectile.collisionMask = 3;
+      projectile.collisionTypeMask = collisionMask;
+      switch (typeId) {
         case ActorType.DirectBullet: {
-          if (k2.frameGroupIndex === 9) break;
-          if (k2.frameGroupIndex !== 6) {
-            k2.collisionMask = 1;
+          if (projectile.frameGroupIndex === 9) break;
+          if (projectile.frameGroupIndex !== 6) {
+            projectile.collisionMask = 1;
           }
-          let n6: number = (k2.posX >> 10) + k2.boxLeft >> 3;
-          const n7: number = (k2.posX >> 10) + k2.boxRight >> 3;
-          const n8: number = k2.posY >> 10 >> 3;
-          while (n6 < n7) {
-            if (k2.tileAt(n6, n8) === 1) {
-              k2.hitWall = true;
+          let startCol: number = (projectile.posX >> 10) + projectile.boxLeft >> 3;
+          const endCol: number = (projectile.posX >> 10) + projectile.boxRight >> 3;
+          const row: number = projectile.posY >> 10 >> 3;
+          while (startCol < endCol) {
+            if (projectile.tileAt(startCol, row) === 1) {
+              projectile.hitWall = true;
               break;
             }
-            ++n6;
+            ++startCol;
           }
-          k2.update();
+          projectile.update();
           break;
         }
         case ActorType.ExplosionDebris: {
-          k2.animLoop = false;
+          projectile.animLoop = false;
           break;
         }
         case ActorType.GuidedGrenade: {
-          k2.targetVelX = 0;
-          k2.targetVelY = px(-2);
-          k2.timer = 0;
-          k2.setAction(0);
+          projectile.targetVelX = 0;
+          projectile.targetVelY = px(-2);
+          projectile.timer = 0;
+          projectile.setAction(0);
         }
       }
     }
-    return k2;
+    return projectile;
   }
 
   /**
@@ -372,23 +372,23 @@ export class ProjectileActor extends ActorBase {
     if (this.velY < 0) {
       return false;
     }
-    const n: number = (this.posY >> 10) + this.boxBottom >> 3;
-    const n2: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
-    const n3: number = (this.posX + this.velX >> 10) + this.boxLeft + 1 >> 3;
-    const n4: number = (this.posX + this.velX >> 10) + this.boxRight - 1 >> 3;
-    let n5: number = n3;
-    while (n5 <= n4) {
-      let n6: number = n;
-      while (n6 <= n2) {
-        const n7: number = this.tileAt(n5, n6);
-        if ((n7 & this.collisionMask) !== 0) {
+    const bottomRow: number = (this.posY >> 10) + this.boxBottom >> 3;
+    const nextBottomRow: number = (this.posY + this.velY >> 10) + this.boxBottom >> 3;
+    const leftCol: number = (this.posX + this.velX >> 10) + this.boxLeft + 1 >> 3;
+    const rightCol: number = (this.posX + this.velX >> 10) + this.boxRight - 1 >> 3;
+    let col: number = leftCol;
+    while (col <= rightCol) {
+      let row: number = bottomRow;
+      while (row <= nextBottomRow) {
+        const tile: number = this.tileAt(col, row);
+        if ((tile & this.collisionMask) !== 0) {
           this.targetVelY = 0;
-          this.velY = (n6 << 13) - (this.posY + (this.boxBottom << 10));
+          this.velY = (row << 13) - (this.posY + (this.boxBottom << 10));
           return true;
         }
-        ++n6;
+        ++row;
       }
-      ++n5;
+      ++col;
     }
     return false;
   }
