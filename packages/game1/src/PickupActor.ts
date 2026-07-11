@@ -170,17 +170,17 @@ export class PickupActor extends ActorBase {
    * 仅在 >0 且为奇数帧时画本体，形成 10 帧隔帧闪烁后消失。
    * 上浮特效：拾取期间（pickupFlashTimer>0 且 typeId 为 3 或 11）在道具上方调 screen.drawNumber
    * 绘制增益图标 riseEffectTile，纵向偏移随计时由 0 增到 27px 形成飘升动画。
-   * @param n  绘制基准 X（透传，与基类签名一致）
-   * @param n2 绘制基准 Y（透传，与基类签名一致）
+   * @param cameraX  绘制基准 X（透传，与基类签名一致）
+   * @param cameraY 绘制基准 Y（透传，与基类签名一致）
    */
-  paint(graphics: Graphics, n: number, n2: number): void {
+  paint(graphics: Graphics, cameraX: number, cameraY: number): void {
     if (this.pickupFlashTimer === 0 || (--this.pickupFlashTimer > 0 && (this.pickupFlashTimer & 1) !== 0)) {
-      super.paint(graphics, n, n2);
+      super.paint(graphics, cameraX, cameraY);
     }
     if (this.pickupFlashTimer > 0 && (this.typeId === ActorType.AmmoSupplyPickup || this.typeId === ActorType.HealthPickup)) {
-      const n3 = (this.posX - this.screen.cameraX) >> 10;
-      const n4 = (this.posY - this.screen.cameraY - px(20)) >> 10;
-      this.screen.drawNumber(graphics, this.riseEffectTile, n3, n4 - (30 - 3 * this.pickupFlashTimer), false, true);
+      const numberX = (this.posX - this.screen.cameraX) >> 10;
+      const numberY = (this.posY - this.screen.cameraY - px(20)) >> 10;
+      this.screen.drawNumber(graphics, this.riseEffectTile, numberX, numberY - (30 - 3 * this.pickupFlashTimer), false, true);
     }
   }
 }
