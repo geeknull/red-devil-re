@@ -269,15 +269,15 @@ export class GameCanvas extends Canvas {
           graphics.fillRect(0, 0, 176, 204);
           graphics.drawImage(this.logoImageMain!, 0, 0, 20);
           graphics.drawImage(this.logoImageSub!, 0, this.logoImageMain!.getHeight() + 2, 20);
-          let n = this.menuStartItem;
-          while (n < 7) {
-            graphics.setColor(this.menuSelection === n && this.underlineDir === 1 ? 0xffffff : 65280);
-            if (n === 3) {
-              graphics.drawString(GameMIDlet.menuTexts[GameMIDlet.saveRecord[2] === 0 ? 7 : 3], 88, 60 + n * 20, 17);
+          let menuItem = this.menuStartItem;
+          while (menuItem < 7) {
+            graphics.setColor(this.menuSelection === menuItem && this.underlineDir === 1 ? 0xffffff : 65280);
+            if (menuItem === 3) {
+              graphics.drawString(GameMIDlet.menuTexts[GameMIDlet.saveRecord[2] === 0 ? 7 : 3], 88, 60 + menuItem * 20, 17);
             } else {
-              graphics.drawString(GameMIDlet.menuTexts[n], 88, 60 + n * 20, 17);
+              graphics.drawString(GameMIDlet.menuTexts[menuItem], 88, 60 + menuItem * 20, 17);
             }
-            ++n;
+            ++menuItem;
           }
           graphics.setColor(65280);
           this.drawUnderline(graphics, 88, 80 + this.menuSelection * 20);
@@ -315,9 +315,9 @@ export class GameCanvas extends Canvas {
                 this.transitionProgress = 0;
                 this.subState = 0;
                 this.levelIndex = GameMIDlet.saveRecord[3];
-                const by = GameMIDlet.saveRecord[1];
-                GameMIDlet.saveRecord[1] = (by + 1) << 24 >> 24; // (byte) 截断
-                if (by > 99) {
+                const continueCount = GameMIDlet.saveRecord[1];
+                GameMIDlet.saveRecord[1] = (continueCount + 1) << 24 >> 24; // (byte) 截断
+                if (continueCount > 99) {
                   GameMIDlet.saveRecord[1] = 99;
                 }
                 PlayerActor.ammoReserve[1] = GameMIDlet.saveRecord[4];
@@ -412,14 +412,14 @@ export class GameCanvas extends Canvas {
           graphics.drawString(GameMIDlet.missionTexts[this.levelIndex], 88, 47, 17);
           LevelScene.hudFont.drawCell(graphics, 158, 157, 39, 0, 0);
           LevelScene.hudFont.drawCell(graphics, 23, 95, 29, 0, 0);
-          const nArray = Int32Array.from([5, 19, 44, 58, 81, 99, 124]);
-          const nArray2 = Int32Array.from([90, 100, 89, 101, 101, 93, 91]);
-          let n = 0;
-          while (n < 7) {
-            if (n <= this.levelIndex && (n !== this.levelIndex || this.globalFrame % 4 <= 1)) {
-              LevelScene.hudFont.drawCell(graphics, 24 + nArray[n], 24 + nArray2[n], 28, 0, 0);
+          const stageMarkX = Int32Array.from([5, 19, 44, 58, 81, 99, 124]);
+          const stageMarkY = Int32Array.from([90, 100, 89, 101, 101, 93, 91]);
+          let stageIndex = 0;
+          while (stageIndex < 7) {
+            if (stageIndex <= this.levelIndex && (stageIndex !== this.levelIndex || this.globalFrame % 4 <= 1)) {
+              LevelScene.hudFont.drawCell(graphics, 24 + stageMarkX[stageIndex], 24 + stageMarkY[stageIndex], 28, 0, 0);
             }
-            ++n;
+            ++stageIndex;
           }
           if (this.subState === 0 && this.inputAction === 32768) {
             this.subState = 1;
@@ -446,18 +446,18 @@ export class GameCanvas extends Canvas {
           graphics.drawString(GameMIDlet.interludeTexts[7], 36, 90, 20);
           graphics.drawString(String(GameMIDlet.saveRecord[1] & 0xff), 140, 90, 24);
           graphics.drawString(GameMIDlet.interludeTexts[6], 36, 116, 20);
-          const n = ((this.elapsedSeconds / 60) | 0);
-          const n2 = (this.elapsedSeconds % 60);
-          let string = String(n);
-          let string2 = String(n2);
-          if (n < 10) {
-            string = "0" + string;
+          const minutes = ((this.elapsedSeconds / 60) | 0);
+          const seconds = (this.elapsedSeconds % 60);
+          let minStr = String(minutes);
+          let secStr = String(seconds);
+          if (minutes < 10) {
+            minStr = "0" + minStr;
           }
-          if (n2 < 10) {
-            string2 = "0" + string2;
+          if (seconds < 10) {
+            secStr = "0" + secStr;
           }
-          const string3 = string + ":" + string2;
-          graphics.drawString(string3, 140, 116, 24);
+          const timeStr = minStr + ":" + secStr;
+          graphics.drawString(timeStr, 140, 116, 24);
           LevelScene.actorDefs[0]!.drawFrame(graphics, 48, 170, 4, 0, 0, 0);
           graphics.setClip(0, 0, 176, 204);
           if (this.inputAction === 4) {
@@ -474,9 +474,9 @@ export class GameCanvas extends Canvas {
             this.inputAction = 0;
           } else if (this.inputAction === 16) {
             if (this.menuSelection === 0) {
-              const by = GameMIDlet.saveRecord[1];
-              GameMIDlet.saveRecord[1] = (by + 1) << 24 >> 24; // (byte) 截断
-              if (by > 99) {
+              const continueCount = GameMIDlet.saveRecord[1];
+              GameMIDlet.saveRecord[1] = (continueCount + 1) << 24 >> 24; // (byte) 截断
+              if (continueCount > 99) {
                 GameMIDlet.saveRecord[1] = 99;
               }
               this.uiState = UiState.LevelIntroLoading;
@@ -487,15 +487,15 @@ export class GameCanvas extends Canvas {
             }
             this.inputAction = 0;
           }
-          let n3 = 0;
-          while (n3 < 2) {
-            graphics.setColor(n3 === this.menuSelection && this.underlineDir === 1 ? 0xffffff : 65280);
-            if (n3 === 0) {
+          let optionIndex = 0;
+          while (optionIndex < 2) {
+            graphics.setColor(optionIndex === this.menuSelection && this.underlineDir === 1 ? 0xffffff : 65280);
+            if (optionIndex === 0) {
               graphics.drawString(GameMIDlet.interludeTexts[0], 120, 150, 17);
             } else {
               graphics.drawString(GameMIDlet.interludeTexts[9], 120, 170, 17);
             }
-            ++n3;
+            ++optionIndex;
           }
           graphics.setColor(65280);
           this.drawUnderline(graphics, 120, 169 + this.menuSelection * 20);
@@ -516,18 +516,18 @@ export class GameCanvas extends Canvas {
           graphics.drawString(GameMIDlet.interludeTexts[7], 36, 86, 20);
           graphics.drawString(String(GameMIDlet.saveRecord[1] & 0xff), 140, 86, 24);
           graphics.drawString(GameMIDlet.interludeTexts[6], 36, 108, 20);
-          const n = ((this.elapsedSeconds / 60) | 0);
-          const n4 = (this.elapsedSeconds % 60);
-          let string = String(n);
-          let string4 = String(n4);
-          if (n < 10) {
-            string = "0" + string;
+          const minutes = ((this.elapsedSeconds / 60) | 0);
+          const seconds = (this.elapsedSeconds % 60);
+          let minStr = String(minutes);
+          let secStr = String(seconds);
+          if (minutes < 10) {
+            minStr = "0" + minStr;
           }
-          if (n4 < 10) {
-            string4 = "0" + string4;
+          if (seconds < 10) {
+            secStr = "0" + secStr;
           }
-          const string5 = string + ":" + string4;
-          graphics.drawString(string5, 140, 108, 24);
+          const timeStr = minStr + ":" + secStr;
+          graphics.drawString(timeStr, 140, 108, 24);
           LevelScene.hudFont.drawCell(graphics, 158, 189, 40, 0, 0);
           LevelScene.actorDefs[0]!.drawFrame(graphics, 88, 170, this.resultAnimFrame, this.resultAnimCounter, 0, 0);
           if (this.resultAnimFrame === 34) {
