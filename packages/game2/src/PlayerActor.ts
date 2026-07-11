@@ -327,7 +327,7 @@ export class PlayerActor extends ActorBase {
    */
   // r() → r_
   private runActionStateMachine(): void {
-    const n: number = this.actionHighByte == 0 ? 1 : -1;
+    const dir: number = this.actionHighByte == 0 ? 1 : -1;
     switch (this.frameGroupIndex) {
       case 24: {
         if (this.frameIndex > 3) {
@@ -351,7 +351,7 @@ export class PlayerActor extends ActorBase {
       }
       case 12:
       case 13: {
-        let n2: number;
+        let spawnY: number;
         if (this.isAnimationDone()) {
           if (this.frameGroupIndex == 13) {
             this.setAction(2 | this.actionHighByte);
@@ -361,17 +361,17 @@ export class PlayerActor extends ActorBase {
           return;
         }
         if (this.frameIndex != 2) break;
-        const n3: number = this.frameGroupIndex == 12 ? 0 : 1;
-        const bl: boolean = false;
-        const n4: number = 6 | this.actionHighByte;
-        const n5: number = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, n3, 0);
-        const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, n4, n5, n2 = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, n3, 1), 26, null);
-        if (k2 == null) break;
+        const grenadeSlot: number = this.frameGroupIndex == 12 ? 0 : 1;
+        const unusedDead: boolean = false;
+        const fireAction: number = 6 | this.actionHighByte;
+        const spawnX: number = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, grenadeSlot, 0);
+        const grenade: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, fireAction, spawnX, spawnY = this.computeSpawnCoord(PlayerActor.grenadeSpawnOffsets, grenadeSlot, 1), 26, null);
+        if (grenade == null) break;
         PlayerActor.ammoCurrent[2] = PlayerActor.ammoCurrent[2] - 1;
-        k2.targetVelX = this.actionHighByte == 0 ? px(8) : px(-8);
-        k2.targetVelY = -6656;
-        k2.accelY = 1128;
-        k2.maxVelY = px(15);
+        grenade.targetVelX = this.actionHighByte == 0 ? px(8) : px(-8);
+        grenade.targetVelY = -6656;
+        grenade.accelY = 1128;
+        grenade.maxVelY = px(15);
         return;
       }
       case 9:
@@ -385,17 +385,17 @@ export class PlayerActor extends ActorBase {
       case 25: {
         if ((this.reserved & 1) != 0) {
           this.actionSubTimer = 0;
-          this.targetVelX = px(8) * n;
+          this.targetVelX = px(8) * dir;
           this.setAction(0x17 | this.actionHighByte);
           return;
         }
         if ((this.reserved & 4) != 0) break;
-        this.targetVelX = px(8) * n;
+        this.targetVelX = px(8) * dir;
         return;
       }
       case 26: {
         if ((this.reserved & 4) == 0) {
-          this.targetVelX = px(8) * n;
+          this.targetVelX = px(8) * dir;
         }
         if (!this.isAnimationDone()) break;
         this.setAction(0x19 | this.actionHighByte);
@@ -424,7 +424,7 @@ export class PlayerActor extends ActorBase {
           return;
         }
         if (this.airborneJumping) {
-          this.targetVelX = (this.canJump ? PlayerActor.jumpVelocityX[this.vaultType] : px(5)) * n;
+          this.targetVelX = (this.canJump ? PlayerActor.jumpVelocityX[this.vaultType] : px(5)) * dir;
         } else if (--this.knockbackTimer < 0) {
           this.targetVelX = 0;
         }
@@ -454,7 +454,7 @@ export class PlayerActor extends ActorBase {
         if (this.actionSubTimer++ > 2) {
           this.setAction(0x10 | this.actionHighByte);
         }
-        this.targetVelX = (this.canJump ? px(8) : px(5)) * n;
+        this.targetVelX = (this.canJump ? px(8) : px(5)) * dir;
         return;
       }
       case 23: {
@@ -525,13 +525,13 @@ export class PlayerActor extends ActorBase {
    * 1024=手雷/2048=换弹/4096=切武器/其他=松开）结合当前 reserved 相位与动作组，驱动
    * 朝向翻转、移动速度、跳跃翻越({@link probeVault})、攀爬吸附({@link snapToLedge})、
    * 发射子弹/手雷({@link computeSpawnCoord}+ProjectileActor.spawnProjectile)、换弹与切武器等。
-   * @param n 输入动作位标志（GameCanvas.inputAction）
+   * @param action 输入动作位标志（GameCanvas.inputAction）
    */
   // c(int) → c_I
-  private handleInput(n: number): void {
+  private handleInput(action: number): void {
     ++this.inputCounter;
-    const n2: number = this.actionHighByte == 0 ? 1 : -1;
-    switch (n) {
+    const dir: number = this.actionHighByte == 0 ? 1 : -1;
+    switch (action) {
       case 1: {
         if ((this.reserved & 1) != 0) {
           if (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) {
@@ -648,7 +648,7 @@ export class PlayerActor extends ActorBase {
             this.posY -= px(5);
             this.setAction(0xE | this.actionHighByte);
           }
-          this.targetVelX = PlayerActor.jumpVelocityX[this.vaultType] * n2;
+          this.targetVelX = PlayerActor.jumpVelocityX[this.vaultType] * dir;
           this.targetVelY = PlayerActor.jumpVelocityY[this.vaultType];
           this.airborneJumping = true;
           this.accelY = px(4);
@@ -671,7 +671,7 @@ export class PlayerActor extends ActorBase {
         if ((this.reserved & 1) != 0) {
           if (this.frameGroupIndex == 2) {
             this.actionSubTimer = 0;
-            this.targetVelX = px(8) * n2;
+            this.targetVelX = px(8) * dir;
             this.setAction(0x17 | this.actionHighByte);
             return;
           }
@@ -725,22 +725,22 @@ export class PlayerActor extends ActorBase {
         }
       }
       case 16: {
-        let n3: number;
-        let n4: number;
+        let fireAction: number;
+        let fireSlot: number;
         if (this.actionLocked) {
           return;
         }
         if (this.canvas.inputAction == 32 && (this.reserved & 1) != 0) {
           this.targetVelX = 0;
-          n4 = 0;
+          fireSlot = 0;
         } else if (this.frameGroupIndex == 0) {
           this.targetVelX = 0;
-          n4 = 1;
+          fireSlot = 1;
         } else if (this.frameGroupIndex == 2) {
           this.targetVelX = 0;
-          n4 = 2;
+          fireSlot = 2;
         } else if (this.frameGroupIndex == 25) {
-          n4 = 3;
+          fireSlot = 3;
         } else {
           return;
         }
@@ -749,46 +749,46 @@ export class PlayerActor extends ActorBase {
             return;
           }
           this.currentWeaponIndex = 0;
-          n3 = -2147483637;
+          fireAction = -2147483637;
           this.inputCounter = 0;
         } else {
           if (PlayerActor.ammoCurrent[this.currentWeaponIndex] <= 0) {
-            this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][n4][2] | this.actionHighByte);
+            this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][2] | this.actionHighByte);
             return;
           }
-          n3 = PlayerActor.fireActionTable[this.currentWeaponIndex][n4][0] | this.actionHighByte;
+          fireAction = PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][0] | this.actionHighByte;
         }
-        const bl: boolean = false;
-        const n5: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, n4, 0);
-        const n6: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, n4, 1);
-        const k2: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, n3, n5, n6, 26, null);
-        if (k2 == null) break;
-        if (!k2.hitWall) {
-          switch (n4) {
+        const unusedDead: boolean = false;
+        const spawnX: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, fireSlot, 0);
+        const spawnY: number = this.computeSpawnCoord(PlayerActor.bulletSpawnOffsets, fireSlot, 1);
+        const bullet: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.DirectBullet, fireAction, spawnX, spawnY, 26, null);
+        if (bullet == null) break;
+        if (!bullet.hitWall) {
+          switch (fireSlot) {
             case 0: {
-              k2.targetVelY = px(-12);
+              bullet.targetVelY = px(-12);
               break;
             }
             case 1:
             case 2: {
-              k2.targetVelX = px(12) * n2;
+              bullet.targetVelX = px(12) * dir;
               break;
             }
             case 3: {
-              k2.targetVelX = px(12) * n2;
-              k2.targetVelY = px(12);
+              bullet.targetVelX = px(12) * dir;
+              bullet.targetVelY = px(12);
             }
           }
         }
-        this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][n4][1] | this.actionHighByte);
+        this.setAction(PlayerActor.fireActionTable[this.currentWeaponIndex][fireSlot][1] | this.actionHighByte);
         if (this.canvas.scene.isVerticalScrollLevel) {
-          k2.targetVelX = px(4);
-          k2.targetVelY = px(6);
-          k2.accelY = px(2);
-          k2.isSpecialGrenade = true;
+          bullet.targetVelX = px(4);
+          bullet.targetVelY = px(6);
+          bullet.accelY = px(2);
+          bullet.isSpecialGrenade = true;
         } else {
-          const n7: number = this.currentWeaponIndex;
-          PlayerActor.ammoCurrent[n7] = PlayerActor.ammoCurrent[n7] - 1;
+          const weapon: number = this.currentWeaponIndex;
+          PlayerActor.ammoCurrent[weapon] = PlayerActor.ammoCurrent[weapon] - 1;
         }
         this.canvas.inputAction = 0;
         return;
@@ -814,9 +814,9 @@ export class PlayerActor extends ActorBase {
         return;
       }
       case 4096: {
-        let n8: number;
-        if ((this.reserved & 1) != 0 && (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) && PlayerActor.ammoCurrent[n8 = (this.currentWeaponIndex + 1) % 2] + PlayerActor.ammoReserve[n8] > 0) {
-          this.currentWeaponIndex = n8;
+        let newWeapon: number;
+        if ((this.reserved & 1) != 0 && (this.frameGroupIndex == 0 || this.frameGroupIndex == 2) && PlayerActor.ammoCurrent[newWeapon = (this.currentWeaponIndex + 1) % 2] + PlayerActor.ammoReserve[newWeapon] > 0) {
+          this.currentWeaponIndex = newWeapon;
           this.reloadCurrentWeapon();
           this.setAction((this.frameGroupIndex == 0 ? 30 : 31) | this.actionHighByte);
         }
