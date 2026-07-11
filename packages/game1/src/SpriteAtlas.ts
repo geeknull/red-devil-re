@@ -73,62 +73,62 @@ export class SpriteAtlas {
    * i.a(Graphics,int,int,int,int,int)：绘制第 n3 张小图。
    * n/n2=目标 x/y，n3=小图索引(高字节带翻转请求位 a/b)，n4=调色板组索引，n5=附加 manipulation(旋转)。
    */
-  drawSprite(graphics: Graphics, n: number, n2: number, n3: number, n4: number, n5: number): void {
-    const n6 = n3 & FACING_MASK;
-    n3 &= SEQUENCE_MASK;
-    let n7 = 0;
+  drawSprite(graphics: Graphics, x: number, y: number, cellIndex: number, paletteIndex: number, manip: number): void {
+    const facingBits = cellIndex & FACING_MASK;
+    cellIndex &= SEQUENCE_MASK;
+    let manipCode = 0;
     // 原版：DirectGraphics directGraphics = DirectUtils.getDirectGraphics(graphics);
     //       —— 偏差：无 Nokia DirectGraphics，改用下方解码 + drawRegion。
-    if ((n6 & SpriteAtlas.flipHorizontalBit) !== 0) {
-      n7 = 8192;
+    if ((facingBits & SpriteAtlas.flipHorizontalBit) !== 0) {
+      manipCode = 8192;
     }
-    if ((n6 & SpriteAtlas.flipVerticalBit) !== 0) {
-      n7 |= 0x4000;
+    if ((facingBits & SpriteAtlas.flipVerticalBit) !== 0) {
+      manipCode |= 0x4000;
     }
-    n7 |= n5;
-    let n8 = 0;
-    const n9 = this.paletteBaseIndices[n3] << 4;
-    const bl = this.rowOffsets[n3] % 2 === 1;
-    let n10 = this.widths[n3];
-    const bl2 = (n10 - (this.rowOffsets[n3] % 2)) % 2 === 1;
-    n10 = (n10 / 2) | 0;
-    const n11 = (this.rowOffsets[n3] / 2) | 0;
-    if (bl && !bl2) {
-      ++n10;
+    manipCode |= manip;
+    let pixelCursor = 0;
+    const paletteBase = this.paletteBaseIndices[cellIndex] << 4;
+    const oddStart = this.rowOffsets[cellIndex] % 2 === 1;
+    let halfWidth = this.widths[cellIndex];
+    const oddTail = (halfWidth - (this.rowOffsets[cellIndex] % 2)) % 2 === 1;
+    halfWidth = (halfWidth / 2) | 0;
+    const colStart = (this.rowOffsets[cellIndex] / 2) | 0;
+    if (oddStart && !oddTail) {
+      ++halfWidth;
     }
-    let n12 = this.startRows[n3];
-    while (n12 < this.startRows[n3] + this.heights[n3]) {
-      let n13: number;
-      if (bl) {
-        SpriteAtlas.pixelBuffer[n8] = this.palettes[n4][n9 + (this.packedPixels[n12 * this.bytesPerRow + n11] & 0xf)];
-        ++n8;
-        n13 = 1;
+    let row = this.startRows[cellIndex];
+    while (row < this.startRows[cellIndex] + this.heights[cellIndex]) {
+      let col: number;
+      if (oddStart) {
+        SpriteAtlas.pixelBuffer[pixelCursor] = this.palettes[paletteIndex][paletteBase + (this.packedPixels[row * this.bytesPerRow + colStart] & 0xf)];
+        ++pixelCursor;
+        col = 1;
       } else {
-        n13 = 0;
+        col = 0;
       }
-      while (n13 < n10) {
-        const by = this.packedPixels[n12 * this.bytesPerRow + n13 + n11];
-        SpriteAtlas.pixelBuffer[n8] = this.palettes[n4][n9 + ((by >> 4) & 0xf)];
-        SpriteAtlas.pixelBuffer[++n8] = this.palettes[n4][n9 + (by & 0xf)];
-        ++n8;
-        ++n13;
+      while (col < halfWidth) {
+        const packed = this.packedPixels[row * this.bytesPerRow + col + colStart];
+        SpriteAtlas.pixelBuffer[pixelCursor] = this.palettes[paletteIndex][paletteBase + ((packed >> 4) & 0xf)];
+        SpriteAtlas.pixelBuffer[++pixelCursor] = this.palettes[paletteIndex][paletteBase + (packed & 0xf)];
+        ++pixelCursor;
+        ++col;
       }
-      if (bl2) {
-        SpriteAtlas.pixelBuffer[n8] = this.palettes[n4][n9 + ((this.packedPixels[n12 * this.bytesPerRow + n13 + n11] >> 4) & 0xf)];
-        ++n8;
+      if (oddTail) {
+        SpriteAtlas.pixelBuffer[pixelCursor] = this.palettes[paletteIndex][paletteBase + ((this.packedPixels[row * this.bytesPerRow + col + colStart] >> 4) & 0xf)];
+        ++pixelCursor;
       }
-      ++n12;
+      ++row;
     }
-    if ((n6 & SpriteAtlas.flipHorizontalBit) !== 0) {
-      n -= this.widths[n3];
+    if ((facingBits & SpriteAtlas.flipHorizontalBit) !== 0) {
+      x -= this.widths[cellIndex];
     }
-    if ((n6 & SpriteAtlas.flipVerticalBit) !== 0) {
-      n2 -= this.heights[n3];
+    if ((facingBits & SpriteAtlas.flipVerticalBit) !== 0) {
+      y -= this.heights[cellIndex];
     }
-    // 原版：directGraphics.drawPixels(f, true, 0, this.d[n3], n, n2, this.d[n3], this.e[n3], n7, 4444);
+    // 原版：directGraphics.drawPixels(f, true, 0, this.d[cellIndex], x, y, this.d[cellIndex], this.e[cellIndex], manipCode, 4444);
     //   偏差：把 f 缓冲(ARGB4444 short)解码为 0xAARRGGBB，建不可变图后用 drawRegion 等价贴出。
-    const w = this.widths[n3];
-    const h = this.heights[n3];
+    const w = this.widths[cellIndex];
+    const h = this.heights[cellIndex];
     const argb = new Int32Array(w * h);
     for (let p = 0; p < w * h; ++p) {
       const s = SpriteAtlas.pixelBuffer[p] & 0xffff; // ARGB4444
@@ -144,8 +144,8 @@ export class SpriteAtlas {
       argb[p] = ((a8 << 24) | (r8 << 16) | (g8 << 8) | b8) | 0;
     }
     const image = Image.createRGBImage(argb, w, h, true); // transparency=true → processAlpha
-    const transform = SpriteAtlas.manipulationToTransform(n7);
-    graphics.drawRegion(image, 0, 0, w, h, transform, n, n2, TOP | LEFT);
+    const transform = SpriteAtlas.manipulationToTransform(manipCode);
+    graphics.drawRegion(image, 0, 0, w, h, transform, x, y, TOP | LEFT);
   }
 
   /**
@@ -179,57 +179,57 @@ export class SpriteAtlas {
   }
 
   /** i.a(int)：从 /res/t.bin 第 n 条目解析图集。解析失败（异常）返回 null（保持原版语义）。 */
-  static load(n: number): SpriteAtlas | null {
-    const i2 = new SpriteAtlas();
+  static load(entryIndex: number): SpriteAtlas | null {
+    const atlas = new SpriteAtlas();
     try {
-      const inputStream = GameMIDlet.openArchiveEntryStream("/res/t.bin", n)!;
-      i2.spriteCount = GameMIDlet.readU16Le(inputStream);
-      i2.rowOffsets = new Int16Array(i2.spriteCount);
-      i2.startRows = new Int16Array(i2.spriteCount);
-      i2.widths = new Int16Array(i2.spriteCount);
-      i2.heights = new Int16Array(i2.spriteCount);
-      i2.paletteBaseIndices = new Int8Array(i2.spriteCount);
-      let n2 = 0;
-      while (n2 < i2.spriteCount) {
-        i2.paletteBaseIndices[n2] = GameMIDlet.readByte(inputStream);
-        i2.rowOffsets[n2] = GameMIDlet.readU16Le(inputStream);
-        i2.startRows[n2] = GameMIDlet.readU16Le(inputStream);
-        i2.widths[n2] = GameMIDlet.readByte(inputStream);
-        if (i2.widths[n2] < 0) {
-          const n3 = n2;
-          i2.widths[n3] = ((i2.widths[n3] + 256) << 16) >> 16; // (short)
+      const inputStream = GameMIDlet.openArchiveEntryStream("/res/t.bin", entryIndex)!;
+      atlas.spriteCount = GameMIDlet.readU16Le(inputStream);
+      atlas.rowOffsets = new Int16Array(atlas.spriteCount);
+      atlas.startRows = new Int16Array(atlas.spriteCount);
+      atlas.widths = new Int16Array(atlas.spriteCount);
+      atlas.heights = new Int16Array(atlas.spriteCount);
+      atlas.paletteBaseIndices = new Int8Array(atlas.spriteCount);
+      let i = 0;
+      while (i < atlas.spriteCount) {
+        atlas.paletteBaseIndices[i] = GameMIDlet.readByte(inputStream);
+        atlas.rowOffsets[i] = GameMIDlet.readU16Le(inputStream);
+        atlas.startRows[i] = GameMIDlet.readU16Le(inputStream);
+        atlas.widths[i] = GameMIDlet.readByte(inputStream);
+        if (atlas.widths[i] < 0) {
+          const idx = i;
+          atlas.widths[idx] = ((atlas.widths[idx] + 256) << 16) >> 16; // (short)
         }
-        i2.heights[n2] = GameMIDlet.readByte(inputStream);
-        if (i2.heights[n2] < 0) {
-          const n4 = n2;
-          i2.heights[n4] = ((i2.heights[n4] + 256) << 16) >> 16; // (short)
+        atlas.heights[i] = GameMIDlet.readByte(inputStream);
+        if (atlas.heights[i] < 0) {
+          const idx = i;
+          atlas.heights[idx] = ((atlas.heights[idx] + 256) << 16) >> 16; // (short)
         }
-        ++n2;
+        ++i;
       }
-      i2.paletteCount = GameMIDlet.readByte(inputStream);
-      const by = GameMIDlet.readByte(inputStream);
-      i2.palettes = new Array<Int16Array>(i2.paletteCount);
-      for (let q = 0; q < i2.paletteCount; ++q) {
-        i2.palettes[q] = new Int16Array(by << 4);
+      atlas.paletteCount = GameMIDlet.readByte(inputStream);
+      const paletteSize = GameMIDlet.readByte(inputStream);
+      atlas.palettes = new Array<Int16Array>(atlas.paletteCount);
+      for (let q = 0; q < atlas.paletteCount; ++q) {
+        atlas.palettes[q] = new Int16Array(paletteSize << 4);
       }
-      n2 = 0;
-      while (n2 < i2.paletteCount) {
-        let n5 = 0;
-        while (n5 < by << 4) {
-          i2.palettes[n2][n5] = GameMIDlet.readU16Le(inputStream);
-          ++n5;
+      i = 0;
+      while (i < atlas.paletteCount) {
+        let j = 0;
+        while (j < paletteSize << 4) {
+          atlas.palettes[i][j] = GameMIDlet.readU16Le(inputStream);
+          ++j;
         }
-        ++n2;
+        ++i;
       }
-      i2.bytesPerRow = GameMIDlet.readU16Le(inputStream);
-      i2.totalRows = GameMIDlet.readU16Le(inputStream);
-      i2.bytesPerRow = (i2.bytesPerRow / 2) | 0;
-      i2.packedPixels = new Int8Array(i2.bytesPerRow * i2.totalRows);
-      inputStream.read(i2.packedPixels);
+      atlas.bytesPerRow = GameMIDlet.readU16Le(inputStream);
+      atlas.totalRows = GameMIDlet.readU16Le(inputStream);
+      atlas.bytesPerRow = (atlas.bytesPerRow / 2) | 0;
+      atlas.packedPixels = new Int8Array(atlas.bytesPerRow * atlas.totalRows);
+      inputStream.read(atlas.packedPixels);
       inputStream.close();
     } catch (exception) {
       return null;
     }
-    return i2;
+    return atlas;
   }
 }
