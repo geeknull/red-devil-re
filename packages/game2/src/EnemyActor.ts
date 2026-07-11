@@ -400,82 +400,104 @@ export class EnemyActor extends ActorBase {
       this.linkedVehicle = null;
       return;
     }
+    // 按 AI 子状态 reserved 分派 stepTurret<State> helper（switch 是方法末块，故顶层 break==return→helper return）。
     switch (this.reserved) {
-      case 0: {
-        if (this.frameGroupIndex !== 0) {
-          this.setAction(0 | this.actionHighByte);
-        }
-        if (this.evaluateThreat() <= 0) break;
-        if (this.typeId === ActorType.TurretEmplacement) {
-          if ((this.actionHighByte === 0 && this.posX > this.player.posX) || (this.actionHighByte !== 0 && this.posX < this.player.posX)) {
-            this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
-            this.setAction(this.frameGroupIndex | this.actionHighByte);
-          }
-          if (this.timer-- >= 0) break;
-          this.reserved = 5;
-          return;
-        }
-        this.reserved = 5;
-        return;
-      }
-      case 1: {
-        if (this.timer-- < 0) {
-          this.timer = 5;
-          this.reserved = 0;
-          return;
-        }
-        if (!this.isAnimationDone()) break;
-        this.setAction(0 | this.actionHighByte);
-        return;
-      }
-      case 5: {
-        if (this.typeId === ActorType.TurretEmplacement) {
-          const action: number = EnemyActor.turretShotParams[2] | this.actionHighByte;
-          const spawnX: number = this.posX + (EnemyActor.turretShotParams[0] << 10) * this.facingSign;
-          const spawnY: number = this.posY + (EnemyActor.turretShotParams[1] << 10);
-          const bullet: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.ArcCannonShell, action, spawnX, spawnY, 1, null);
-          if (bullet == null) break;
-          bullet.targetVelX = EnemyActor.turretShotParams[3] * this.facingSign;
-          this.reserved = 1;
-          this.timer = 12;
-          this.setAction(3 | this.actionHighByte);
-          return;
-        }
-        if (this.typeId !== ActorType.VehicleGunner) break;
-        if (this.linkedVehicle != null && this.linkedVehicle.requestFire()) {
-          this.setAction(3 | this.actionHighByte);
-          --this.patrolLeftBound;
-        }
-        if (this.patrolLeftBound > 0) break;
-        this.patrolLeftBound = this.patrolRange;
-        this.timer = this.spawnParam;
-        this.reserved = 1;
-        return;
-      }
-      case 6: {
-        if (!this.isAnimationDone()) break;
-        if (this.hp > 0) {
-          this.timer = 5;
-          this.reserved = 0;
-          this.setAction(0 | this.actionHighByte);
-          return;
-        }
-        this.reserved = 7;
-        this.setAction(1 | this.actionHighByte);
-        this.hitFlashTimer = 10;
-        return;
-      }
-      case 7: {
-        if (!this.isAnimationDone()) break;
-        if (this.frameGroupIndex === 1) {
-          this.setAction(2 | this.actionHighByte);
-          return;
-        }
-        if (this.frameGroupIndex !== 2 || this.hitFlashTimer > 1) break;
-        ++this.canvas.scene.reservedD;
-        this.killAndMarkSpawned();
-      }
+      case 0:
+        this.stepTurretIdle();
+        break;
+      case 1:
+        this.stepTurretCooldown();
+        break;
+      case 5:
+        this.stepTurretFire();
+        break;
+      case 6:
+        this.stepTurretHurt();
+        break;
+      case 7:
+        this.stepTurretDeath();
+        break;
     }
+  }
+
+  // reserved 0：待命（回待机帧；evaluateThreat>0 后 type5 先转向对准玩家再倒计时切开火 5，type2 直接切 5）。
+  private stepTurretIdle(): void {
+    if (this.frameGroupIndex !== 0) {
+      this.setAction(0 | this.actionHighByte);
+    }
+    if (this.evaluateThreat() <= 0) return;
+    if (this.typeId === ActorType.TurretEmplacement) {
+      if ((this.actionHighByte === 0 && this.posX > this.player.posX) || (this.actionHighByte !== 0 && this.posX < this.player.posX)) {
+        this.actionHighByte ^= MIRROR_FLAG; // Integer.MIN_VALUE
+        this.setAction(this.frameGroupIndex | this.actionHighByte);
+      }
+      if (this.timer-- >= 0) return;
+      this.reserved = 5;
+      return;
+    }
+    this.reserved = 5;
+  }
+
+  // reserved 1：冷却（计时到回 0；动画结束回待机帧）。
+  private stepTurretCooldown(): void {
+    if (this.timer-- < 0) {
+      this.timer = 5;
+      this.reserved = 0;
+      return;
+    }
+    if (!this.isAnimationDone()) return;
+    this.setAction(0 | this.actionHighByte);
+  }
+
+  // reserved 5：开火（type5 生成直线子弹 type16 赋水平初速切冷却 1；type2 调 linkedVehicle.requestFire 按节奏发射）。
+  private stepTurretFire(): void {
+    if (this.typeId === ActorType.TurretEmplacement) {
+      const action: number = EnemyActor.turretShotParams[2] | this.actionHighByte;
+      const spawnX: number = this.posX + (EnemyActor.turretShotParams[0] << 10) * this.facingSign;
+      const spawnY: number = this.posY + (EnemyActor.turretShotParams[1] << 10);
+      const bullet: ProjectileActor | null = ProjectileActor.spawnProjectile(ActorType.ArcCannonShell, action, spawnX, spawnY, 1, null);
+      if (bullet == null) return;
+      bullet.targetVelX = EnemyActor.turretShotParams[3] * this.facingSign;
+      this.reserved = 1;
+      this.timer = 12;
+      this.setAction(3 | this.actionHighByte);
+      return;
+    }
+    if (this.typeId !== ActorType.VehicleGunner) return;
+    if (this.linkedVehicle != null && this.linkedVehicle.requestFire()) {
+      this.setAction(3 | this.actionHighByte);
+      --this.patrolLeftBound;
+    }
+    if (this.patrolLeftBound > 0) return;
+    this.patrolLeftBound = this.patrolRange;
+    this.timer = this.spawnParam;
+    this.reserved = 1;
+  }
+
+  // reserved 6：受击（动画结束后存活回 0，否则切死亡 7 起爆闪）。
+  private stepTurretHurt(): void {
+    if (!this.isAnimationDone()) return;
+    if (this.hp > 0) {
+      this.timer = 5;
+      this.reserved = 0;
+      this.setAction(0 | this.actionHighByte);
+      return;
+    }
+    this.reserved = 7;
+    this.setAction(1 | this.actionHighByte);
+    this.hitFlashTimer = 10;
+  }
+
+  // reserved 7：死亡（动画结束后扣场景计数并 killAndMarkSpawned 回收）。
+  private stepTurretDeath(): void {
+    if (!this.isAnimationDone()) return;
+    if (this.frameGroupIndex === 1) {
+      this.setAction(2 | this.actionHighByte);
+      return;
+    }
+    if (this.frameGroupIndex !== 2 || this.hitFlashTimer > 1) return;
+    ++this.canvas.scene.reservedD;
+    this.killAndMarkSpawned();
   }
 
   /**
