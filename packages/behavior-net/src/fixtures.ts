@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { registerResource, registerImage, ResourceArchive } from "@red-devil/j2me-shim";
+import { createHash } from "node:crypto";
 import { parsePngSize } from "./png-ihdr.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -27,9 +28,15 @@ const DEFS: Record<1 | 2, GameFixtureDef> = {
 };
 
 /** 轻量 stub Image：实现游戏绘制路径实际调用的子集（getWidth/getHeight/isMutable/source）。 */
-function makeStub(key: string, w: number, h: number): object {
+function makeStub(key: string, w: number, h: number, oracleId: string): object {
   const src = { __imgKey: key, width: w, height: h };
-  return { getWidth: () => w, getHeight: () => h, isMutable: () => false, source: () => src };
+  // oracleId = 跨端 provenance 身份（与 jvm-oracle 的 Image.provId 同 schema），纯观测。
+  return { getWidth: () => w, getHeight: () => h, isMutable: () => false, source: () => src, oracleId };
+}
+
+/** 源字节短哈希——与 jvm-oracle Image.sha6 同算法（SHA-256 前 6 字节 hex）。 */
+function sha6(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex").slice(0, 12);
 }
 
 export async function loadGameFixtures(game: 1 | 2): Promise<void> {
@@ -45,7 +52,7 @@ export async function loadGameFixtures(game: 1 | 2): Promise<void> {
       const isPng = e.length >= 8 && PNG_SIG.every((b, k) => e[k] === b);
       if (!isPng) continue;
       const { width, height } = parsePngSize(e);
-      registerImage(logical, i, makeStub(`${logical}#${i}`, width, height));
+      registerImage(logical, i, makeStub(`${logical}#${i}`, width, height, `png:${sha6(e)}`));
     }
   }
 
@@ -55,7 +62,7 @@ export async function loadGameFixtures(game: 1 | 2): Promise<void> {
     for (const fr of TileSheet.a_PaletteFrames()) {
       const u8 = new Uint8Array(fr.bytes);
       const { width, height } = parsePngSize(u8);
-      registerImage("/res/actorPng.bin", fr.index, makeStub(`/res/actorPng.bin#${fr.index}@${fr.frame}`, width, height), fr.frame);
+      registerImage("/res/actorPng.bin", fr.index, makeStub(`/res/actorPng.bin#${fr.index}@${fr.frame}`, width, height, `png:${sha6(u8)}`), fr.frame);
     }
   }
 }

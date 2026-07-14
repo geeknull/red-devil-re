@@ -6,6 +6,7 @@
  */
 import type { Image } from "./Image.ts";
 import { Font } from "./Font.ts";
+import { recordOp } from "./optap.ts";
 
 // 锚点常量（Graphics）
 export const HCENTER = 1;
@@ -48,6 +49,7 @@ export class Graphics {
 
   // ---- 字体 ----
   setFont(font: Font): void {
+    recordOp("setFont");
     this.font = font ?? Font.getDefaultFont();
   }
 
@@ -59,6 +61,9 @@ export class Graphics {
   setColor(rgb: number): void;
   setColor(r: number, g: number, b: number): void;
   setColor(a: number, b?: number, c?: number): void {
+    // 与 jvm-oracle 同 schema：1 参形式记 setColor、3 参形式记 setColor3
+    if (b === undefined) recordOp(`setColor ${a & 0xffffff}`);
+    else recordOp(`setColor3 ${a},${b},${c}`);
     if (b === undefined) this.color = a & 0xffffff;
     else this.color = ((a & 0xff) << 16) | ((b & 0xff) << 8) | (c! & 0xff);
   }
@@ -86,6 +91,7 @@ export class Graphics {
 
   // ---- 裁剪 ----
   setClip(x: number, y: number, w: number, h: number): void {
+    recordOp(`setClip ${x},${y},${w},${h}`);
     this.clip = { x: x + this.tx, y: y + this.ty, w, h };
     this.applyClip();
   }
@@ -126,11 +132,13 @@ export class Graphics {
 
   // ---- 基本图元 ----
   fillRect(x: number, y: number, w: number, h: number): void {
+    recordOp(`fillRect ${x},${y},${w},${h}`);
     this.ctx.fillStyle = this.css();
     this.ctx.fillRect(x + this.tx, y + this.ty, w, h);
   }
 
   drawRect(x: number, y: number, w: number, h: number): void {
+    recordOp(`drawRect ${x},${y},${w},${h}`);
     this.ctx.strokeStyle = this.css();
     // J2ME drawRect 宽高表示像素跨度，描边宽 1，偏移半像素对齐
     this.ctx.strokeRect(x + this.tx + 0.5, y + this.ty + 0.5, w, h);
@@ -142,6 +150,7 @@ export class Graphics {
   }
 
   drawLine(x1: number, y1: number, x2: number, y2: number): void {
+    recordOp(`drawLine ${x1},${y1},${x2},${y2}`);
     this.ctx.strokeStyle = this.css();
     this.ctx.beginPath();
     this.ctx.moveTo(x1 + this.tx + 0.5, y1 + this.ty + 0.5);
@@ -152,6 +161,7 @@ export class Graphics {
   // ---- 图像 ----
   /** drawImage(img, x, y, anchor)：anchor 指定 (x,y) 对应图像的哪个角/中心。 */
   drawImage(img: Image, x: number, y: number, anchor: number): void {
+    recordOp(`drawImage ${img.oracleId} ${x},${y},${anchor}`);
     const [dx, dy] = this.anchorTopLeft(x, y, img.getWidth(), img.getHeight(), anchor);
     this.ctx.drawImage(img.source(), dx + this.tx, dy + this.ty);
   }
@@ -171,6 +181,7 @@ export class Graphics {
     dy: number,
     anchor: number
   ): void {
+    recordOp(`drawRegion ${src.oracleId} src=${sx},${sy},${w},${h} t=${transform} d=${dx},${dy}`);
     // 变换后的目标尺寸（旋转 90/270 交换宽高）
     const swap = transform >= TRANS_ROT90 || transform === TRANS_MIRROR_ROT90 || transform === TRANS_MIRROR_ROT270;
     const dw = swap ? h : w;
@@ -242,6 +253,10 @@ export class Graphics {
 
   /** 对应 Graphics.drawSubstring(str, offset, len, x, y, anchor)。 */
   drawSubstring(str: string, offset: number, len: number, x: number, y: number, anchor: number): void {
+    // 规范 op：drawString(s,x,y,a) 语义上 === drawSubstring(s,0,len,x,y,a)，两者归一为 drawStr。
+    // 只在此打点：本 port 的 drawString 内部委托至此，故 game 调任一形式都恰好产生一条规范 op。
+    // ⚠️ 记的是 J2ME 调用层参数（文本/坐标/锚点），不含字形与度量——故意的字体偏差落在此层之下。
+    recordOp(`drawStr [${str.substring(offset, offset + len)}] ${x},${y},${anchor}`);
     const f = this.font;
     const w = f.substringWidth(str, offset, len);
     const h = f.getHeight();
