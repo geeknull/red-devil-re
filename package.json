@@ -9,7 +9,9 @@
     "test:shim": "node --experimental-strip-types packages/j2me-shim/test/run-all.ts",
     "dev": "pnpm --filter @red-devil/web dev",
     "test:behavior": "node --experimental-transform-types packages/behavior-net/run.ts",
-    "bless:behavior": "node --experimental-transform-types packages/behavior-net/bless.ts"
+    "bless:behavior": "node --experimental-transform-types packages/behavior-net/bless.ts",
+    "oracle:diff": "packages/jvm-oracle/diff.sh",
+    "oracle:run": "packages/jvm-oracle/run.sh"
   },
   "engines": {
     "node": ">=24"

@@ -15,6 +15,7 @@ export {
 } from "./Resource.ts";
 export type { ResourceLoader } from "./Resource.ts";
 export { Image, setCanvasFactory } from "./Image.ts";
+export { beginOpCapture, endOpCapture, takeOps, recordOp } from "./optap.ts";
 export type { CanvasFactory } from "./Image.ts";
 export {
   Graphics,

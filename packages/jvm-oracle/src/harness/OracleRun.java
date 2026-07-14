@@ -66,22 +66,25 @@ public class OracleRun {
     for (int frame = 0; frame < frames; frame++) {
       for (int[] in : ins) if (in[0] == frame) { if (in[2] == 1) keyP.invoke(c, in[1]); else keyR.invoke(c, in[1]); }
       int before = rng.draws.size();
+      OpTap.begin();
       Graphics g = new Graphics();
       paint.invoke(c, g);
+      // 从模块级 tap 取：离屏缓冲 Graphics 的绘制也在内（与 port 侧 takeOps 对称）
+      java.util.List<String> frameOps = OpTap.take();
       StringBuilder ds = new StringBuilder();
       for (int v : rng.draws.subList(before, rng.draws.size())) ds.append(v).append(';');
       rngRoll = sha(rngRoll + ds);
       StringBuilder os = new StringBuilder();
-      for (String op : g.ops) os.append(op).append('\n');
-      totalOps += g.ops.size();
+      for (String op : frameOps) os.append(op).append('\n');
+      totalOps += frameOps.size();
       Object st = pf.get(c);
       states.add(String.valueOf(st));
       if (DUMP_OPS) {
         // 逐 op 原文输出（差分 runner 用；与 TS 侧语义 tap 同 schema）
-        for (String op : g.ops) trace.append("F").append(frame).append('\t').append(op).append('\n');
+        for (String op : frameOps) trace.append("F").append(frame).append('\t').append(op).append('\n');
       } else {
         trace.append("F").append(frame).append(" s=").append(st)
-             .append(" ops=").append(g.ops.size()).append(" opsHash=").append(sha(os.toString()))
+             .append(" ops=").append(frameOps.size()).append(" opsHash=").append(sha(os.toString()))
              .append(" rngDraws=").append(rng.draws.size() - before)
              .append(" rngRoll=").append(rngRoll).append('\n');
       }
