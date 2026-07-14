@@ -1,9 +1,11 @@
 package javax.microedition.lcdui;
 public class Image {
     static int counter=0;
+    /** 审计用实例登记（纯观测，不参与任何游戏逻辑；见 harness/Audit.java）。 */
+    public static final java.util.List<Image> instances=new java.util.ArrayList<>();
     public int id; public int w,h; public boolean mutable; public byte[] raw;
     private Graphics g;
-    private Image(int w,int h,boolean m){ this.id=counter++; this.w=w; this.h=h; this.mutable=m; }
+    private Image(int w,int h,boolean m){ this.id=counter++; this.w=w; this.h=h; this.mutable=m; instances.add(this); }
     public static Image createImage(int w,int h){ return new Image(w,h,true); }
     public static Image createImage(byte[] data,int off,int len){
         Image im=new Image(0,0,false);
