@@ -43,6 +43,23 @@ public class OracleRun {
     int frames  = game == 1 ? 330 : 300;
     int[][] ins = game == 1 ? IN_G1 : IN_G2;
 
+    // -Doracle.scriptFile=<path>：读外部输入脚本（差分模糊测试用）。极简行格式，避免 JSON 依赖：
+    //   seed=<long> / frames=<int> / <frame>,<keyCode>,<1按下|0抬起>
+    // 与 TS 侧 dump-ops.ts 的 --script 同格式，保证两侧吃同一份脚本。
+    String scriptFile = System.getProperty("oracle.scriptFile");
+    if (scriptFile != null) {
+      List<int[]> parsed = new ArrayList<>();
+      for (String line : java.nio.file.Files.readAllLines(java.nio.file.Path.of(scriptFile))) {
+        line = line.trim();
+        if (line.isEmpty() || line.startsWith("#")) continue;
+        if (line.startsWith("seed=")) { seed = Long.parseLong(line.substring(5)); continue; }
+        if (line.startsWith("frames=")) { frames = Integer.parseInt(line.substring(7)); continue; }
+        String[] p = line.split(",");
+        parsed.add(new int[] { Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]) });
+      }
+      ins = parsed.toArray(new int[0][]);
+    }
+
     Class<?> M = Class.forName("tjge.GameMIDlet");
     Constructor<?> ct = M.getDeclaredConstructor(); ct.setAccessible(true);
     Object midlet = ct.newInstance();
