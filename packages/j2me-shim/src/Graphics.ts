@@ -161,7 +161,16 @@ export class Graphics {
   // ---- 图像 ----
   /** drawImage(img, x, y, anchor)：anchor 指定 (x,y) 对应图像的哪个角/中心。 */
   drawImage(img: Image, x: number, y: number, anchor: number): void {
-    recordOp(`drawImage ${img.oracleId} ${x},${y},${anchor}`);
+    // 规范化（同 drawRegion 处说明）：game1 另有一条 4bit 解码路径（GameScreen b_G，paint case1/13）
+    // 走「createRGBImage(synth:) → drawImage(x,y,TOP|LEFT)」，而原版走 drawPixels(...,manipulation=0)。
+    // manipulation=0 即无变换，故 drawImage 于 TOP|LEFT 与 drawPixels 的左上角贴图**语义等价**，
+    // 归一为 blitSprite t=0。⚠️ 仅 anchor===TOP|LEFT 时成立；其它锚点语义不同，照常记 drawImage
+    // （届时会在差分中暴露，而不是被悄悄掩盖）。
+    if (img.oracleId.startsWith("synth:") && anchor === (TOP | LEFT)) {
+      recordOp(`blitSprite ${img.getWidth()}x${img.getHeight()} t=${TRANS_NONE} d=${x},${y}`);
+    } else {
+      recordOp(`drawImage ${img.oracleId} ${x},${y},${anchor}`);
+    }
     const [dx, dy] = this.anchorTopLeft(x, y, img.getWidth(), img.getHeight(), anchor);
     this.ctx.drawImage(img.source(), dx + this.tx, dy + this.ty);
   }
@@ -181,7 +190,11 @@ export class Graphics {
     dy: number,
     anchor: number
   ): void {
-    recordOp(`drawRegion ${src.oracleId} src=${sx},${sy},${w},${h} t=${transform} d=${dx},${dy}`);
+    // 规范化：game1 的精灵走「4bit 自解码 → createRGBImage(synth:) → drawRegion」，而原版走
+    // Nokia DirectGraphics.drawPixels（浏览器无 DirectGraphics，已文档化的必要偏差）。两侧归一为
+    // blitSprite，比几何与变换；合成图的像素内容本就是偏差，不作身份比较。
+    if (src.oracleId.startsWith("synth:")) recordOp(`blitSprite ${w}x${h} t=${transform} d=${dx},${dy}`);
+    else recordOp(`drawRegion ${src.oracleId} src=${sx},${sy},${w},${h} t=${transform} d=${dx},${dy}`);
     // 变换后的目标尺寸（旋转 90/270 交换宽高）
     const swap = transform >= TRANS_ROT90 || transform === TRANS_MIRROR_ROT90 || transform === TRANS_MIRROR_ROT270;
     const dw = swap ? h : w;

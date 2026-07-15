@@ -28,17 +28,32 @@ cp -r "$REPO/reverse/game${GAME}/1-jar-unpacked/res" "$RESPATCH/"
 O="$OUT/$SCN.oracle.ops"
 P="$OUT/$SCN.port.ops"
 
-echo "[1/3] 跑 oracle（无头 JVM 直跑原版 .class 字节码）…"
+echo "[1/4] 跑 oracle（无头 JVM 直跑原版 .class 字节码）…"
 java --patch-module "java.base=$RESPATCH" --add-opens java.base/res=ALL-UNNAMED \
   -Djava.awt.headless=true -Doracle.dumpOps=true \
   -Doracle.width="$W" -Doracle.height="$H" \
   -cp "$OUT:$REPO/reverse/game${GAME}/1-jar-unpacked" \
-  harness.OracleRun "$GAME" 2>/dev/null | grep -v '^\[' > "$O"
+  harness.OracleRun "$GAME" > "$OUT/$SCN.oracle.raw" 2>/dev/null
+grep -v '^\[' "$OUT/$SCN.oracle.raw" > "$O"
 
-echo "[2/3] 跑 port（TS 移植，复用 behavior-net 驱动）…"
-(cd "$REPO" && node --experimental-transform-types packages/behavior-net/dump-ops.ts "$SCN" 2>/dev/null) > "$P"
+echo "[2/4] 跑 port（TS 移植，复用 behavior-net 驱动）…"
+(cd "$REPO" && node --experimental-transform-types packages/behavior-net/dump-ops.ts "$SCN" 2>"$OUT/$SCN.port.err") > "$P"
 
-echo "[3/3] 逐 op 对拍…"
+# 前置条件断言：RMS 存档会驱动绘制（game1 Q[2]→a.java:322、game2 k[2]→a.java:218）。
+# 两侧存档不一致时，差分红了也分不清是回归还是前置条件不符 → 必须先卡住，不能假设。
+echo "[3/4] 断言前置条件（两侧 RMS 存档字节一致）…"
+SAVE_O=$(grep -oE 'SAVE=\[[^]]*\]' "$OUT/$SCN.oracle.raw" | head -1)
+SAVE_P=$(grep -oE 'SAVE=\[[^]]*\]' "$OUT/$SCN.port.err" | head -1)
+echo "      oracle $SAVE_O ／ port $SAVE_P"
+if [ -z "$SAVE_O" ] || [ -z "$SAVE_P" ]; then
+  echo "⛔ 前置条件无法核验：存档字节未 dump 出来（差分结论不可信，先修 harness）"; exit 3
+fi
+if [ "$SAVE_O" != "$SAVE_P" ]; then
+  echo "⛔ 前置条件不符：两侧 RMS 存档不同 → 差分结论不可信（存档驱动绘制，见 docs/jvm-oracle-保真审计.md 四类）"
+  exit 3
+fi
+
+echo "[4/4] 逐 op 对拍…"
 echo "      oracle=$(wc -l < "$O") op   port=$(wc -l < "$P") op"
 
 if diff -q "$O" "$P" > /dev/null; then

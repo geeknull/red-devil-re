@@ -44,6 +44,14 @@ try {
     clock.advance(h.frameStepMs);
   }
   process.stdout.write(out.join("\n") + "\n");
+  // RMS 存档字节：已核实会驱动绘制（game1 Q[2] 影响绘制取值 a.java:322；game2 k[2] 决定
+  // drawString 画哪段文字 a.java:218）。两侧存档必须一致，否则差分红了也不知是回归还是前置条件不符。
+  // 故 dump 出来由 diff.sh 显式断言，而不是假设。见 docs/jvm-oracle-保真审计.md 四类。
+  // GameScreen 未从 game1 的 index 导出，直接取模块（game1 index 只导出 GameMIDlet）
+  const save = scn.game === 1
+    ? (await import("@red-devil/game1/src/GameScreen.ts")).GameScreen.saveData // 原版 tjge.a.Q（3 字节）
+    : (await import("@red-devil/game2")).GameMIDlet.saveRecord;                // 原版 GameMIDlet.k（5 字节）
+  console.error(`[port] SAVE=[${Array.from(save as ArrayLike<number>).join(",")}]`);
   console.error(`[port] scenario=${scn.id} screen=${h.width}x${h.height} frames=${scn.frames} ops=${out.length}`);
 } finally {
   clock.uninstall();

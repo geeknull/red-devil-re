@@ -90,6 +90,15 @@ public class OracleRun {
       }
     }
     System.out.print(trace);
+    // RMS 存档字节：已核实驱动绘制（game1 Q[2] → a.java:322；game2 k[2] → a.java:218）。
+    // 两侧必须一致，否则差分红了也分不清是回归还是前置条件不符 → 由 diff.sh 显式断言。
+    Object sv = (game == 1) ? f(Class.forName("tjge.a"), "Q").get(null) : f(M, "k").get(null);
+    StringBuilder sb2 = new StringBuilder();
+    if (sv != null) {
+      int n = java.lang.reflect.Array.getLength(sv);
+      for (int i = 0; i < n; i++) sb2.append(java.lang.reflect.Array.get(sv, i)).append(i < n - 1 ? "," : "");
+    }
+    System.out.println("[oracle] SAVE=[" + sb2 + "]");
     System.out.println("[oracle] screen=" + ScreenConfig.WIDTH + "x" + ScreenConfig.HEIGHT
         + " (canvas.getWidth/getHeight 供游戏自适应布局)");
     System.out.println("[oracle] game=" + game + " frames=" + frames + " totalDrawOps=" + totalOps + " totalRngDraws=" + rng.draws.size());
