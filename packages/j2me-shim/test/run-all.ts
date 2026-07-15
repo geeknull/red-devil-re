@@ -5,13 +5,22 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const suites = ["random", "resource", "midi", "ott"];
+// needsTransform：跨包引用 game1/game2 源（含 enum）的套件要 --experimental-transform-types，
+// 纯 shim 内的用 --experimental-strip-types 即可。
+const suites: Array<{ name: string; needsTransform?: boolean }> = [
+  { name: "random" },
+  { name: "resource" },
+  { name: "midi" },
+  { name: "ott" },
+  { name: "nokia-manip", needsTransform: true },
+];
 
 let failed = 0;
-for (const s of suites) {
+for (const { name: s, needsTransform } of suites) {
   process.stdout.write(`\n===== ${s}.verify.ts =====\n`);
   try {
-    execFileSync(process.execPath, ["--experimental-strip-types", join(here, `${s}.verify.ts`)], { stdio: "inherit" });
+    const flag = needsTransform ? "--experimental-transform-types" : "--experimental-strip-types";
+    execFileSync(process.execPath, [flag, join(here, `${s}.verify.ts`)], { stdio: "inherit" });
   } catch {
     failed++;
     process.stdout.write(`✗ ${s} 失败\n`);

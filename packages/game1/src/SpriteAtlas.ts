@@ -151,6 +151,18 @@ export class SpriteAtlas {
   /**
    * 偏差辅助：把 Nokia DirectGraphics 的 manipulation（翻转 8192/0x4000 + 旋转 90/180/270）
    * 换算为等价的 Sprite 变换常量，供 drawRegion 使用。
+   *
+   * ⚠️ **方向陷阱（本处曾出过缺陷，勿再按字面直译）**：
+   *   Nokia `ROTATE_90` 是**逆时针** 90°，而 MIDP Sprite `TRANS_ROT90` 是**顺时针** 90°。
+   *   故 **Nokia 90° ≡ Sprite TRANS_ROT270**、**Nokia 270° ≡ Sprite TRANS_ROT90**（互换）。
+   *   依据：Nokia UI API 官方文档明言「ROTATE_90 … rotating an image 90 degrees
+   *   **counter-clockwise**」「to rotate 90 degrees clockwise, **ROTATE_270** would be used」
+   *   <https://nikita36078.github.io/J2ME_Docs/docs/Nokia_UI_API_1_1/com/nokia/mid/ui/DirectGraphics.html>
+   *   并与第三方模拟器 FreeJ2ME 的实现一致（`PlatformGraphics.manipulateImage`：90→transform 6、
+   *   270→transform 5），其 `transformImage` 像素数学亦已逐格核对。
+   *   全 16 种组合有 spec 表兜底：`packages/j2me-shim/test/nokia-manip.verify.ts`。
+   *   历史：本函数原把纯旋转 90→ROT90、270→ROT270（按字面直译）**是反的**，由 jvm-oracle
+   *   引入原版参照后查出（见 docs/jvm-oracle-保真审计.md）。翻转组合当年反而推导对了。
    */
   private static manipulationToTransform(manip: number): number {
     const flipH = (manip & FLIP_HORIZONTAL) !== 0;
@@ -159,11 +171,11 @@ export class SpriteAtlas {
     // 先按旋转再叠加翻转，落到等价的 Sprite TRANS_* 上。
     if (rot === 90) {
       if (flipH || flipV) return flipH && flipV ? TRANS_ROT90 : flipH ? TRANS_MIRROR_ROT90 : TRANS_MIRROR_ROT270;
-      return TRANS_ROT90;
+      return TRANS_ROT270; // Nokia 90°(逆时针) ≡ Sprite ROT270
     }
     if (rot === 270) {
       if (flipH || flipV) return flipH && flipV ? TRANS_ROT270 : flipH ? TRANS_MIRROR_ROT270 : TRANS_MIRROR_ROT90;
-      return TRANS_ROT270;
+      return TRANS_ROT90; // Nokia 270°(逆时针) ≡ Sprite ROT90
     }
     if (rot === 180) {
       if (flipH && flipV) return TRANS_NONE;
