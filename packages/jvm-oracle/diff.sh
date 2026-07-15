@@ -28,6 +28,57 @@ else
   esac
 fi
 
+# ── 覆盖断言 ────────────────────────────────────────────────────────────────
+# 「绿」只在真的走到目标路径时才有信息量：绿而没走到 = 没意义（见 docs/复盘-CFR不是权威.md）。
+# coverage/<场景>.cover 把「本 scenario 覆盖了哪些路径」从**偶然**变成**机器断言的不变量**——
+# 将来若有人改动输入脚本致目标路径不再被走到，这里红，而不是悄悄退化成一个空洞的绿灯。
+#
+# 断言取 **oracle 侧**（信任根＝原版字节码）：断言的是「原版在这条输入下确实走了该路径」。
+# port 侧无需单独断言——op 已逐字节相同，原版画了 port 必然也画了。
+assert_coverage() {
+  local cov="$(pwd)/coverage/$SCN.cover"
+  [ -f "$cov" ] || { echo ""; echo "ℹ️  无 coverage/$SCN.cover → 未声明必达路径（该绿灯不含覆盖信息）"; return 0; }
+  local states states_list failed=0
+  states="$(grep -oE 'statesSeen=\[[^]]*\]' "$OUT/$SCN.oracle.raw" | head -1)"
+  # 归一为空格分隔的词表，用精确整词比对（别用正则：`[,\]]` 这类括号表达式里 `]` 不转义会静默匹配错）
+  states_list=" $(echo "$states" | sed 's/statesSeen=\[//; s/\]//; s/,/ /g' | tr -s ' ') "
+  echo ""
+  echo "[5/5] 断言必达路径（覆盖）…"
+  while IFS= read -r line; do
+    case "$line" in ''|'#'*) continue ;; esac
+    local kind rest desc
+    kind="${line%% *}"; rest="${line#* }"
+    desc="${rest#*|}"; rest="${rest%%|*}"
+    rest="${rest%"${rest##*[![:space:]]}"}"   # 去尾部空白
+    if [ "$kind" = "op" ]; then
+      # min = 第一个词；sub = 其余全部（**允许含空格**，如 `blitSprite 25x9 t=0 d=74,83`）
+      local min="${rest%% *}" sub="${rest#* }" cnt
+      cnt=$(grep -cF -- "$sub" "$O" || true)
+      if [ "$cnt" -lt "$min" ]; then
+        echo "   ❌ op『$sub』出现 $cnt 次 < 要求 $min 次 —— $desc"; failed=1
+      else
+        echo "   ✅ op『$sub』×$cnt —— $desc"
+      fi
+    elif [ "$kind" = "state" ]; then
+      local st="${rest%% *}"
+      case "$states_list" in
+        *" $st "*) echo "   ✅ state $st —— $desc" ;;
+        *)         echo "   ❌ state $st 未达到 —— $desc"; failed=1 ;;
+      esac
+    fi
+  done < "$cov"
+  echo "      oracle $states"
+  if [ "$failed" -ne 0 ]; then
+    echo ""
+    echo "⛔ 覆盖断言失败：op 逐字节一致，但**目标路径没被走到** → 这个「绿」没有信息量。"
+    echo "   要么修复 scenario 让它重新走到该路径，要么在 coverage/$SCN.cover 里显式删掉该条"
+    echo "   （删 = 公开承认放弃这块覆盖，必须写清理由；豁免只能收紧不能放宽）。"
+    return 1
+  fi
+  echo "   → 上述路径均**确实被走到**，故本绿灯含覆盖信息（非空洞绿灯）"
+  return 0
+}
+
 OUT="$(pwd)/out"
 mkdir -p "$OUT"
 javac -nowarn -d "$OUT" $(find src -name '*.java') || exit 1
@@ -68,13 +119,14 @@ if [ "$SAVE_O" != "$SAVE_P" ]; then
   exit 3
 fi
 
-echo "[4/4] 逐 op 对拍…"
+echo "[4/5] 逐 op 对拍…"
 echo "      oracle=$(wc -l < "$O") op   port=$(wc -l < "$P") op"
 
 if diff -q "$O" "$P" > /dev/null; then
   echo ""
   echo "✅ 绿：$SCN 全部 $(wc -l < "$O" | tr -d ' ') 条绘制调用跨引擎逐字节一致"
   echo "   → 该路径上，TS 移植的绘制行为与原版**位级相同**（机器判定，无需人看画面）"
+  assert_coverage || exit 4
   exit 0
 fi
 
