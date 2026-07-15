@@ -344,6 +344,27 @@ state <状态号>                        | <说明>
 `invokestatic System.currentTimeMillis` 改写到每帧 +W（game1=100ms / game2=80ms）的虚拟时钟；
 **W 独立取自原版字节码 → 不构成「用它自己验它自己」**。
 
+## 提交前门禁 `pnpm verify`（行动项 F）
+
+一条命令跑完全部闸门：`test:shim` → `test:behavior` → `oracle:diff` 两条 level →
+**`regress/` 下全部夹具**（所属游戏按文件名前缀 `game1-`/`game2-` 推断，**新增夹具自动纳入**）。
+
+**已证门禁能红**：把 `ProjectileActor.computeHomingTrajectory` 退回 CFR 的错误形态
+（`H = D > n3 ? -n4 : (n4 /= n)`，即那个真缺陷）→ 门禁 **exit 1**。
+**但真正值得看的是「谁抓到了它」**：
+
+| 闸门 | 结果 | 为什么 |
+|---|---|---|
+| `test:shim` | ✅ 过 | 不碰游戏逻辑 |
+| `test:behavior`（golden） | ✅ 过 | **结构性抓不到**——golden 是从 port 自己录的，port 错则 golden 把错的当基准 |
+| `oracle:diff game1-level` | ✅ 过 | **走不到手雷路径**（既有场景只开武器0=导弹） |
+| **`regress` 夹具** | ❌ **红** | `blitSprite 25x9 t=0 d=74,83` → `d=74,56`，**唯一抓到的** |
+
+> **这张表就是整个项目方法论的实证**：一个**玩法可见的真缺陷**，能同时躲过
+> 单元测试、行为回归网、**以及锚在真字节码上的跨引擎差分**——只因为**没有场景走到它**。
+> 「有绝对闸门」**不等于**「被闸门覆盖」。**闸门 × 覆盖，缺一不可。**
+> 这也正是 `regress/` 夹具与 `coverage/*.cover` 必须存在的理由。
+
 ## 残余风险（诚实标注）
 
 1. **字体度量**：oracle 与 port **都不是**真机字模。差分只能豁免该处，**无法判定谁对**。

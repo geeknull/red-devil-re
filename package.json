@@ -11,7 +11,8 @@
     "test:behavior": "node --experimental-transform-types packages/behavior-net/run.ts",
     "bless:behavior": "node --experimental-transform-types packages/behavior-net/bless.ts",
     "oracle:diff": "packages/jvm-oracle/diff.sh",
-    "oracle:run": "packages/jvm-oracle/run.sh"
+    "oracle:run": "packages/jvm-oracle/run.sh",
+    "verify": "tools/verify-all.sh"
   },
   "engines": {
     "node": ">=24"
