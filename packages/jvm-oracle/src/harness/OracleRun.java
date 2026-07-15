@@ -32,6 +32,8 @@ public class OracleRun {
 
   /** -Doracle.dumpOps=true → 逐帧输出原始 op 文本（供跨端差分），否则输出逐帧哈希 trace。 */
   static final boolean DUMP_OPS = Boolean.getBoolean("oracle.dumpOps");
+  /** -Doracle.dumpActors=true → 逐帧输出 drawQueue 里每个 actor 的 typeId/坐标（定位分歧根因用）。 */
+  static final boolean DUMP_ACTORS = Boolean.getBoolean("oracle.dumpActors");
 
   // behavior-net scenarios.ts 原样搬运
   static final int[][] IN_G1 = {{100,48,1},{101,48,0},{210,5,1},{240,48,1},{241,48,0},{260,5,0},{290,48,1},{291,48,0}};
@@ -96,7 +98,26 @@ public class OracleRun {
       totalOps += frameOps.size();
       Object st = pf.get(c);
       states.add(String.valueOf(st));
-      if (DUMP_OPS) {
+      if (DUMP_ACTORS) {
+        // drawQueue：game1 = a.k[]（count=a.v）；actor 字段 q=typeId / C=posX / D=posY / p=active
+        Object q = f(CC, "k").get(c);
+        int qn = ((Integer) f(CC, "v").get(c));
+        for (int j = 0; j < qn; j++) {
+          Object act = java.lang.reflect.Array.get(q, j);
+          if (act == null) { trace.append("F").append(frame).append("\tACTOR ").append(j).append(" null\n"); continue; }
+          Class<?> AC = act.getClass();
+          trace.append("F").append(frame).append("\tACTOR ").append(j)
+               .append(" t=").append(f(AC, "q").get(act))
+               .append(" x=").append(f(AC, "C").get(act))
+               .append(" y=").append(f(AC, "D").get(act))
+               .append(" vy=").append(f(AC, "F").get(act))
+               .append(" tvy=").append(f(AC, "H").get(act))
+               .append(" ay=").append(f(AC, "J").get(act))
+               .append(" mvy=").append(f(AC, "L").get(act))
+               .append(" on=").append(f(AC, "p").get(act))
+               .append('\n');
+        }
+      } else if (DUMP_OPS) {
         // 逐 op 原文输出（差分 runner 用；与 TS 侧语义 tap 同 schema）
         for (String op : frameOps) trace.append("F").append(frame).append('\t').append(op).append('\n');
       } else {

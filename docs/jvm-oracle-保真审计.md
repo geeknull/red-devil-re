@@ -152,6 +152,59 @@ golden 是**从 port 自己录的**，port 一直错、golden 就一直把错的
 > FreeJ2ME，绝不能抄 port 的 `manipulationToTransform`**——否则差分就是「用它自己验它自己」，
 > 对映射错误永远盲。这正是它能查出本缺陷的原因。
 
+## 🔴🔴 oracle 的第二份产出：**CFR 反编译出错，port 忠实照抄 → 真 bug**
+
+**这条比 rot90/270 更重要：它动摇了「CFR = 权威基准」这个前提。**
+
+差分模糊测试器（seed=110/111）捞出：玩家手雷的纵向速度两侧不同——原版近乎平飞（y 每帧 -1142
+定点 ≈ -1px），移植每帧 -29696（≈ -29px）、**三帧就飞出屏幕消失**。
+
+**定位过程**（每步都排除到底，未靠猜）：
+1. 逐帧 dump 两侧 drawQueue → **队列逐字节相同**，只有手雷（typeId 15）分歧 → 排除敌人 AI/相机。
+2. dump 速度字段 → `ay=0 mvy=0` 两侧皆是 → `launchArc` **未被调用**；两侧**生成 y 完全相同**
+   （95114+1142 = 66560+29696 = 96256）→ 排除生成逻辑。
+3. 分歧**纯在 `targetVelY`**（-1142 vs -29696），它来自 `computeHomingTrajectory`。
+4. 按 CFR 手算：目标只能是 ACTOR0（typeId 1, y=81920）→ `bestDist=|96256-81920+15360|=29696`；
+   `targetTop=61440`，手雷 `posY=96256 > 61440` → 走 `-bestDist` → **应得 -29696**。
+   **port 得到的正是 -29696（符合 CFR），而跑真字节码的 oracle 得到 -1142。**
+5. → 反推：**CFR 错了**。`javap tjge.l.f()` 尾部裁决：
+
+```
+214: iload 4     // n4 (bestDist)
+216: iload_1     // n  (horizDist)
+217: idiv
+218: istore 4    // n4 = n4/n     ← ★ 无条件执行，在分支之前
+226: if_icmple 235
+229: iload 4 ; 231: ineg          ← 加载的是【已除过的】n4
+235: iload 4                      ← 也是【已除过的】n4
+237: putfield H
+```
+
+| | 语义 |
+|---|---|
+| **真字节码** | `n4 /= n;  this.H = this.D > n3 ? -n4 : n4;` |
+| **CFR 产出（错）** | `this.H = this.D > n3 ? -n4 : (n4 /= n);` ← 把除法**沉进了 false 分支** |
+
+算术印证：`29696/26 = 1142` → 真机 **-1142**（oracle ✓）；照抄 CFR → **-29696**（port ✓）。
+
+**修复**：`packages/game1/src/ProjectileActor.ts` `computeHomingTrajectory` 末两行改为无条件先除
+再进三元（行内注释已附字节码证据，防未来「照 CFR 改回去」）。
+
+**方法论冲击（重要）**：
+- **CFR 不是绝对权威**。项目一直把 `reverse/*/2-decompiled-cfr/` 当「权威反编译基准」，人工逐行
+  移植也是对照它做的——**所以人工审查在原理上抓不到这类缺陷**（审查者与被审查者用的是同一个
+  错误参照）。行为网同样抓不到（golden 从 port 自己录）。**只有跑真字节码能发现。**
+- 今后遇到「port 与 oracle 分歧、但 port 看起来完全符合 CFR」时，**优先怀疑 CFR**，用
+  `javap -c -p` 裁决，勿默认 port 错。
+- CFR 的高危模式：**复合赋值/自增混在三元或复杂表达式里**（`(n4 /= n)`、`(segCursor -= 2)` 之类）。
+  这类地方 CFR 可能把「无条件的副作用」错误地沉进某个分支。**该文件其余同类写法值得复查。**
+
+**锚定**：`packages/jvm-oracle/regress/game1-grenade-homing.txt`（由捞出它的 fuzz seed=110 固化）+
+`./diff.sh --script regress/game1-grenade-homing.txt 1`。**已证该夹具能抓旧缺陷**（回退→红且精确
+复现 `<d=74,83` vs `>d=74,56`→恢复回绿）。⚠️ 现有 behavior-net golden **覆盖不到此路径**
+（既有场景只开武器0=导弹，不走 computeHomingTrajectory），故修复后 golden 完全不变——
+**必须靠本夹具锚定，否则重构再踩没人拦**。
+
 ## 残余风险（诚实标注）
 
 1. **字体度量**：oracle 与 port **都不是**真机字模。差分只能豁免该处，**无法判定谁对**。

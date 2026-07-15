@@ -208,7 +208,17 @@ export class ProjectileActor extends ActorBase {
     if ((horizDist = (horizDist / vertDist) | 0) <= 0) {
       horizDist = 1;
     }
-    this.targetVelY = this.posY > targetTop ? -bestDist : (bestDist = (bestDist / horizDist) | 0);
+    // ⚠️ CFR 在此处**反编译有误**，勿照抄。CFR 产出：
+    //     this.H = this.D > n3 ? -n4 : (n4 /= n);        // 把除法沉进了 false 分支
+    // 而真字节码（javap tjge.l.f() 尾部 214-237）是：
+    //     214: iload 4 / 216: iload_1 / 217: idiv / 218: istore 4   ← n4 /= n **无条件**，在分支之前
+    //     226: if_icmple 235 / 229: iload 4; ineg / 235: iload 4     ← 两支加载的都是**已除过**的 n4
+    //   即： n4 /= n;  this.H = this.D > n3 ? -n4 : n4;
+    // 实证（jvm-oracle 差分模糊测试 seed=110/111）：手雷 bestDist=29696、horizDist=26 →
+    //   真机 targetVelY = -(29696/26) = -1142（近乎平飞）；照抄 CFR 则 = -29696（每帧窜高 29px、
+    //   三帧飞出屏幕消失）。详见 docs/jvm-oracle-保真审计.md。
+    bestDist = (bestDist / horizDist) | 0;
+    this.targetVelY = this.posY > targetTop ? -bestDist : bestDist;
   }
 
   /**

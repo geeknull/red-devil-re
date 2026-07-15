@@ -42,6 +42,7 @@ if (!scn) {
   process.exit(2);
 }
 
+const DUMP_ACTORS = process.env.DUMP_ACTORS === "1";
 const byFrame = new Map<number, KeyInput[]>();
 for (const inp of scn.inputs) {
   const arr = byFrame.get(inp.frame) ?? [];
@@ -61,7 +62,14 @@ try {
     const ctx = new RecordingContext(h.width, h.height);
     const g = new Graphics(ctx as unknown as CanvasRenderingContext2D, h.width, h.height);
     h.paint(g);
-    for (const op of takeOps()) out.push(`F${f}\t${op}`);
+    if (DUMP_ACTORS) {
+      // drawQueue 逐 actor dump（与 oracle 的 -Doracle.dumpActors 同格式），定位分歧根因用
+      takeOps();
+      const acts = h.dumpActors?.() ?? [];
+      acts.forEach((a, j) => out.push(a ? `F${f}\tACTOR ${j} t=${a.t} x=${a.x} y=${a.y} vy=${a.vy} tvy=${a.tvy} ay=${a.ay} mvy=${a.mvy} on=${a.on}` : `F${f}\tACTOR ${j} null`));
+    } else {
+      for (const op of takeOps()) out.push(`F${f}\t${op}`);
+    }
     clock.advance(h.frameStepMs);
   }
   process.stdout.write(out.join("\n") + "\n");

@@ -12,6 +12,8 @@ export interface GameHarness {
   injectKey(code: number, down: boolean): void;
   paint(g: Graphics): void;
   snapshotState(): StateSnapshot;
+  /** 只读 actor 视图（纯观测）：供与 jvm-oracle 对拍 drawQueue 定位分歧根因。 */
+  dumpActors?(): Array<{ t: number; x: number; y: number; vy: number; tvy: number; ay: number; mvy: number; on: boolean } | null>;
 }
 
 export type CreateHarness = (seed: number) => Promise<GameHarness>;

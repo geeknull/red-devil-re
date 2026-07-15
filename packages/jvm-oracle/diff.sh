@@ -8,15 +8,25 @@
 # oracle 侧 harness/OracleRun.java 原样搬运同一份脚本（见其 IN_G1/IN_G2）。
 set -uo pipefail
 
-SCN="${1:?用法: ./diff.sh <game1-level|game2-level>}"
 cd "$(dirname "$0")"
 REPO="$(cd ../.. && pwd)"
 
-case "$SCN" in
-  game1-level) GAME=1; W=176; H=208 ;;
-  game2-level) GAME=2; W=176; H=204 ;;
-  *) echo "未知场景：$SCN（目前支持 game1-level / game2-level）"; exit 2 ;;
-esac
+# 用法：./diff.sh <game1-level|game2-level>
+#       ./diff.sh --script <脚本文件> <1|2>     —— 跑固化的回归夹具（regress/*.txt）
+SCRIPT_ARG=""
+if [ "${1:-}" = "--script" ]; then
+  SCRIPT_ARG="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"
+  GAME="${3:?用法: ./diff.sh --script <file> <1|2>}"
+  SCN="$(basename "$2" .txt)"
+  if [ "$GAME" = "1" ]; then W=176; H=208; else W=176; H=204; fi
+else
+  SCN="${1:?用法: ./diff.sh <game1-level|game2-level> 或 --script <file> <1|2>}"
+  case "$SCN" in
+    game1-level) GAME=1; W=176; H=208 ;;
+    game2-level) GAME=2; W=176; H=204 ;;
+    *) echo "未知场景：$SCN（内置 game1-level / game2-level；夹具用 --script）"; exit 2 ;;
+  esac
+fi
 
 OUT="$(pwd)/out"
 mkdir -p "$OUT"
@@ -32,12 +42,17 @@ echo "[1/4] 跑 oracle（无头 JVM 直跑原版 .class 字节码）…"
 java --patch-module "java.base=$RESPATCH" --add-opens java.base/res=ALL-UNNAMED \
   -Djava.awt.headless=true -Doracle.dumpOps=true \
   -Doracle.width="$W" -Doracle.height="$H" \
+  ${SCRIPT_ARG:+-Doracle.scriptFile=$SCRIPT_ARG} \
   -cp "$OUT:$REPO/reverse/game${GAME}/1-jar-unpacked" \
   harness.OracleRun "$GAME" > "$OUT/$SCN.oracle.raw" 2>/dev/null
 grep -v '^\[' "$OUT/$SCN.oracle.raw" > "$O"
 
 echo "[2/4] 跑 port（TS 移植，复用 behavior-net 驱动）…"
-(cd "$REPO" && node --experimental-transform-types packages/behavior-net/dump-ops.ts "$SCN" 2>"$OUT/$SCN.port.err") > "$P"
+if [ -n "$SCRIPT_ARG" ]; then
+  (cd "$REPO" && node --experimental-transform-types packages/behavior-net/dump-ops.ts --script "$SCRIPT_ARG" "$GAME" 2>"$OUT/$SCN.port.err") > "$P"
+else
+  (cd "$REPO" && node --experimental-transform-types packages/behavior-net/dump-ops.ts "$SCN" 2>"$OUT/$SCN.port.err") > "$P"
+fi
 
 # 前置条件断言：RMS 存档会驱动绘制（game1 Q[2]→a.java:322、game2 k[2]→a.java:218）。
 # 两侧存档不一致时，差分红了也分不清是回归还是前置条件不符 → 必须先卡住，不能假设。

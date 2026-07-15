@@ -32,6 +32,14 @@ export async function createGame1Harness(seed: number): Promise<GameHarness> {
     paint(g) {
       s.paint(g);
     },
+    dumpActors() {
+      const out: Array<{ t: number; x: number; y: number; on: boolean } | null> = [];
+      for (let i = 0; i < s.drawQueueCount; i++) {
+        const a = s.drawQueue[i];
+        out.push(a ? { t: a.typeId, x: a.posX, y: a.posY, vy: a.velY, tvy: a.targetVelY, ay: a.accelY, mvy: a.maxVelY, on: a.active } : null);
+      }
+      return out;
+    },
     snapshotState() {
       const p = (s.player as unknown as { posX: number; posY: number; velX: number; frameIndex: number } | undefined) ?? null;
       return {
