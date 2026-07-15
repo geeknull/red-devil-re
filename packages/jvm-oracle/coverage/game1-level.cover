@@ -1,0 +1,23 @@
+# game1-level 必达路径断言
+#
+# 为什么需要这个文件：见 game2-level.cover 抬头。一句话：绿而没走到 = 没意义，
+# 故把「覆盖了哪些路径」变成机器断言的不变量，防止将来 scenario 改动悄悄掏空这个绿灯。
+#
+# 格式（# 开头为注释）：
+#   op    <最少出现次数> <op 子串>   | <说明>
+#   state <状态号>                   | <说明>
+#
+# 状态号取自 packages/game1/src/constants.ts 的 GameState 枚举。
+
+# ── 4bit 自研精灵渲染 ────────────────────────────────────────────────────
+# 原版走 Nokia DirectGraphics.drawPixels(short[],4444)，浏览器无此 API，移植改为
+# createRGBImage+drawRegion → 归一为 blitSprite（比几何+变换，不比像素内容，属已文档化偏差）。
+# 这是 game1 的精灵渲染命脉，必须确保被走到。
+op 1 blitSprite | game1 4bit 精灵渲染路径（原版 DirectGraphics.drawPixels ⟷ 移植 createRGBImage+drawRegion 的归一形）
+
+# ── 状态覆盖 ──────────────────────────────────────────────────────────────
+state 10 | Playing（关卡内主玩法：实测 1176 次 RNG 抽数发生在此真实战斗中）
+state 14 | LevelEnter（关卡入场动画）
+state 22 | MissionBriefing（关卡前剧情简报）
+state 2  | LevelLoading（关卡加载）
+state 4  | MainMenu（主菜单）
