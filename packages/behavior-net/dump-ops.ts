@@ -12,12 +12,33 @@ import { installClock } from "./src/fake-clock.ts";
 import { SCENARIOS } from "./src/scenarios.ts";
 import { createGame1Harness } from "./src/game1-adapter.ts";
 import { createGame2Harness } from "./src/game2-adapter.ts";
-import type { KeyInput } from "./src/scenario.ts";
+import type { KeyInput, Scenario } from "./src/scenario.ts";
 
-const id = process.argv[2];
-const scn = SCENARIOS.find((s) => s.id === id);
+// 用法：dump-ops.ts <scenarioId>              —— 跑既有 behavior-net 场景
+//       dump-ops.ts --script <file> <1|2>     —— 跑外部输入脚本（差分模糊测试用）
+// 脚本为极简行格式（与 jvm-oracle 的 -Doracle.scriptFile 同格式，两侧吃同一份）：
+//   seed=<n> / frames=<n> / <frame>,<keyCode>,<1按下|0抬起>
+let scn: Scenario | undefined;
+if (process.argv[2] === "--script") {
+  const { readFileSync } = await import("node:fs");
+  const game = Number(process.argv[4]) as 1 | 2;
+  let seed = game === 1 ? 12345 : 54321;
+  let frames = game === 1 ? 330 : 300;
+  const inputs: KeyInput[] = [];
+  for (const raw of readFileSync(process.argv[3], "utf8").split("\n")) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    if (line.startsWith("seed=")) { seed = Number(line.slice(5)); continue; }
+    if (line.startsWith("frames=")) { frames = Number(line.slice(7)); continue; }
+    const [f, c, d] = line.split(",").map(Number);
+    inputs.push({ frame: f!, code: c!, down: d === 1 });
+  }
+  scn = { id: "fuzz", game, seed, frames, inputs };
+} else {
+  scn = SCENARIOS.find((s) => s.id === process.argv[2]);
+}
 if (!scn) {
-  console.error(`未知场景：${id}；可选：${SCENARIOS.map((s) => s.id).join(", ")}`);
+  console.error(`未知场景：${process.argv[2]}；可选：${SCENARIOS.map((s) => s.id).join(", ")}`);
   process.exit(2);
 }
 
