@@ -1,0 +1,8 @@
+# game1 LevelScroll(21)：注入存档解锁到关卡7，走 Continue 进关卡7 → 自动 LevelScroll
+seed=12345
+frames=260
+save=7,7,1
+100,6,1
+101,6,0
+130,48,1
+131,48,0
