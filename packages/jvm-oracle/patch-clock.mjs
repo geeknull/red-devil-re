@@ -176,6 +176,14 @@ if (totalHits === 0) {
 
 // ── 机器验证补丁是最小的（别信「我写得很小心」）──────────────────────────────
 // 用 javap 对拍补丁前后的反汇编：唯一允许的差异 = System.currentTimeMillis → VClock.currentTimeMillis。
+//
+// ⚠️ **预期必须独立写死，绝不能复用上面的 TARGET_* 常量** —— 这是**实测踩过的坑**：
+//    旧版验证器拿补丁器自己的配置当预期，于是成了「**用它自己验它自己**」——把 TARGET 改成
+//    `gc:()V` 后，它照样打印「✅ 唯一差异就是 currentTimeMillis→VClock.currentTimeMillis」，
+//    而实际补的是 `System.gc` —— **一句自洽的假话**（负测试当场逮到）。
+//    这与「oracle 侧参照表绝不能抄 port」是同一条铁律：**验证者与被验证者不能共用同一个源**。
+const EXPECT_BEFORE = "java/lang/System.currentTimeMillis:()J";
+const EXPECT_AFTER = "harness/VClock.currentTimeMillis:()J";
 if (doVerify) {
   let bad = 0;
   for (const p of patchedFiles) {
@@ -190,9 +198,8 @@ if (doVerify) {
     }
     for (let i = 0; i < before.length; i++) {
       if (before[i] === after[i]) continue;
-      const okBefore = before[i].includes(`java/lang/System.${TARGET_NAME}:${TARGET_DESC}`);
-      const okAfter = after[i].includes(`harness/VClock.${TARGET_NAME}:${TARGET_DESC}`);
-      if (okBefore && okAfter) continue;
+      // ← 用独立写死的 EXPECT_*，**不是** TARGET_*（见上「用它自己验它自己」的坑）
+      if (before[i].includes(EXPECT_BEFORE) && after[i].includes(EXPECT_AFTER)) continue;
       console.error(`[patch-clock] ⛔ ${cn}: 出现**非预期**差异 —— 补丁不是最小的\n    < ${before[i]}\n    > ${after[i]}`);
       bad++;
     }
@@ -202,5 +209,5 @@ if (doVerify) {
     process.exit(1);
   }
   console.log(`[patch-clock] ✅ 最小性已机器验证：反汇编逐行对拍，唯一差异就是`);
-  console.log(`             java/lang/System.currentTimeMillis:()J → harness/VClock.currentTimeMillis:()J`);
+  console.log(`             ${EXPECT_BEFORE} → ${EXPECT_AFTER}`);
 }
