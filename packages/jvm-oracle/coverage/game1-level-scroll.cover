@@ -1,0 +1,19 @@
+# game1-level-scroll 必达路径断言
+#
+# 本夹具的存在意义 = 覆盖 **LevelScroll(21)** —— 关卡 7 的卷动过场渲染路径。
+# 它此前**从未与原版对照过**：任务选择屏被 saveData[0]（最高解锁关）封顶，默认存档只解锁关卡 0，
+# 故没有任何 scenario / 模糊输入够得到关卡 7。本夹具用 **save= 头注入存档 [7,7,1]** 跳关到关卡 7，
+# 走 Continue 进入即**无条件**触发 LevelScroll（javap tjge.a paint() case14：state = levelIndex==7 ? 21 : 10，
+# 只受 stateTimer>16 门控，无隐藏条件）。
+#
+# 注入两侧字节对称：oracle 种 RMS 桩、port 种 localStorage，diff.sh 的 SAVE 前置条件断言核验一致。
+#
+# 格式：state <状态号> | <说明>   ／   op <最少次数> <op 子串> | <说明>
+
+# ── 靶心：关卡 7 卷动过场 ────────────────────────────────────────────────────
+state 21 | LevelScroll（关卡7卷动过场；本夹具的唯一目的——此前无场景够得到，靠注入存档跳关才走到）
+
+# ── 沿途状态（确保是「经正常菜单流程进关卡7」而非跳飞）────────────────────────
+state 4  | MainMenu（注入存档后从主菜单走 Continue）
+state 22 | MissionBriefing（关卡7前的简报）
+state 14 | LevelEnter（关卡入场——正是它在 stateTimer>16 时判 levelIndex==7 切 LevelScroll）

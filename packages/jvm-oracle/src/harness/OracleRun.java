@@ -46,9 +46,12 @@ public class OracleRun {
     int[][] ins = game == 1 ? IN_G1 : IN_G2;
 
     // -Doracle.scriptFile=<path>：读外部输入脚本（差分模糊测试用）。极简行格式，避免 JSON 依赖：
-    //   seed=<long> / frames=<int> / <frame>,<keyCode>,<1按下|0抬起>
+    //   seed=<long> / frames=<int> / save=<b0,b1,…> / <frame>,<keyCode>,<1按下|0抬起>
     // 与 TS 侧 dump-ops.ts 的 --script 同格式，保证两侧吃同一份脚本。
+    // save= 头：注入 RMS 存档（用于跳关到深层关卡覆盖 LevelScroll 等路径）。**两侧必须种同一份字节**
+    // → diff.sh 的 SAVE 前置条件断言会核验；不一致即拒绝出结论。
     String scriptFile = System.getProperty("oracle.scriptFile");
+    int[] saveBytes = null;
     if (scriptFile != null) {
       List<int[]> parsed = new ArrayList<>();
       for (String line : java.nio.file.Files.readAllLines(java.nio.file.Path.of(scriptFile))) {
@@ -56,10 +59,30 @@ public class OracleRun {
         if (line.isEmpty() || line.startsWith("#")) continue;
         if (line.startsWith("seed=")) { seed = Long.parseLong(line.substring(5)); continue; }
         if (line.startsWith("frames=")) { frames = Integer.parseInt(line.substring(7)); continue; }
+        if (line.startsWith("save=")) {
+          String[] sb = line.substring(5).split(",");
+          saveBytes = new int[sb.length];
+          for (int i = 0; i < sb.length; i++) saveBytes[i] = Integer.parseInt(sb[i].trim());
+          continue;
+        }
         String[] p = line.split(",");
         parsed.add(new int[] { Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]) });
       }
       ins = parsed.toArray(new int[0][]);
+    }
+
+    // 存档注入（save= 头）：**必须在构造 MIDlet / startApp 之前**——原版首帧就读存档，且
+    // `Q = recordStore.getRecord(id)` 会**整体替换数组引用**，任何「读之前」直写字段的做法都会被覆盖
+    // （见记忆 jvm-oracle 的坑）。正解＝往 RMS 桩里 addRecord，让原版自己的读路径读到注入值。
+    // 库名独立取自原版字节码（javap tjge.a / tjge.GameMIDlet 的 ldc "TGS_CT" / "REDDEVIL2"）。
+    if (saveBytes != null) {
+      String storeName = game == 1 ? "TGS_CT" : "REDDEVIL2";
+      byte[] rec = new byte[saveBytes.length];
+      for (int i = 0; i < saveBytes.length; i++) rec[i] = (byte) saveBytes[i];
+      javax.microedition.rms.RecordStore rs =
+          javax.microedition.rms.RecordStore.openRecordStore(storeName, true);
+      rs.addRecord(rec, 0, rec.length);
+      rs.closeRecordStore();
     }
 
     // 虚拟时钟复位（步长独立取自原版字节码：game1 `<init>` ldc2_w long 100l → W:J；

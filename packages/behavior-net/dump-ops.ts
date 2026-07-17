@@ -19,6 +19,7 @@ import type { KeyInput, Scenario } from "./src/scenario.ts";
 // 脚本为极简行格式（与 jvm-oracle 的 -Doracle.scriptFile 同格式，两侧吃同一份）：
 //   seed=<n> / frames=<n> / <frame>,<keyCode>,<1按下|0抬起>
 let scn: Scenario | undefined;
+let saveCsv: string | null = null;
 if (process.argv[2] === "--script") {
   const { readFileSync } = await import("node:fs");
   const game = Number(process.argv[4]) as 1 | 2;
@@ -30,6 +31,9 @@ if (process.argv[2] === "--script") {
     if (!line || line.startsWith("#")) continue;
     if (line.startsWith("seed=")) { seed = Number(line.slice(5)); continue; }
     if (line.startsWith("frames=")) { frames = Number(line.slice(7)); continue; }
+    // save= 头：注入 RMS 存档（跳关覆盖 LevelScroll 等深层路径）。与 oracle 侧 OracleRun 同格式。
+    // port 侧存档读路径是 localStorage.getItem(key)（CSV），故 CSV 原样塞进去即可（见下方 localStorage 桩）。
+    if (line.startsWith("save=")) { saveCsv = line.slice(5).trim(); continue; }
     const [f, c, d] = line.split(",").map(Number);
     inputs.push({ frame: f!, code: c!, down: d === 1 });
   }
@@ -48,6 +52,21 @@ for (const inp of scn.inputs) {
   const arr = byFrame.get(inp.frame) ?? [];
   arr.push(inp);
   byFrame.set(inp.frame, arr);
+}
+
+// 存档注入（save= 头）：**必须在创建 harness（首帧读存档）之前**种好 localStorage。
+// port 侧 accessSaveData/accessSaveRecord 读的是 localStorage.getItem(key)（CSV）→ 直接塞 CSV。
+// 库名独立取自原版字节码（TGS_CT / REDDEVIL2），与 oracle 侧 OracleRun 一致。
+// 两侧种同一份字节 → diff.sh 的 SAVE 前置条件断言会核验一致，不一致即拒绝出结论。
+if (saveCsv != null) {
+  const store = new Map<string, string>();
+  store.set(scn.game === 1 ? "TGS_CT" : "REDDEVIL2", saveCsv);
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => void store.set(k, v),
+    removeItem: (k: string) => void store.delete(k),
+    clear: () => store.clear(),
+  };
 }
 
 const clock = installClock(0);
