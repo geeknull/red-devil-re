@@ -193,7 +193,32 @@ export function registerImage(archive: string, index: number, img: unknown, fram
 
 export function getCachedImage<T>(archive: string, index: number, frame = 0): T {
   const img = IMAGE_REGISTRY.get(imageKey(archive, index, frame));
-  if (img === undefined) throw new Error(`图片未预解码: ${imageKey(archive, index, frame)}`);
+  if (img === undefined) {
+    // ⚠️ 这是**兼容层特有**的失败模式：原版在此处不会失败
+    //（javap tjge.i 的 a(int)：`Image.createImage(byte[],int,int)` 对合法 PNG 字节不会抛）。
+    //
+    // 为什么必须在这里 console.error，而不是「抛个更明确的异常」：
+    //   抛出去没用——游戏**自己**会把它静默吞掉，而且是**两层**：
+    //     TileSheet.loadFromBin  catch → return null   （忠实复刻字节码异常表 from 8 to 291 → aconst_null）
+    //     LevelScene.loadLevel   catch → return null   （同样是忠实复刻）
+    //   这两个 catch **不能动**（动了就破坏保真），所以任何异常通道都到不了人眼。
+    //   console.error 是**旁路副作用**，try/catch 吞不掉 → 这是唯一能让它响的通道。
+    //
+    // 后果（若无本告警）：game2 忘接 preloadFrames → t.bin 条目 0 的 TileSheet 静默变 null
+    //   ——那是玩家 + 全部步兵敌人共用的人形图集（9 个 SpriteDef）。
+    //   与 docs/复盘-语义化改名静默崩溃.md、packages/jvm-oracle/README.md 的 JDK9+ 资源坑
+    //   是**同一失效模式**：坏掉的状态看起来是活的。
+    console.error(
+      `[j2me-shim] ⛔ 图片未预解码: ${imageKey(archive, index, frame)}\n` +
+        `  这是兼容层特有的失败模式（原版在此不会失败），且**会被游戏自身的 catch 静默吞掉**\n` +
+        `  → 症状是「图集/精灵莫名其妙没了」而非报错。\n` +
+        (frame > 0
+          ? `  frame>0 = game2 actor 换色帧：**运行壳很可能忘了接 preloadFrames**\n` +
+            `  （应为 preloadFrames: () => TileSheet.a_PaletteFrames()，参见 packages/web/src/main.ts）。`
+          : `  frame=0 = 基础帧：检查该归档是否已在预加载阶段 registerImage。`),
+    );
+    throw new Error(`图片未预解码: ${imageKey(archive, index, frame)}`);
+  }
   return img as T;
 }
 
