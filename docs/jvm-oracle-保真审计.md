@@ -339,10 +339,50 @@ state <状态号>                        | <说明>
 时间戳之前文本**完全相同** + 仅 mm:ss 不同），**其余照常判定**——不是把整轮放过。
 200 轮实测：命中 28 轮、**每轮恰好 1 条**，与字节码推断吻合。
 
-**⚠️ 尚未根治，别当已解决**：`oracle:diff` 的两条 level 场景**走不到**显示耗时的界面，故当前不受影响；
-但**任何将来走到结算/死亡界面的场景/夹具都会踩到**。根治法：给 oracle 打 javaagent，把 `tjge/*` 里的
-`invokestatic System.currentTimeMillis` 改写到每帧 +W（game1=100ms / game2=80ms）的虚拟时钟；
-**W 独立取自原版字节码 → 不构成「用它自己验它自己」**。
+### ✅ 已根治（2026-07-17）：虚拟时钟 `patch-clock.mjs` + `harness/VClock.java`
+
+**手法：只改常量池，不动任何一条字节码指令。** `invokestatic #M` 里的 M 是个
+`Methodref(Class, NameAndType)`：
+1. 在常量池**末尾追加** `Utf8("harness/VClock")` + `Class(→它)`（**追加不移动既有索引**）；
+2. 把 `Methodref(java/lang/System, currentTimeMillis:()J)` 的 **class_index 两字节**改指向新 Class。
+
+于是每条 `invokestatic #M` 自动落到 `harness.VClock.currentTimeMillis()J`——**方法名与描述符一字未改**，
+故**无需遍历指令流**（不需要 opcode 长度表、不需要 ASM）。`Class("java/lang/System")` 本身不动 →
+`System.gc()` / `System.out` 等照常。实测：每游戏命中 **2 个类、2 个 Methodref**
+（`tjge.a` 里 6 个调用点共用同一个 Methodref → 一次重定向全覆盖）。
+
+**步长 W 独立取自原版字节码，不是抄 port**（否则就成了「用它自己验它自己」）：
+game1 `tjge.a.<init>` 的 `ldc2_w long 100l → putfield W:J` → **100ms**；
+game2 `tjge.a.run()` 的 `ldc2_w long 80l` 紧邻 `Thread.sleep` → **80ms**。
+（port 侧 `game{1,2}-adapter.ts` 的 `frameStepMs` 恰是 100/80 —— **来源独立而结论吻合**，是佐证不是依据。）
+
+**语义对齐**：port（`installClock(0)`）从 0 起、**每帧 paint 之后** `advance(frameStepMs)` →
+第 f 帧 paint 期间时刻 = `f*step`。故 harness 必须 **paint 之后**才 `VClock.tick()`。
+（两侧都只用**差值**，绝对原点无关；但每帧步进必须一致。）
+
+**RNG 安全性（已核实，非假设）**：两游戏**构造函数**里都有 `c.setSeed(System.currentTimeMillis())`
+（`javap` 确认在 `public tjge.GameMIDlet()` 内，不在 `startApp`）→ 补丁后变成 `setSeed(0)`。
+**无影响**：harness 在 `newInstance()` 之后、`startApp()` 之前把 `GameMIDlet.c` 整体替换为固定种子的
+`LoggingRandom` → 构造函数里那个 Random 当场被丢弃。
+
+#### ⚠️ 方法论代价：信任根变了，必须诚实标注
+
+oracle 的核心卖点是「**直跑原版未修改的字节码**」。本补丁**修改了字节码** → 严格说信任根从
+「原版 `.class`」变成「原版 `.class` + 本补丁」，**本补丁自己就成了一个「中间物」**
+（判据见 `复盘-CFR不是权威.md` §2.2：**隔 ≥1 跳且中间物未验证 = 只能证「没变」不能证「对」**）。
+**这正是 CFR 当年的位置。** 所以不能只靠「我写得很小心」：
+
+**`--verify` 机器验证补丁的最小性**：用 `javap` 逐行对拍补丁前后的反汇编，
+**断言唯一差异就是 `java/lang/System.currentTimeMillis` → `harness/VClock.currentTimeMillis`**，
+行数变化或任何其它差异一律 **exit 1**。已并入 `diff.sh` / `run.sh`（补丁失败即 exit 3，拒绝出结论）。
+
+#### 实证（决定性）
+
+- **修前**：捞出它的 `s70080` 脚本 → `< 0:00` vs `> 3:06`，2 行差异。
+- **修后**：同一脚本 **130932 条 op 逐字节一致**，oracle 现在显示 **`3:06`**（与真机 10FPS 跑 1860 帧吻合）。
+- **豁免已彻底删除**（根因已修，留着失效豁免会掩盖将来的真 bug；删豁免属「收紧」）：
+  **同样 200 个种子**（其中原本 28 轮需要时钟豁免）→ **200/200 全绿、豁免为零、不可判定为零**。
+  这是「根因真修了」而非「被糊过去」的证据。
 
 ## 提交前门禁 `pnpm verify`（行动项 F）
 

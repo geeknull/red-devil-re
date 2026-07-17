@@ -26,7 +26,7 @@
  * 否则等于在测无效输入。模糊器自身用确定性 PRNG，失败用例可原样复跑（脚本留 `out/fuzz/s<seed>.txt`）。
  */
 import { execFileSync } from "node:child_process";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -91,6 +91,14 @@ const game = Number(process.argv[2] || 1) as 1 | 2;
 const rounds = Number(process.argv[3] || 20);
 const seed0 = Number(process.argv[4] || 1);
 const FRAMES = Number(process.argv[5] || 800);
+
+// 时钟补丁目录（由 diff.sh / run.sh 构建）。**缺了必须硬失败**：
+// 若静默退回原版类，oracle 又会去读墙钟 → 结算界面的耗时假性分歧回归（本模糊器当初捞出的洞）。
+const PATCHED = join(OUT, `.patched${game}`);
+if (!existsSync(join(PATCHED, "tjge"))) {
+  console.error(`[fuzz] ⛔ 缺时钟补丁目录 ${PATCHED}\n   先跑一次 pnpm oracle:diff game${game}-level（它会构建补丁），再跑模糊器。`);
+  process.exit(2);
+}
 
 /** 确定性 PRNG（模糊器自身也要可复现——失败用例必须能原样重跑）。 */
 function mulberry32(a: number) {
@@ -201,50 +209,6 @@ function isKnownFontBlindSpot(oracleOp: string | undefined, portOp: string | und
   return ot.startsWith(pt) || pt.startsWith(ot); // 同一源串的不同断点
 }
 
-/**
- * **已知 oracle 盲区 ②（2026-07-16 新发现，由本模糊器捞出）**：**两侧不共享时钟**。
- *
- * 这是**信任根自己的一个洞**，且它推翻了审计文档原先的断言「无需虚拟化时钟」。
- *
- * 真字节码裁决（`javap tjge.a`，game1）：
- *   · `<init>`：`5: ldc2_w // long 100l` → `8: putfield W:J`  —— 帧周期 **100ms**（独立取自原版，非抄 port）
- *   · `paint()` bci 1655：`this.D = System.currentTimeMillis()`            —— 关卡开始打点
- *   · `paint()` bci 3078：`this.D = System.currentTimeMillis() - this.D`   —— 算出耗时
- *   · `paint()` bci 2246/3202：`a(D)` → mm:ss 格式化（`1000l/60l/60l`）→ `drawString(s,36,105,20)`
- *   → **`System.currentTimeMillis()` 有 3 处在 `paint()` 内**（不只是 run() 线程里）。
- *     原断言「原版 run() 只做 sleep/gc/repaint 故无需虚拟化时钟」**把两件事混为一谈**：
- *     「逻辑都在 paint 内」为真，但**paint 自己会读墙钟、且该值直接驱动绘制** → 断言为假。
- *
- * 分歧成因：oracle harness **不虚拟化时钟**（按固定帧预算全速直调 paint，2127 帧只花 <1s 墙钟 → 显示 `0:00`）；
- * port 的 behavior-net harness **有假时钟**（每帧 +100ms → 1860 帧 = 186s → 显示 `3:06`）。
- * **真机 10FPS 跑 1860 帧就是 186s → port 才是对的，oracle 是错的**（算术闭合，实测吻合）。
- * 这是**两侧 harness 的差异，不是两侧实现的差异**。
- *
- * ⚠️ **豁免刻意收紧到「一条 op」**（假阴性比假阳性危险得多）：已用字节码证明该计时器
- * **只喂显示**——`D:J` 全部 7 处读写都在 `paint()` 内，两处读都直接进 mm:ss 格式化再 drawString，
- * **不参与玩法/计分/存档**。实测印证：整轮 130932 条 op **只差这 1 条**（seed=70080）。
- * 故只豁免**该条 op 本身**，其余照常判定 —— 不是把整轮放过。
- *
- * 签名：同帧 + 两侧都是 drawStr + **坐标完全相同** + 时间戳之前的文本**完全相同** + 仅 mm:ss 不同。
- *
- * 🔧 **可根治**（未做，见 docs）：给 oracle 打 javaagent 把 tjge 类里的
- * `invokestatic System.currentTimeMillis` 改写到一个每帧 +W(100/80ms) 的虚拟时钟。
- * 帧周期 W 独立取自原版字节码，**不是抄 port** → 不构成「用它自己验它自己」。
- */
-const TIME_RE = /^(F\d+)\tdrawStr \[(.*?)(\d+:\d{2})\] (.+)$/;
-function isKnownClockBlindSpot(oracleOp: string | undefined, portOp: string | undefined): boolean {
-  if (!oracleOp || !portOp) return false;
-  const mo = oracleOp.match(TIME_RE);
-  const mp = portOp.match(TIME_RE);
-  if (!mo || !mp) return false;
-  return (
-    mo[1] === mp[1] && // 同帧
-    mo[2] === mp[2] && // 时间戳之前的文本完全相同
-    mo[4] === mp[4] && // 坐标完全相同
-    mo[3] !== mp[3] //    仅 mm:ss 不同
-  );
-}
-
 interface OracleResult {
   ops: string;
   states: number[];
@@ -262,7 +226,10 @@ function runOracle(scriptPath: string): OracleResult {
       `-Djava.awt.headless=true`, `-Doracle.dumpOps=true`,
       `-Doracle.width=${w}`, `-Doracle.height=${h}`,
       `-Doracle.scriptFile=${scriptPath}`,
-      `-cp`, `${OUT}:${join(REPO, "reverse", `game${game}`, "1-jar-unpacked")}`,
+      // 补丁类（虚拟时钟）必须排在原版**之前**（同名类先到先得）。
+      // 由 diff.sh / run.sh 构建；缺了就直接报错，别静默退回读墙钟的旧行为——
+      // 那会让结算界面的耗时假性分歧回归，正是本模糊器当初捞出的那个洞。
+      `-cp`, `${OUT}:${PATCHED}:${join(REPO, "reverse", `game${game}`, "1-jar-unpacked")}`,
       `harness.OracleRun`, String(game),
     ],
     { encoding: "utf8", maxBuffer: 1 << 30, stdio: ["ignore", "pipe", "ignore"] },
@@ -295,9 +262,6 @@ let ran = 0;
 const diverged: Array<{ seed: number; detail: string }> = [];
 /** 撞上已知 oracle 盲区（字体度量）→ 该轮**不可判定**：既不算绿，也不算 bug。 */
 const blind: Array<{ seed: number; detail: string }> = [];
-/** 已豁免的时钟 op 总数 / 命中的 seed（逐 op 豁免，其余照常判定 → 该轮仍算绿）。 */
-let clockExempt = 0;
-const clockSeeds: number[] = [];
 const globalStates = new Map<number, number>(); // 状态 → 首次达到它的 seed
 const corpus: Array<{ script: Script; seed: number }> = [];
 
@@ -335,32 +299,10 @@ for (let i = 0; i < rounds; i++) {
   const ol = o.ops.split("\n");
   const pl = p.split("\n");
 
-  // ① 时钟盲区：**逐 op 豁免**（已证其影响面就是那一条 drawString，见 isKnownClockBlindSpot 抬头）。
-  //    只有当「所有不同的 op 全部命中该收紧签名」时才算绿，其余任何一条不同 → 照常当真 bug。
-  if (ol.length === pl.length) {
-    let clockOps = 0;
-    let bad = -1;
-    for (let i = 0; i < ol.length; i++) {
-      if (ol[i] === pl[i]) continue;
-      if (isKnownClockBlindSpot(ol[i], pl[i])) { clockOps++; continue; }
-      bad = i;
-      break;
-    }
-    if (bad === -1 && clockOps > 0) {
-      green++;
-      clockExempt += clockOps;
-      clockSeeds.push(s);
-      process.stdout.write(
-        `  seed=${s}  ✅ ${o.totalOps} op 一致（已豁免 ${clockOps} 条时钟 op：两侧 harness 不共享时钟，见 README）  states=[${o.states.join(",")}]${freshTag}\n`,
-      );
-      continue;
-    }
-  }
-
   let k = 0;
   while (k < Math.min(ol.length, pl.length) && ol[k] === pl[k]) k++;
   const detail = `op 数 oracle=${ol.length} port=${pl.length}；首个失配 #${k}\n    < ${ol[k] ?? "(无)"}\n    > ${pl[k] ?? "(无)"}`;
-  // ② 字体盲区：换行断点不同会把**其后整段**推歪 → 该轮**不可判定**（不算绿，也不算 bug）。
+  // 字体盲区：换行断点不同会把**其后整段**推歪 → 该轮**不可判定**（不算绿，也不算 bug）。
   if (isKnownFontBlindSpot(ol[k], pl[k])) {
     blind.push({ seed: s, detail });
     process.stdout.write(`  seed=${s}  🟡 不可判定（已知字体度量盲区，非 bug；此后 op 未被判定）  states=[${o.states.join(",")}]${freshTag}\n`);
@@ -375,15 +317,6 @@ for (let i = 0; i < rounds; i++) {
 console.log(`\n[fuzz] === 结果 ===`);
 console.log(`[fuzz] 实际跑完 ${ran}/${rounds} 轮：一致 ${green}，分歧 ${diverged.length}，不可判定 ${blind.length}`);
 console.log(`[fuzz] 语料库（能达新状态的脚本）：${corpus.length} 条`);
-if (clockExempt) {
-  console.log(`\n[fuzz] ⏱  已豁免 ${clockExempt} 条**时钟 op**（命中 ${clockSeeds.length} 轮：${clockSeeds.join(", ")}）`);
-  console.log(`[fuzz]    成因：**两侧 harness 不共享时钟**（oracle 无虚拟时钟、全速跑 → 显示 0:00；`);
-  console.log(`[fuzz]    port 假时钟每帧+100ms → 显示真实耗时）。真机 10FPS 跑 N 帧就是 N*100ms → **port 对、oracle 错**。`);
-  console.log(`[fuzz]    这是 harness 差异、不是实现差异；**且推翻了审计文档原先「无需虚拟化时钟」的断言**`);
-  console.log(`[fuzz]    （javap 实证：System.currentTimeMillis 有 3 处在 paint() 内）。`);
-  console.log(`[fuzz]    豁免收紧到「一条 op」：已证该计时器只喂显示（D:J 全部 7 处读写都在 paint 内、直接进 mm:ss→drawString，`);
-  console.log(`[fuzz]    不参与玩法/计分/存档），实测整轮 130932 op 只差这 1 条。可根治：javaagent 虚拟时钟（未做）。`);
-}
 if (blind.length) {
   console.log(`\n[fuzz] 🟡 不可判定 ${blind.length} 轮 —— **已知 oracle 盲区**：game2 由 substringWidth 驱动的自动换行`);
   console.log(`[fuzz]    shim 的 Font 度量是编造的（len*6），真机字模我们没有 → 该处 oracle **无权威性**，`);
