@@ -440,6 +440,32 @@ oracle 的核心卖点是「**直跑原版未修改的字节码**」。本补丁
 > 要消除 `beat-level`/`beat-game` 缺口，正确做法**不是**继续加随机模糊里程（原理上到不了），
 > 而是**录确定性通关脚本**（一次跑可同时覆盖 GoalCutscene→MissionComplete 等链式状态）。
 
+### 通关脚本起点（给未来会话——省得重新 fan-out 推一遍）
+
+**为什么值得做（不只是刷覆盖）**：结算/终点屏的渲染代码**从未与原版对拍过**。按本项目规律（bug 藏在
+「移植方不得不自己发明、且没被覆盖」处，手雷弹道即如此），这里完全可能藏着照抄错反编译的保真缺陷。
+打通关卡 = 去**体检一块从没体检过的渲染代码**，非刷数字。
+
+**目标状态的触发条件（字节码 triage 已裁决，file:line 可直接跳）**：
+- **game1 GoalCutscene(19)**：关卡0 的 goal 是 **prop 触发器**（非 Boss）。条件＝横穿关卡到 goal actor +
+  **清场**（`enemyAliveCount<=0` / `scriptFlagL`）+ 在触发点**按住动作键**（`player.stateFlags & 1`）。
+  各类型 setter：`EffectActor.ts:188` GatedTrigger(type12)、`:278` RescueTargetNpc(type4)、
+  `:292` CaptureTrigger(type5，要 `scriptFlagL && reinforceBudget<=0 && enemyAliveCount<=0 && posY>490000`）。
+- **game1 MissionComplete(16)**：19 的**自动收尾**（`GameScreen.ts:889` 关卡1/3 stateTimer>23 淡出后 /
+  `:900` 玩家走出视野 posX>cameraX+viewWidth+px(10) 且 stateTimer>32）。到了 19 就会进 16，一次覆盖两个。
+- **game2 LevelClear(16)**：`GameCanvas.ts:678` showResult(true)，由 `LevelScene.ts:395/434/505/547/582/715/826`
+  的关卡收尾剧本调（走到剧情终点 / 玩家走过相机边界 frameGroupIndex===0）。
+
+**实操起点**：
+- 进关卡引导（已实证）：game1 `100,48,1 / 101,48,0`（新游戏直进关卡0）；game2 `100,53,1 / 101,53,0 / 130,22,1 / 131,22,0`。
+- 键码→动作映射：game1 `GameScreen.keyCodeToAction`（约 :1717）；game2 `GameCanvas.keyPressed`（:1037，case 54=Right/53=Fire/55=Reload…）。
+- **逐帧步进观察玩家/敌人状态**推导下一步输入：`DUMP_ACTORS=1`（port）/ `-Doracle.dumpActors=true`（oracle）
+  逐帧 dump drawQueue 里每个 actor 的 typeId/posX/posY——用它盯着「玩家 x 逼近 goal」「enemyAliveCount 归零」。
+- **验证同旧夹具**：① 先证脚本真达 state 19/16（statesSeen 含之，走不到＝白做）；② 差分绿/红定性到根因
+  （红→可能就是没对拍过的保真缺陷，照手雷流程 javap 裁决 CFR 是否又错）；③ 固化 `regress/` + `coverage/*.cover`
+  + 变异测试证夹具能抓旧缺陷。
+- ⚠️ 诚实预期：这条得摸关卡0 地形/敌人布置、标定移动时序，**未必一次成功**；做不到就如实说卡在哪，别硬凑。
+
 ## 残余风险（诚实标注）
 
 1. **字体度量**：oracle 与 port **都不是**真机字模。差分只能豁免该处，**无法判定谁对**。
