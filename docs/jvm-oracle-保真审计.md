@@ -466,6 +466,58 @@ oracle 的核心卖点是「**直跑原版未修改的字节码**」。本补丁
   + 变异测试证夹具能抓旧缺陷。
 - ⚠️ 诚实预期：这条得摸关卡0 地形/敌人布置、标定移动时序，**未必一次成功**；做不到就如实说卡在哪，别硬凑。
 
+### 本会话实测修正与现状（2026-07-18）——上面几条有**事实错误**，以此节为准
+
+本会话按上节起手，用**逐帧 port 内部字段观测**（复刻 game1/2-adapter 但直接读 screen/canvas 内部）
+把关卡0 的 goal 机制**从字节码/关卡数据钉死**，纠正了上节的推测错误。**但两条通关脚本都未标定成功**，
+诚实标注卡点如下。
+
+**🔴 game1 关卡0 goal ≠ prop 触发器（上节错）**：关卡0 的 actor 放置数据（`LevelLoader.actorTypeId/SpawnX/SpawnY`
+逐条 dump）里**根本没有 type4/5/12/13**。实测 goal＝**击败 type18 ScrollChaserHeavy**（关卡数据 actor #11，
+像素坐标 (681,240)，位于地图右下角的坑内）。机制链（javap/源码逐句核实）：
+- 玩家 **roll（actionId 19**：走路态 actionId===5 时按 **DOWN**，`PlayerActor.handleDownPress` :1148 `setFrame(19)`，
+  沿朝向 px(8) 冲）撞上敌人 → `EnemyActor.handleKnockback` :186 置 `knockedBack`、把玩家击退并 `setFrame(0x14=20)`；
+- 玩家 actionId 自动 20→21（`stepTransition20` :660）；`handleKnockback` :196 见玩家 actionId===21 且 |Δx|<px(40)
+  → 敌 `aiState=9`、type18 `setFrame(3)`；
+- `scrollChaserHitCheck` :794：aiState 9 且 `actionLow24===3 && timerB>2 && (玩家 stateFlags&1)!==0` → `GoalCutscene(19)`。
+- **`stateFlags & 1` ＝着地态 bit0**（非上节说的"按住动作键"；出生 `resetForLevel` :232 即置 1）。
+- **清场那条路（type5 CaptureTrigger）走不通**：`reinforceBudget` 关卡0 恒＝30（`:1675` 初值，唯一递减在
+  `PlayerActor.stepVehicleLevel` :314，那是**关卡4 载具专属**）→ `reinforceBudget<=0` 永不成立。
+
+**game1 关卡0 地形**（`tileMap.queryColumnTileAt` 逐格 dump）：44×22 tile（704×352px，16px/tile）。出生 tile(2,7)。
+敌人坑＝右下角 cols 34-43 / rows 15-19，被 **row10 天花板**（cols 33-43 全 solid）+ **col33 竖墙**（rows 10-17 solid）
+封死，**唯一入口在底部 row18-19**（col33 在此开口）。顶层走廊(rows 4-10)可横穿到 col42（多种自动导航实证达到），
+但**"下坑"路线未标定**——须从左侧竖井下到 row19 再右行到坑。camera 脚本 case0（`GameScreen.ts:1332`）在
+camera 到 tile(33,11)＝到坑区上方时置 `scriptFlagL`，与 type18 goal 无因果（是另一段过场）。
+
+**🟢 game2 关卡0 goal（实测钉死，可复用）**：clear＝玩家走进 **type-2 触发器 AABB x∈[1450,1470] y∈[548,612]**
+（`triggerTable[#1]`，cutscene 编码值＝9 → `cutsceneState[0]=0, [1]=9`）→ `LevelScene.runCutsceneScene0` :387/395
+`showResult(true)` → `GameCanvas.showResult` :678 `uiState=LevelClear(16)`。关卡0 触发表 14 条（dump 见下），
+mapWidth=1536：`#0` type2 cutscene=0(开场,x-50..252)、**`#1` type2 cutscene=9(结局,x1450..1470)**、
+`#2` type0 相机点(x902)、`#3` type1 战斗波(x1286..1360)、`#4-13` type3 formation(抓钩机关,x195..1017)。
+
+**game2 入关引导（实测修正上节）**：`100,53`（菜单 Fire→CutsceneIntro）→ **`130,22`（SoftRight 结束开场过场）**
+→ **`180,22`（SoftRight 结束任务简报）→ InGame(10) Normal @F190**。keyCode **22→SoftRight**
+（`GameCanvas.keyToAction`；仅 MainMenu 时是 Fire）。⚠️ **InGame 中再按 22 会重新打开简报**（`keyPressed` :1040 软键→
+MissionBrief），别多按。之后玩家自 x=194 向右走，**卡在 x~470 的 type3 formation**（抓钩/攀爬机关，
+需 `reserved&1` 置位 + ClimbUp key50，见 `PlayerActor` :804）。
+
+**现状（诚实，本单元主目标未达成）**：**两条脚本都没标定成功，结算/终点屏渲染仍未与原版对拍。**
+- **game1** 卡在"顶层走廊 → 下坑"的平台跳跃。试过：hold-right+卡墙跳、梯度制导（宽松 BFS 距离场）、
+  waypoint 跟随（中等 BFS 模型路径）、**真实模拟器 beam search**。beam 能横穿到 col29(h=5) 但**下不去坑**
+  （maxLowY 始终≈row9，无宏序列把玩家降到 row9 以下）；根因＝**无精确跳跃/落体物理模型**，宽松-BFS 启发式
+  把玩家往顶层右侧拉，而真入口在左下竖井 → 启发式误导，且坑口是窄缝，8 帧粗粒度宏对不准。
+- **game2** 卡在 x~470 抓钩机关（ClimbUp 机制未解）＋后续 x~1286 战斗波（须清敌）。
+
+**给下会话的可复用杠杆（本会话踩通的）**：
+1. **静态重置使单进程批量模拟可行**（自动搜索的关键使能）：game1 每次 `new GameMIDlet` 前须清
+   `LevelLoader.actorPools/activeActors/spriteDefPool/spriteDefRetained` 与 `.tileMap`，否则 `buildActorPool`
+   复用旧 screen 的池 → 玩家不生成（表现为 posX 恒 0）。清了就能在**一个 node 进程里重放上千次**。
+2. **正解方向**：要么建**精确移动模型**（每条边用真实模拟验证可达，做真物理 flood-fill 得可信距离场），
+   要么**手工分段标定**（game1 顶层横穿已解决，只剩「下坑／底部右行／跳上敌人／roll」四段各自标定）。
+3. **game2 更接近**（goal 是干净坐标 x≈1460，启发式可简化为"活着最大化 x"），但需先解抓钩机关(ClimbUp)与
+   战斗波清敌两个子机制。
+
 ## 残余风险（诚实标注）
 
 1. **字体度量**：oracle 与 port **都不是**真机字模。差分只能豁免该处，**无法判定谁对**。
