@@ -62,6 +62,12 @@ public class OracleRun {
       ins = parsed.toArray(new int[0][]);
     }
 
+    // 虚拟时钟复位（步长独立取自原版字节码：game1 `<init>` ldc2_w long 100l → W:J；
+    // game2 run() 的 ldc2_w long 80l 紧邻 Thread.sleep）。**必须在构造 MIDlet 之前**——
+    // 构造函数里有 `c.setSeed(System.currentTimeMillis())`（经补丁后即 VClock.now）。
+    // 该 Random 随后被 harness 整体替换掉，故对 RNG 无影响（已核实，非假设）。
+    VClock.reset(game == 1 ? 100L : 80L);
+
     Class<?> M = Class.forName("tjge.GameMIDlet");
     Constructor<?> ct = M.getDeclaredConstructor(); ct.setAccessible(true);
     Object midlet = ct.newInstance();
@@ -96,6 +102,9 @@ public class OracleRun {
       StringBuilder os = new StringBuilder();
       for (String op : frameOps) os.append(op).append('\n');
       totalOps += frameOps.size();
+      // 推进虚拟时钟：**必须在 paint 之后**，与 port 侧 behavior-net 的 clock.advance(frameStepMs) 对称
+      //（两侧第 f 帧 paint 期间的时刻都是 f*step）。
+      VClock.tick();
       Object st = pf.get(c);
       states.add(String.valueOf(st));
       if (DUMP_ACTORS) {

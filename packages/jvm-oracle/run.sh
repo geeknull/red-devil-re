@@ -33,11 +33,19 @@ javac -nowarn -d "$OUT" $(find src -name '*.java')
 rm -rf "$RESPATCH" && mkdir -p "$RESPATCH"
 cp -r "$UNPACKED/res" "$RESPATCH/"
 
+# 时钟虚拟化补丁（见 patch-clock.mjs 抬头 / docs/jvm-oracle-保真审计.md 第四份产出）：
+# 原版 paint() 里读墙钟且该值驱动绘制 → 不虚拟化则 oracle 在结算界面说谎（显示 0:00）。
+# --verify 用 javap 逐行对拍**机器验证补丁最小性**，非预期差异 exit 1。
+PATCHED="$OUT/.patched${GAME}"
+rm -rf "$PATCHED"
+node "$(pwd)/patch-clock.mjs" "$UNPACKED" "$PATCHED" --verify || exit 3
+
 # --- 运行 ---
+# 补丁类必须排在原版**之前**（同名类先到先得）
 exec java \
   --patch-module "java.base=$RESPATCH" \
   --add-opens java.base/res=ALL-UNNAMED \
   -Djava.awt.headless=true \
   -Doracle.width="$W" -Doracle.height="$H" \
-  -cp "$OUT:$UNPACKED" \
+  -cp "$OUT:$PATCHED:$UNPACKED" \
   harness.OracleRun "$GAME"

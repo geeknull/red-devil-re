@@ -86,6 +86,17 @@ RESPATCH="$OUT/.respatch${GAME}"
 rm -rf "$RESPATCH" && mkdir -p "$RESPATCH"
 cp -r "$REPO/reverse/game${GAME}/1-jar-unpacked/res" "$RESPATCH/"
 
+# 时钟虚拟化补丁（修 oracle 自己的洞：两侧不共享时钟，见 docs/jvm-oracle-保真审计.md 第四份产出）。
+# 只改常量池、不动任何一条字节码指令；--verify 会用 javap 逐行对拍**机器验证补丁是最小的**，
+# 非预期差异一律 exit 1（本补丁自己也是个「中间物」，必须被验证，不能只靠「我写得很小心」）。
+PATCHED="$OUT/.patched${GAME}"
+rm -rf "$PATCHED"
+node "$(pwd)/patch-clock.mjs" "$REPO/reverse/game${GAME}/1-jar-unpacked" "$PATCHED" --verify > "$OUT/patch-clock.${GAME}.log" 2>&1 || {
+  echo "⛔ 时钟补丁失败（差分结论不可信，先修补丁）："; cat "$OUT/patch-clock.${GAME}.log"; exit 3;
+}
+# 补丁类必须排在原版**之前**才能生效（同名类先到先得）
+ORACLE_CP="$OUT:$PATCHED:$REPO/reverse/game${GAME}/1-jar-unpacked"
+
 O="$OUT/$SCN.oracle.ops"
 P="$OUT/$SCN.port.ops"
 
@@ -94,7 +105,7 @@ java --patch-module "java.base=$RESPATCH" --add-opens java.base/res=ALL-UNNAMED 
   -Djava.awt.headless=true -Doracle.dumpOps=true \
   -Doracle.width="$W" -Doracle.height="$H" \
   ${SCRIPT_ARG:+-Doracle.scriptFile=$SCRIPT_ARG} \
-  -cp "$OUT:$REPO/reverse/game${GAME}/1-jar-unpacked" \
+  -cp "$ORACLE_CP" \
   harness.OracleRun "$GAME" > "$OUT/$SCN.oracle.raw" 2>/dev/null
 grep -v '^\[' "$OUT/$SCN.oracle.raw" > "$O"
 
