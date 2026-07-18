@@ -1,11 +1,9 @@
 # game1 关卡3 完整通关：打穿 9 波相机锁 boss(AtvVehicleBoss) → 爬梯到 RescueNpc → GoalCutscene(19) → MissionComplete(16)
-#
+# 
 # 覆盖此前从未与原版对拍过的**结算/通关渲染**（含时钟驱动的耗时显示）。见 coverage/game1-beat-level3.cover。
-# 由 packages/behavior-net 的闭环反应式 boss 控制器录制（真物理 sim 逐帧读状态决策、录键位；已删）：
-#   入关(save=3,3,1+Continue) → 一路远程敌+桶谜题(vault 翻越)+血包回血 → boss 竞技场(col~72,hp9)
-#   → 打法：静止窗口开火(weapon0 导弹,换弹免费=无限弹)、蹲伏躲 boss 导弹、每波结算前 boss 左冲刺时
-#     「面左+起跳(leapleft)」腾空躲冲刺 → 20 击打穿 → 相机解锁 → 爬 col82 梯 → col85 RescueNpc 着地。
-# 机制全部 file:line 钉死于 docs/jvm-oracle-保真审计.md。跑法：diff.sh --script regress/game1-beat-level3.txt 1
+# 由 packages/behavior-net/recorder 从源码可重生：`node --experimental-transform-types packages/behavior-net/recorder/cli.ts game1-beat-level3 --out <path>`。
+# 打法/机制全部 file:line 钉死于 docs/jvm-oracle-保真审计.md「ultracode 续（2026-07-18 收官）」。
+# 跑法：packages/jvm-oracle/diff.sh --script regress/game1-beat-level3.txt 1
 seed=12345
 frames=900
 save=3,3,1
