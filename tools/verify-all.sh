@@ -48,6 +48,10 @@ run_gate "test:shim（shim 原语 vs 硬编码 JDK/规范值）" \
 run_gate "test:behavior（port 新 vs port 旧 golden —— 只证没变，不证对）" \
   node --experimental-transform-types packages/behavior-net/run.ts
 
+# ── 录制器基建：game2 单进程静态重置正确性（证污染真实 + 重置逐字节复现 fresh）──────
+run_gate "recorder：game2 单进程静态重置 == fresh-process" \
+  node --experimental-transform-types packages/behavior-net/recorder/reset-game2.verify.ts
+
 # ── 绝对闸门：跨引擎差分（锚在原版字节码）────────────────────────────────
 for scn in game1-level game2-level; do
   run_gate "oracle:diff $scn ★（port vs 原版字节码）" \

@@ -14,9 +14,14 @@ import { GameMIDlet as Game1Midlet } from "@red-devil/game1";
 import { LevelLoader } from "@red-devil/game1/src/LevelLoader.ts";
 import { GameMIDlet as Game2Midlet } from "@red-devil/game2";
 import { LevelScene } from "@red-devil/game2/src/LevelScene.ts";
+import { PlayerActor as Game2Player } from "@red-devil/game2/src/PlayerActor.ts";
+import { BossActor as Game2Boss } from "@red-devil/game2/src/BossActor.ts";
+import { ActorBase as Game2ActorBase } from "@red-devil/game2/src/ActorBase.ts";
+import { GameCanvas as Game2Canvas } from "@red-devil/game2/src/GameCanvas.ts";
 import { configureScreen, Graphics, Image } from "@red-devil/j2me-shim";
 import { installDomStubs } from "../src/fake-dom.ts";
 import { installCanvasFactory } from "../src/fake-canvas.ts";
+import { installClock } from "../src/fake-clock.ts";
 import { loadGameFixtures } from "../src/fixtures.ts";
 
 export type KF = { frame: number; code: number; down: boolean };
@@ -74,10 +79,47 @@ function injectSave(game: 1 | 2, saveCsv: string): void {
 }
 
 /**
- * game1 静态重置（单进程内多次 new GameMIDlet 时玩家不生成的规避；已随 game1-beat-level3 验证）。
- * ⚠️ game2 **不做**静态重置：实测把 `LevelScene.cutsceneState` 等清空会破坏开场跳伞过场的初始化
- * （玩家卡 reserved=4、cutsceneState=undefined）。game2 与真 game2-adapter 一样**依赖新进程的原生初始化**。
- * 若将来要 game2 单进程批量重放，须先**对拍真适配器标定一份正确的 game2 重置**（TODO），别再照 game1 猜。
+ * game2 单进程静态重置（**已标定并逐字节对拍 fresh-process 验证** —— 兑现旧 TODO）。
+ *
+ * 背景：game2 曾**不做**静态重置（旧注释：清 `cutsceneState` 会破坏开场初始化），只能靠新进程原生初始化，
+ * 故单进程批量重放（网格/搜索）不可行。本函数把每个**有状态的**静态量重置回**类静态初始化块的原值**，
+ * 使单进程内第 2、3… 次 `new GameMIDlet` 与全新进程**逐字节一致**。
+ *
+ * ⚠️ **必须精确匹配静态初始化块，多清少清都会偏离 fresh**（已踩：`ammoReserve` 静态块置 [99,6,3]=reserveInitTable、
+ * `throwCooldownQueue` 静态块置 4×`Int32Array(3)`——若重置成 `new Int32Array(3)`/holes 就 ≠ fresh）。
+ * `actorPool` 置回 null 强制 loadLevel 重建（配合 `idCounter=0`，使 actor id 分配序列与 fresh 相同）。
+ * 验证见 `reset-game2.verify.ts`（单进程内证：不重置→污染、重置→复现 fresh）。
+ *
+ * ⚠️ 仅按 **Continue 入关（关卡1-6）** 对拍验证过；关卡0（New Game 跳伞开场）未单独验证——本仓暂无关卡0 game2 场景。
+ */
+export function resetGame2Statics(): void {
+  const LS: any = LevelScene as any;
+  LS.actorPool = new Array(28).fill(null);
+  LS.actorDefs = new Array(28).fill(null);
+  LS.actorDefLoaded = new Array(28).fill(false);
+  LS.activeActors = [];
+  LS.drawList = new Array(40).fill(null);
+  LS.drawCount = 0;
+  LS.cutsceneState = new Int32Array(5);
+  LS.dialogState = new Int32Array(3);
+  LS.formationState = new Int32Array(4);
+  LS.cutsceneStep = 0;
+  LS.cutsceneSubStep = 0;
+  LS.currentLevel = -1;
+  (Game2ActorBase as any).idCounter = 0;
+  (Game2Boss as any).instance = null;
+  (Game2Player as any).ammoCurrent = new Int32Array(3); // 静态初值 [0,0,0]（spawnFromBytes 再填）
+  (Game2Player as any).ammoReserve = Int32Array.from([99, 6, 3]); // = reserveInitTable（PlayerActor static{}）
+  (Game2Player as any).throwCooldownQueue = [new Int32Array(3), new Int32Array(3), new Int32Array(3), new Int32Array(3)];
+  const GC: any = Game2Canvas as any;
+  GC.briefingAnimC = 0;
+  GC.briefingAnimD = 0;
+  GC.briefingAnimE = 0;
+}
+
+/**
+ * 静态重置（单进程内多次 new GameMIDlet 时玩家不生成/状态污染的规避）。
+ * game1：清 LevelLoader 池（已随 game1-beat-level3 验证）。game2：见 {@link resetGame2Statics}。
  */
 export function resetStatics(game: 1 | 2): void {
   if (game === 1) {
@@ -86,8 +128,9 @@ export function resetStatics(game: 1 | 2): void {
     LevelLoader.spriteDefPool = [];
     LevelLoader.spriteDefRetained = [];
     (LevelLoader as any).tileMap = null;
+  } else {
+    resetGame2Statics();
   }
-  // game2: 有意 no-op（见上）。
 }
 
 export async function setupSim(game: 1 | 2, saveCsv: string, seed: number): Promise<{ screen: any; g: Graphics; getState: () => number }> {
@@ -125,38 +168,54 @@ export interface RecordResult {
   frames: number;
 }
 
-/** 跑 scenario，录键位。fixed 前缀原样录入，policyStart 起由 policy 决策并录入。 */
+/**
+ * 跑 scenario，录键位。fixed 前缀原样录入，policyStart 起由 policy 决策并录入。
+ *
+ * ⚠️ **必须装虚拟时钟并逐帧推进**（与 driver.ts / replay-states.ts / oracle 一致）：
+ * shim 唯一嵌进游戏逻辑的非确定源是 `Date.now()`（见 fake-clock.ts）。不装时钟则跑真墙钟，
+ * `levelStartTime = Date.now()`（game2 GameCanvas:435 / game1 同构）会取到真实 epoch 毫秒 → 不可复现，
+ * 且与真适配器/oracle 分歧（实测 game2 133 帧起 levelStartTime 分歧，gameplay 字段全同）。
+ * 步长独立取自原版字节码：game1=100ms（`<init> ldc2_w 100l→W:J`）、game2=80ms（`run() ldc2_w 80l` 紧邻 sleep）；
+ * 恰与两侧 adapter 的 frameStepMs 相同（来源独立、结论吻合）。**paint 之后**才 advance（port advance-after-paint 语义）。
+ */
 export async function record(scn: Scenario): Promise<RecordResult> {
-  const { screen, g, getState } = await setupSim(scn.game, scn.saveCsv, scn.seed);
-  const byFrame = new Map<number, KF[]>();
-  for (const kf of scn.fixed) {
-    const arr = byFrame.get(kf.frame) ?? [];
-    arr.push(kf);
-    byFrame.set(kf.frame, arr);
-  }
-  const recorded: KF[] = [...scn.fixed];
-  const states = new Set<number>();
-  for (let f = 0; f < scn.frames; f++) {
-    for (const kf of byFrame.get(f) ?? []) {
-      if (kf.down) screen.keyPressed(kf.code);
-      else screen.keyReleased(kf.code);
+  const clock = installClock(0); // 构造 setupSim 前就装好（与 driver 一致：clock 先于 harness 构造）
+  try {
+    const { screen, g, getState } = await setupSim(scn.game, scn.saveCsv, scn.seed);
+    const frameStepMs = scn.game === 1 ? 100 : 80;
+    const byFrame = new Map<number, KF[]>();
+    for (const kf of scn.fixed) {
+      const arr = byFrame.get(kf.frame) ?? [];
+      arr.push(kf);
+      byFrame.set(kf.frame, arr);
     }
-    if (f >= scn.policyStart) {
-      const want = scn.policy({ screen, frame: f, game: scn.game });
-      if (want != null) {
-        if (want >= 0) {
-          screen.keyPressed(want);
-          recorded.push({ frame: f, code: want, down: true });
-        } else {
-          screen.keyReleased(5);
-          recorded.push({ frame: f, code: 5, down: false });
+    const recorded: KF[] = [...scn.fixed];
+    const states = new Set<number>();
+    for (let f = 0; f < scn.frames; f++) {
+      for (const kf of byFrame.get(f) ?? []) {
+        if (kf.down) screen.keyPressed(kf.code);
+        else screen.keyReleased(kf.code);
+      }
+      if (f >= scn.policyStart) {
+        const want = scn.policy({ screen, frame: f, game: scn.game });
+        if (want != null) {
+          if (want >= 0) {
+            screen.keyPressed(want);
+            recorded.push({ frame: f, code: want, down: true });
+          } else {
+            screen.keyReleased(5);
+            recorded.push({ frame: f, code: 5, down: false });
+          }
         }
       }
+      screen.paint(g);
+      states.add(getState());
+      clock.advance(frameStepMs); // paint 之后推进（与 driver/replay/oracle 同语义）
     }
-    screen.paint(g);
-    states.add(getState());
+    return { recorded, statesSeen: [...states].sort((a, b) => a - b), finalState: getState(), frames: scn.frames };
+  } finally {
+    clock.uninstall();
   }
-  return { recorded, statesSeen: [...states].sort((a, b) => a - b), finalState: getState(), frames: scn.frames };
 }
 
 /** 序列化成 jvm-oracle / dump-ops 同格式脚本文本。 */
