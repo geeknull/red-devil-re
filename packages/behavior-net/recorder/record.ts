@@ -17,6 +17,7 @@ import { LevelScene } from "@red-devil/game2/src/LevelScene.ts";
 import { configureScreen, Graphics, Image } from "@red-devil/j2me-shim";
 import { installDomStubs } from "../src/fake-dom.ts";
 import { installCanvasFactory } from "../src/fake-canvas.ts";
+import { installClock } from "../src/fake-clock.ts";
 import { loadGameFixtures } from "../src/fixtures.ts";
 
 export type KF = { frame: number; code: number; down: boolean };
@@ -125,38 +126,54 @@ export interface RecordResult {
   frames: number;
 }
 
-/** 跑 scenario，录键位。fixed 前缀原样录入，policyStart 起由 policy 决策并录入。 */
+/**
+ * 跑 scenario，录键位。fixed 前缀原样录入，policyStart 起由 policy 决策并录入。
+ *
+ * ⚠️ **必须装虚拟时钟并逐帧推进**（与 driver.ts / replay-states.ts / oracle 一致）：
+ * shim 唯一嵌进游戏逻辑的非确定源是 `Date.now()`（见 fake-clock.ts）。不装时钟则跑真墙钟，
+ * `levelStartTime = Date.now()`（game2 GameCanvas:435 / game1 同构）会取到真实 epoch 毫秒 → 不可复现，
+ * 且与真适配器/oracle 分歧（实测 game2 133 帧起 levelStartTime 分歧，gameplay 字段全同）。
+ * 步长独立取自原版字节码：game1=100ms（`<init> ldc2_w 100l→W:J`）、game2=80ms（`run() ldc2_w 80l` 紧邻 sleep）；
+ * 恰与两侧 adapter 的 frameStepMs 相同（来源独立、结论吻合）。**paint 之后**才 advance（port advance-after-paint 语义）。
+ */
 export async function record(scn: Scenario): Promise<RecordResult> {
-  const { screen, g, getState } = await setupSim(scn.game, scn.saveCsv, scn.seed);
-  const byFrame = new Map<number, KF[]>();
-  for (const kf of scn.fixed) {
-    const arr = byFrame.get(kf.frame) ?? [];
-    arr.push(kf);
-    byFrame.set(kf.frame, arr);
-  }
-  const recorded: KF[] = [...scn.fixed];
-  const states = new Set<number>();
-  for (let f = 0; f < scn.frames; f++) {
-    for (const kf of byFrame.get(f) ?? []) {
-      if (kf.down) screen.keyPressed(kf.code);
-      else screen.keyReleased(kf.code);
+  const clock = installClock(0); // 构造 setupSim 前就装好（与 driver 一致：clock 先于 harness 构造）
+  try {
+    const { screen, g, getState } = await setupSim(scn.game, scn.saveCsv, scn.seed);
+    const frameStepMs = scn.game === 1 ? 100 : 80;
+    const byFrame = new Map<number, KF[]>();
+    for (const kf of scn.fixed) {
+      const arr = byFrame.get(kf.frame) ?? [];
+      arr.push(kf);
+      byFrame.set(kf.frame, arr);
     }
-    if (f >= scn.policyStart) {
-      const want = scn.policy({ screen, frame: f, game: scn.game });
-      if (want != null) {
-        if (want >= 0) {
-          screen.keyPressed(want);
-          recorded.push({ frame: f, code: want, down: true });
-        } else {
-          screen.keyReleased(5);
-          recorded.push({ frame: f, code: 5, down: false });
+    const recorded: KF[] = [...scn.fixed];
+    const states = new Set<number>();
+    for (let f = 0; f < scn.frames; f++) {
+      for (const kf of byFrame.get(f) ?? []) {
+        if (kf.down) screen.keyPressed(kf.code);
+        else screen.keyReleased(kf.code);
+      }
+      if (f >= scn.policyStart) {
+        const want = scn.policy({ screen, frame: f, game: scn.game });
+        if (want != null) {
+          if (want >= 0) {
+            screen.keyPressed(want);
+            recorded.push({ frame: f, code: want, down: true });
+          } else {
+            screen.keyReleased(5);
+            recorded.push({ frame: f, code: 5, down: false });
+          }
         }
       }
+      screen.paint(g);
+      states.add(getState());
+      clock.advance(frameStepMs); // paint 之后推进（与 driver/replay/oracle 同语义）
     }
-    screen.paint(g);
-    states.add(getState());
+    return { recorded, statesSeen: [...states].sort((a, b) => a - b), finalState: getState(), frames: scn.frames };
+  } finally {
+    clock.uninstall();
   }
-  return { recorded, statesSeen: [...states].sort((a, b) => a - b), finalState: getState(), frames: scn.frames };
 }
 
 /** 序列化成 jvm-oracle / dump-ops 同格式脚本文本。 */
