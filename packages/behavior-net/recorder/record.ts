@@ -73,7 +73,12 @@ function injectSave(game: 1 | 2, saveCsv: string): void {
   };
 }
 
-/** 静态重置（否则第 2 次 new GameMIDlet 玩家不生成）。 */
+/**
+ * game1 静态重置（单进程内多次 new GameMIDlet 时玩家不生成的规避；已随 game1-beat-level3 验证）。
+ * ⚠️ game2 **不做**静态重置：实测把 `LevelScene.cutsceneState` 等清空会破坏开场跳伞过场的初始化
+ * （玩家卡 reserved=4、cutsceneState=undefined）。game2 与真 game2-adapter 一样**依赖新进程的原生初始化**。
+ * 若将来要 game2 单进程批量重放，须先**对拍真适配器标定一份正确的 game2 重置**（TODO），别再照 game1 猜。
+ */
 export function resetStatics(game: 1 | 2): void {
   if (game === 1) {
     LevelLoader.actorPools = [];
@@ -81,18 +86,11 @@ export function resetStatics(game: 1 | 2): void {
     LevelLoader.spriteDefPool = [];
     LevelLoader.spriteDefRetained = [];
     (LevelLoader as any).tileMap = null;
-  } else {
-    (LevelScene as any).actorDefs = [];
-    (LevelScene as any).actorDefLoaded = [];
-    (LevelScene as any).actorPool = [];
-    (LevelScene as any).activeActors = [];
-    (LevelScene as any).drawList = [];
-    (LevelScene as any).camera = null;
-    (LevelScene as any).cutsceneState = null;
   }
+  // game2: 有意 no-op（见上）。
 }
 
-async function setupSim(game: 1 | 2, saveCsv: string, seed: number): Promise<{ screen: any; g: Graphics; getState: () => number }> {
+export async function setupSim(game: 1 | 2, saveCsv: string, seed: number): Promise<{ screen: any; g: Graphics; getState: () => number }> {
   injectSave(game, saveCsv);
   installDomStubs();
   installCanvasFactory();
@@ -108,7 +106,7 @@ async function setupSim(game: 1 | 2, saveCsv: string, seed: number): Promise<{ s
     return { screen, g: new Graphics(nullCtx, 176, 208), getState: () => screen.state };
   } else {
     if (!g2FixturesLoaded) { await loadGameFixtures(2); g2FixturesLoaded = true; }
-    resetStatics(2);
+    resetStatics(2); // game2: no-op（见 resetStatics 注释）；依赖新进程原生初始化
     configureScreen({ width: 176, height: 204, scale: 1, screen: { width: 0, height: 0 } as any });
     Image.resetOracleIds();
     const midlet = new Game2Midlet();
